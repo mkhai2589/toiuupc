@@ -14,28 +14,26 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
 
 $ProgressPreference = 'SilentlyContinue'
 
-# Kiểm tra mode: Local hay Remote
-$scriptRoot = $PSScriptRoot
 if ($scriptRoot) {
-    # Local: dot-source functions
+    # Local mode
     . "$scriptRoot\functions\show-pmklogo.ps1"
     . "$scriptRoot\functions\utils.ps1"
     . "$scriptRoot\functions\install-apps.ps1"
     . "$scriptRoot\functions\dns-management.ps1"
     . "$scriptRoot\functions\tweaks.ps1"
 } else {
-    # Remote fallback: Hardcode essential functions
+    # Remote mode: Hardcode minimum functions + console menu
     function Show-PMKLogo {
-        $logo = @"
+$logo = @"
 ╔══════════════════════════════════════════════════════════════════════════╗
-║ ██████╗ ███╗ ███╗██╗ ██╗ ████████╗ ██████╗ ██████╗ ██╗ ║
-║ ██╔══██╗████╗ ████║██║ ██╔╝ ╚══██╔══╝██╔═══██╗██╔═══██╗██║ ║
-║ ██████╔╝██╔████╔██║█████╔╝ ██║ ██║ ██║██║ ██║██║ ║
-║ ██╔═══╝ ██║╚██╔╝██║██╔═██╗ ██║ ██║ ██║██║ ██║██║ ║
-║ ██║ ██║ ╚═╝ ██║██║ ██╗ ██║ ╚██████╔╝╚██████╔╝███████╗ ║
-║ ╚═╝ ╚═╝ ╚═╝╚═╝ ╚═╝ ╚═╝ ╚═════╝ ╚═════╝ ╚══════╝ ║
-║ PMK Toolbox - Tối ưu Windows ║
-║ Phiên bản: 3.0 | Windows 10/11 ║
+║   ██████╗ ███╗   ███╗██╗  ██╗      ████████╗ ██████╗  ██████╗ ██╗       ║
+║   ██╔══██╗████╗ ████║██║ ██╔╝      ╚══██╔══╝██╔═══██╗██╔═══██╗██║       ║
+║   ██████╔╝██╔████╔██║█████╔╝          ██║   ██║   ██║██║   ██║██║       ║
+║   ██╔═══╝ ██║╚██╔╝██║██╔═██╗          ██║   ██║   ██║██║   ██║██║       ║
+║   ██║     ██║ ╚═╝ ██║██║  ██╗         ██║   ╚██████╔╝╚██████╔╝███████╗  ║
+║   ╚═╝     ╚═╝     ╚═╝╚═╝  ╚═╝         ╚═╝    ╚═════╝  ╚═════╝ ╚══════╝  ║
+║                        PMK Toolbox - Tối ưu Windows                      ║
+║                    Phiên bản: 2.3 | Windows 10/11                        ║
 ╚══════════════════════════════════════════════════════════════════════════╝
 "@
         Write-Host $logo -ForegroundColor Cyan
