@@ -11,24 +11,21 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
 
 $ProgressPreference = 'SilentlyContinue'
 
-# Nạp tất cả functions
+# Nạp functions (sửa path: loại bỏ dấu \ thừa ở đầu)
 $scriptRoot = $PSScriptRoot
 . "$scriptRoot\functions\Show-PMKLogo.ps1"
 . "$scriptRoot\functions\utils.ps1"
 . "$scriptRoot\functions\install-apps.ps1"
 . "$scriptRoot\functions\dns-management.ps1"
 . "$scriptRoot\functions\tweaks.ps1"
-# Thêm các file functions khác khi tạo
 
 Show-PMKLogo
 
 Write-Host "`nPMK Toolbox v3.0 - Modular Edition" -ForegroundColor Cyan
 Write-Host "Đang tải cấu hình..." -ForegroundColor Yellow
 
-# Ví dụ gọi hàm (sẽ thay bằng menu/GUI sau)
+# Test gọi hàm (sẽ mở rộng thành menu sau)
 # Invoke-TweaksPerformance
-# Install-SelectedApps
-# Set-DNSServer -Profile "Cloudflare"
 
 Write-Host "`nHoàn tất khởi tạo. Chọn chức năng qua menu (sắp tới) hoặc chạy trực tiếp hàm." -ForegroundColor Green
 Pause
