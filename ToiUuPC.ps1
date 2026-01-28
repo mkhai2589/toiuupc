@@ -15,7 +15,7 @@ function Show-PMKLogo {
     ║   ██║     ██║ ╚═╝ ██║██║  ██╗             ║
     ║   ╚═╝     ╚═╝     ╚═╝╚═╝  ╚═╝             ║
     ║                                            ║
-    ║               PMK - Thuthuatwiki           ║
+    ║               PMK - MINHKHAI               ║
     ║     Tối ưu Windows - PMK Toolbox           ║
     ╚════════════════════════════════════════════╝
 
