@@ -33,37 +33,28 @@ Write-Host "`nĐang tải PMK Toolbox..." -ForegroundColor Yellow
 
 # Kiểm tra và cài đặt các module cần thiết
 function Install-RequiredModules {
-    $modules = @("BurntToast")
-    foreach ($module in $modules) {
-        if (-not (Get-Module -ListAvailable -Name $module)) {
-            Write-Host "Cài đặt module $module..." -ForegroundColor Yellow
-            Install-Module -Name $module -Force -AllowClobber -Scope CurrentUser
+    try {
+        if (-not (Get-Module -ListAvailable -Name "BurntToast")) {
+            Write-Host "Cài đặt module BurntToast..." -ForegroundColor Yellow
+            Install-Module -Name "BurntToast" -Force -AllowClobber -Scope CurrentUser -ErrorAction SilentlyContinue
         }
+    } catch {
+        Write-Host "Không thể cài đặt module. Bỏ qua..." -ForegroundColor Yellow
     }
 }
 
 # Kiểm tra winget
 function Test-Winget {
     try {
-        $wingetCheck = winget --version
-        return $true
-    } catch {
-        Write-Host "Winget không được cài đặt. Đang cố gắng cài đặt..." -ForegroundColor Red
-        
-        # Tự động cài winget từ Microsoft Store
-        $wingetUrl = "https://github.com/microsoft/winget-cli/releases/latest/download/Microsoft.DesktopAppInstaller_8wekyb3d8bbwe.msixbundle"
-        $installerPath = "$env:TEMP\winget.msixbundle"
-        
-        try {
-            Invoke-WebRequest -Uri $wingetUrl -OutFile $installerPath
-            Add-AppxPackage -Path $installerPath
-            Remove-Item $installerPath
-            Write-Host "Đã cài đặt Winget thành công!" -ForegroundColor Green
+        $wingetCheck = winget --version 2>&1
+        if ($LASTEXITCODE -eq 0) {
             return $true
-        } catch {
-            Write-Host "Không thể tự động cài Winget. Vui lòng cài đặt thủ công từ Microsoft Store." -ForegroundColor Red
-            return $false
+        } else {
+            throw "Winget not found"
         }
+    } catch {
+        Write-Host "Winget không được cài đặt. Tính năng cài đặt ứng dụng bị hạn chế." -ForegroundColor Yellow
+        return $false
     }
 }
 
@@ -249,7 +240,7 @@ $Tweaks = @{
         }}
         @{Name="Thay đổi hình nền (Màu đen)"; Action={
             try {
-                $code = @'
+                Add-Type @"
 using System;
 using System.Runtime.InteropServices;
 public class Wallpaper {
@@ -259,14 +250,38 @@ public class Wallpaper {
         SystemParametersInfo(20, 0, path, 0x01 | 0x02);
     }
 }
-'@
-                Add-Type -TypeDefinition $code
-                $blackWallpaper = "$env:TEMP\black.bmp"
-                [byte[]]$blackBmp = @(0x42,0x4D,0x36,0x00,0x0C,0x00,0x00,0x00,0x00,0x00,0x36,0x00,0x00,0x00,0x28,0x00,
-                                      0x00,0x00,0x01,0x00,0x00,0x00,0x01,0x00,0x00,0x00,0x01,0x00,0x18,0x00,0x00,0x00,
-                                      0x00,0x00,0x00,0x00,0x0C,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-                                      0x00,0x00,0x00,0x00,0x00,0x00)
-                [System.IO.File]::WriteAllBytes($blackWallpaper, $blackBmp)
+"@
+                $blackWallpaper = "$env:TEMP\pmk_black.bmp"
+                # Tạo file bitmap đen đơn giản
+                $width = 1920
+                $height = 1080
+                
+                # Header file BMP
+                $headerSize = 54
+                $fileSize = $headerSize + ($width * $height * 3)
+                
+                # Tạo byte array
+                [byte[]]$bmpData = New-Object byte[] $fileSize
+                
+                # File header (14 bytes)
+                $bmpData[0] = 0x42  # 'B'
+                $bmpData[1] = 0x4D  # 'M'
+                [BitConverter]::GetBytes($fileSize).CopyTo($bmpData, 2)
+                [BitConverter]::GetBytes([int32]54).CopyTo($bmpData, 10)  # Offset to pixel data
+                
+                # DIB header (40 bytes)
+                [BitConverter]::GetBytes([int32]40).CopyTo($bmpData, 14)  # Header size
+                [BitConverter]::GetBytes([int32]$width).CopyTo($bmpData, 18)
+                [BitConverter]::GetBytes([int32]$height).CopyTo($bmpData, 22)
+                [BitConverter]::GetBytes([int16]1).CopyTo($bmpData, 26)   # Planes
+                [BitConverter]::GetBytes([int16]24).CopyTo($bmpData, 28)  # Bits per pixel
+                
+                # Pixel data (tất cả pixel đen)
+                for ($i = 54; $i -lt $bmpData.Length; $i++) {
+                    $bmpData[$i] = 0x00
+                }
+                
+                [System.IO.File]::WriteAllBytes($blackWallpaper, $bmpData)
                 [Wallpaper]::SetWallpaper($blackWallpaper)
                 return "✅ Đã đổi hình nền màu đen"
             } catch { return "❌ Lỗi: $_" }
@@ -277,10 +292,10 @@ public class Wallpaper {
         @{Name="Xóa OneDrive"; Action={
             try {
                 if (Test-Path "$env:SystemRoot\SysWOW64\OneDriveSetup.exe") {
-                    Start-Process -FilePath "$env:SystemRoot\SysWOW64\OneDriveSetup.exe" -ArgumentList "/uninstall" -Wait
+                    Start-Process -FilePath "$env:SystemRoot\SysWOW64\OneDriveSetup.exe" -ArgumentList "/uninstall" -Wait -NoNewWindow
                 }
                 if (Test-Path "$env:SystemRoot\System32\OneDriveSetup.exe") {
-                    Start-Process -FilePath "$env:SystemRoot\System32\OneDriveSetup.exe" -ArgumentList "/uninstall" -Wait
+                    Start-Process -FilePath "$env:SystemRoot\System32\OneDriveSetup.exe" -ArgumentList "/uninstall" -Wait -NoNewWindow
                 }
                 Get-Process -Name "OneDrive" -ErrorAction SilentlyContinue | Stop-Process -Force
                 return "✅ Đã xóa OneDrive"
@@ -288,9 +303,9 @@ public class Wallpaper {
         }}
         @{Name="Xóa Windows Bloatware"; Action={
             $bloatApps = @(
-                "*3DBuilder*", "*Bing*", "*Clipchamp*", "*CommunicationsApps*",
+                "*3DBuilder*", "*Bing*", "*Clipchamp*",
                 "*Cortana*", "*FeedbackHub*", "*GetHelp*", "*GetStarted*",
-                "*MicrosoftSolitaireCollection*", "*MixedReality*", "*Office*",
+                "*MicrosoftSolitaireCollection*", "*MixedReality*",
                 "*OneConnect*", "*People*", "*PowerAutomate*", "*Skype*",
                 "*SoundRecorder*", "*StickyNotes*", "*Tips*", "*Wallet*",
                 "*WebExperiences*", "*WindowsAlarms*", "*WindowsCamera*",
@@ -407,6 +422,9 @@ function Create-MainWindow {
     $InstallStack = New-Object Windows.Controls.StackPanel
     $InstallStack.Margin = "10"
     
+    # Biến lưu trữ ứng dụng đã chọn
+    $SelectedApps = @{}
+    
     # Thêm từng danh mục ứng dụng
     foreach ($category in $Apps.Keys) {
         $CategoryBorder = New-Object Windows.Controls.Border
@@ -444,6 +462,14 @@ function Create-MainWindow {
             $AppBorder.Background = [System.Windows.Media.Brushes]::WhiteSmoke
             $AppBorder.Tag = $app.Winget
             
+            # Lưu trữ thông tin app
+            $appInfo = @{
+                Name = $app.Name
+                Winget = $app.Winget
+                Icon = $app.Icon
+                IsSelected = $false
+            }
+            
             $AppStack = New-Object Windows.Controls.StackPanel
             $AppStack.Orientation = "Horizontal"
             $AppStack.Margin = "10"
@@ -466,10 +492,16 @@ function Create-MainWindow {
             # Thêm sự kiện click
             $AppBorder.Add_MouseLeftButtonDown({
                 $border = $_.Source
-                if ($border.Background -eq [System.Windows.Media.Brushes]::WhiteSmoke) {
-                    $border.Background = [System.Windows.Media.Brushes]::LightGreen
-                } else {
+                $appId = $border.Tag
+                
+                if ($SelectedApps.ContainsKey($appId)) {
+                    # Bỏ chọn
                     $border.Background = [System.Windows.Media.Brushes]::WhiteSmoke
+                    $SelectedApps.Remove($appId)
+                } else {
+                    # Chọn
+                    $border.Background = [System.Windows.Media.Brushes]::LightGreen
+                    $SelectedApps[$appId] = $true
                 }
             })
             
@@ -497,23 +529,14 @@ function Create-MainWindow {
     $InstallButton.Cursor = "Hand"
     
     $InstallButton.Add_Click({
-        $selectedApps = @()
-        foreach ($border in $InstallStack.Children | Where-Object {$_ -is [Windows.Controls.Border]}) {
-            foreach ($child in (($border.Child as [Windows.Controls.StackPanel]).Children[1] as [Windows.Controls.WrapPanel]).Children) {
-                if (($child.Background -eq [System.Windows.Media.Brushes]::LightGreen) -or 
-                    ($child.Background.ToString() -eq "#FF90EE90")) {
-                    $selectedApps += $child.Tag
-                }
-            }
-        }
-        
-        if ($selectedApps.Count -eq 0) {
+        if ($SelectedApps.Count -eq 0) {
             [System.Windows.MessageBox]::Show("Vui lòng chọn ít nhất một ứng dụng!", "Thông báo", "OK", "Information")
             return
         }
         
+        $appList = $SelectedApps.Keys -join "`n"
         $result = [System.Windows.MessageBox]::Show(
-            "Bạn muốn cài đặt $($selectedApps.Count) ứng dụng?`n`n$($selectedApps -join "`n")",
+            "Bạn muốn cài đặt $($SelectedApps.Count) ứng dụng?`n`n$appList",
             "Xác nhận cài đặt",
             "YesNo",
             "Question"
@@ -524,15 +547,16 @@ function Create-MainWindow {
             $InstallButton.Content = "⏳ ĐANG CÀI ĐẶT..."
             
             $progress = 0
-            $total = $selectedApps.Count
+            $total = $SelectedApps.Count
             
-            foreach ($appId in $selectedApps) {
+            foreach ($appId in $SelectedApps.Keys) {
                 $progress++
                 $percentage = [math]::Round(($progress / $total) * 100)
                 $InstallButton.Content = "⏳ ĐANG CÀI ĐẶT... $percentage%"
                 
                 try {
-                    winget install --id $appId --accept-package-agreements --accept-source-agreements --silent
+                    Write-Host "Cài đặt: $appId..." -ForegroundColor Yellow
+                    Start-Process -FilePath "winget" -ArgumentList "install --id $appId --accept-package-agreements --accept-source-agreements --silent" -Wait -NoNewWindow
                     Write-Host "✅ Đã cài đặt: $appId" -ForegroundColor Green
                 } catch {
                     Write-Host "❌ Lỗi khi cài $appId: $_" -ForegroundColor Red
@@ -544,14 +568,20 @@ function Create-MainWindow {
             [System.Windows.MessageBox]::Show("Đã cài đặt xong $total ứng dụng!", "Thành công", "OK", "Information")
             
             # Reset button sau 3 giây
-            Start-Sleep -Seconds 3
-            $InstallButton.Content = "🚀 CÀI ĐẶT ỨNG DỤNG ĐÃ CHỌN"
-            $InstallButton.Background = [System.Windows.Media.LinearGradientBrush]::new(
-                [System.Windows.Media.Color]::FromRgb(46, 204, 113),
-                [System.Windows.Media.Color]::FromRgb(39, 174, 96),
-                90
-            )
-            $InstallButton.IsEnabled = $true
+            $timer = New-Object System.Windows.Forms.Timer
+            $timer.Interval = 3000
+            $timer.Add_Tick({
+                $InstallButton.Content = "🚀 CÀI ĐẶT ỨNG DỤNG ĐÃ CHỌN"
+                $InstallButton.Background = [System.Windows.Media.LinearGradientBrush]::new(
+                    [System.Windows.Media.Color]::FromRgb(46, 204, 113),
+                    [System.Windows.Media.Color]::FromRgb(39, 174, 96),
+                    90
+                )
+                $InstallButton.IsEnabled = $true
+                $timer.Stop()
+                $timer.Dispose()
+            })
+            $timer.Start()
         }
     })
     
@@ -570,6 +600,9 @@ function Create-MainWindow {
     
     $TweakStack = New-Object Windows.Controls.StackPanel
     $TweakStack.Margin = "10"
+    
+    # Biến lưu trữ tweaks đã chọn
+    $SelectedTweaks = @{}
     
     # Tạo các nhóm tweak
     foreach ($category in $Tweaks.Keys) {
@@ -598,8 +631,19 @@ function Create-MainWindow {
             $CheckBox.Content = $tweak.Name
             $CheckBox.FontSize = 14
             $CheckBox.Margin = "20,5,10,5"
-            $CheckBox.Tag = $tweak.Action
+            $CheckBox.Tag = $tweak
             $CheckBox.IsChecked = $false
+            
+            # Lưu sự kiện thay đổi
+            $CheckBox.Add_Checked({
+                $cb = $_.Source
+                $SelectedTweaks[$cb.Content] = $cb.Tag
+            })
+            
+            $CheckBox.Add_Unchecked({
+                $cb = $_.Source
+                $SelectedTweaks.Remove($cb.Content)
+            })
             
             $CategoryStack.Children.Add($CheckBox) | Out-Null
         }
@@ -624,25 +668,14 @@ function Create-MainWindow {
     $ExecuteTweaksButton.Cursor = "Hand"
     
     $ExecuteTweaksButton.Add_Click({
-        $selectedTweaks = @()
-        foreach ($border in $TweakStack.Children | Where-Object {$_ -is [Windows.Controls.Border]}) {
-            foreach ($checkbox in (($border.Child as [Windows.Controls.StackPanel]).Children | Where-Object {$_ -is [Windows.Controls.CheckBox]})) {
-                if ($checkbox.IsChecked -eq $true) {
-                    $selectedTweaks += @{
-                        Name = $checkbox.Content
-                        Action = $checkbox.Tag
-                    }
-                }
-            }
-        }
-        
-        if ($selectedTweaks.Count -eq 0) {
+        if ($SelectedTweaks.Count -eq 0) {
             [System.Windows.MessageBox]::Show("Vui lòng chọn ít nhất một tweak!", "Thông báo", "OK", "Information")
             return
         }
         
+        $tweakList = $SelectedTweaks.Keys -join "`n"
         $result = [System.Windows.MessageBox]::Show(
-            "Bạn có chắc muốn áp dụng $($selectedTweaks.Count) tweak?`n`nHệ thống sẽ được tối ưu theo lựa chọn của bạn.",
+            "Bạn có chắc muốn áp dụng $($SelectedTweaks.Count) tweak?`n`n$tweakList",
             "Xác nhận áp dụng tweak",
             "YesNo",
             "Warning"
@@ -654,21 +687,22 @@ function Create-MainWindow {
             
             $results = @()
             $progress = 0
-            $total = $selectedTweaks.Count
+            $total = $SelectedTweaks.Count
             
-            foreach ($tweak in $selectedTweaks) {
+            foreach ($tweakName in $SelectedTweaks.Keys) {
+                $tweak = $SelectedTweaks[$tweakName]
                 $progress++
                 $percentage = [math]::Round(($progress / $total) * 100)
                 $ExecuteTweaksButton.Content = "⏳ ĐANG ÁP DỤNG... $percentage%"
                 
-                Write-Host "`n[$progress/$total] $($tweak.Name)..." -ForegroundColor Yellow
+                Write-Host "`n[$progress/$total] $tweakName..." -ForegroundColor Yellow
                 
                 try {
                     $result = & $tweak.Action
-                    $results += "✅ $($tweak.Name): $result"
+                    $results += "✅ $tweakName: $result"
                     Write-Host "   $result" -ForegroundColor Green
                 } catch {
-                    $results += "❌ $($tweak.Name): Lỗi - $_"
+                    $results += "❌ $tweakName: Lỗi - $_"
                     Write-Host "   ❌ Lỗi: $_" -ForegroundColor Red
                 }
             }
@@ -696,14 +730,20 @@ function Create-MainWindow {
             $ExecuteTweaksButton.Background = [System.Windows.Media.Brushes]::Green
             
             # Reset button sau 3 giây
-            Start-Sleep -Seconds 3
-            $ExecuteTweaksButton.Content = "⚡ ÁP DỤNG TWEAKS ĐÃ CHỌN"
-            $ExecuteTweaksButton.Background = [System.Windows.Media.LinearGradientBrush]::new(
-                [System.Windows.Media.Color]::FromRgb(52, 152, 219),
-                [System.Windows.Media.Color]::FromRgb(41, 128, 185),
-                90
-            )
-            $ExecuteTweaksButton.IsEnabled = $true
+            $timer = New-Object System.Windows.Forms.Timer
+            $timer.Interval = 3000
+            $timer.Add_Tick({
+                $ExecuteTweaksButton.Content = "⚡ ÁP DỤNG TWEAKS ĐÃ CHỌN"
+                $ExecuteTweaksButton.Background = [System.Windows.Media.LinearGradientBrush]::new(
+                    [System.Windows.Media.Color]::FromRgb(52, 152, 219),
+                    [System.Windows.Media.Color]::FromRgb(41, 128, 185),
+                    90
+                )
+                $ExecuteTweaksButton.IsEnabled = $true
+                $timer.Stop()
+                $timer.Dispose()
+            })
+            $timer.Start()
         }
     })
     
@@ -721,13 +761,15 @@ function Create-MainWindow {
     $InfoStack.Margin = "20"
     
     # Lấy thông tin hệ thống
-    $os = Get-CimInstance -ClassName Win32_OperatingSystem
-    $cpu = Get-CimInstance -ClassName Win32_Processor
-    $ram = Get-CimInstance -ClassName Win32_ComputerSystem
-    $gpu = Get-CimInstance -ClassName Win32_VideoController
-    $disk = Get-CimInstance -ClassName Win32_LogicalDisk -Filter "DeviceID='C:'"
-    
-    $systemInfo = @"
+    function Get-SystemInfoText {
+        try {
+            $os = Get-CimInstance -ClassName Win32_OperatingSystem
+            $cpu = Get-CimInstance -ClassName Win32_Processor
+            $ram = Get-CimInstance -ClassName Win32_ComputerSystem
+            $gpu = Get-CimInstance -ClassName Win32_VideoController
+            $disk = Get-CimInstance -ClassName Win32_LogicalDisk -Filter "DeviceID='C:'"
+            
+            $systemInfo = @"
 ══════════════════════════════════════════════════════════════════════
                   THÔNG TIN HỆ THỐNG
 
@@ -760,9 +802,14 @@ function Create-MainWindow {
 
 ══════════════════════════════════════════════════════════════════════
 "@
+            return $systemInfo
+        } catch {
+            return "Lỗi khi lấy thông tin hệ thống: $_"
+        }
+    }
     
     $InfoText = New-Object Windows.Controls.TextBox
-    $InfoText.Text = $systemInfo
+    $InfoText.Text = Get-SystemInfoText
     $InfoText.FontFamily = "Consolas"
     $InfoText.FontSize = 12
     $InfoText.IsReadOnly = $true
@@ -782,48 +829,7 @@ function Create-MainWindow {
     
     $RefreshButton.Add_Click({
         $InfoText.Text = "Đang cập nhật thông tin hệ thống..."
-        Start-Sleep -Seconds 1
-        # Tái tạo thông tin hệ thống
-        $os = Get-CimInstance -ClassName Win32_OperatingSystem
-        $cpu = Get-CimInstance -ClassName Win32_Processor
-        $ram = Get-CimInstance -ClassName Win32_ComputerSystem
-        $gpu = Get-CimInstance -ClassName Win32_VideoController
-        $disk = Get-CimInstance -ClassName Win32_LogicalDisk -Filter "DeviceID='C:'"
-        
-        $systemInfo = @"
-══════════════════════════════════════════════════════════════════════
-                  THÔNG TIN HỆ THỐNG (Cập nhật: $(Get-Date -Format 'HH:mm:ss'))
-
-📊 Hệ điều hành:
-   • Tên: $($os.Caption)
-   • Phiên bản: $($os.Version)
-   • Build: $($os.BuildNumber)
-   • Architecture: $($os.OSArchitecture)
-
-⚡ CPU:
-   • Model: $($cpu.Name)
-   • Số nhân: $($cpu.NumberOfCores)
-   • Luồng: $($cpu.NumberOfLogicalProcessors)
-   • Tốc độ: $([math]::Round($cpu.MaxClockSpeed / 1000, 2)) GHz
-
-💾 RAM:
-   • Tổng: $([math]::Round($ram.TotalPhysicalMemory / 1GB, 2)) GB
-   • Sử dụng: $([math]::Round(($ram.TotalPhysicalMemory - $os.FreePhysicalMemory) / 1GB, 2)) GB
-   • Còn trống: $([math]::Round($os.FreePhysicalMemory / 1GB, 2)) GB
-
-🎮 GPU:
-   • Card màn hình: $($gpu.Name)
-   • Bộ nhớ: $([math]::Round($gpu.AdapterRAM / 1GB, 2)) GB
-   • Độ phân giải: $($gpu.CurrentHorizontalResolution)x$($gpu.CurrentVerticalResolution)
-
-💿 Ổ đĩa (C:):
-   • Tổng dung lượng: $([math]::Round($disk.Size / 1GB, 2)) GB
-   • Đã sử dụng: $([math]::Round(($disk.Size - $disk.FreeSpace) / 1GB, 2)) GB
-   • Còn trống: $([math]::Round($disk.FreeSpace / 1GB, 2)) GB
-
-══════════════════════════════════════════════════════════════════════
-"@
-        $InfoText.Text = $systemInfo
+        $InfoText.Text = Get-SystemInfoText
     })
     
     $InfoStack.Children.Add($InfoText) | Out-Null
@@ -898,15 +904,13 @@ function Create-MainWindow {
 Write-Host "`nĐang khởi tạo PMK Toolbox..." -ForegroundColor Yellow
 
 # Kiểm tra winget
-if (-not (Test-Winget)) {
-    Write-Host "Cảnh báo: Winget không được cài đặt. Tính năng cài đặt ứng dụng có thể không hoạt động." -ForegroundColor Yellow
-}
+$hasWinget = Test-Winget
 
 # Cài đặt module cần thiết
 try {
     Install-RequiredModules
 } catch {
-    Write-Host "Lỗi khi cài đặt module: $_" -ForegroundColor Red
+    Write-Host "Không thể cài đặt module: $_" -ForegroundColor Yellow
 }
 
 # Hiển thị GUI
