@@ -1,4 +1,4 @@
-# ToiUuPC.ps1 - PMK Toolbox v3.0 (Online/Remote Optimized Only)
+# ToiUuPC.ps1 - PMK Toolbox v3.0 
 # Run: irm https://raw.githubusercontent.com/mkhai2589/toiuupc/main/ToiUuPC.ps1 | iex
 # Author: Thuthuatwiki (PMK) - Enhanced for online use
 # Version: 3.0 - Full console menu, dark theme, no local/folder dependency
@@ -14,7 +14,7 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
 
 $ProgressPreference = 'SilentlyContinue'
 
-# Dark theme console đẹp
+# Dark theme
 $Host.UI.RawUI.BackgroundColor = "Black"
 $Host.UI.RawUI.ForegroundColor = "White"
 Clear-Host
@@ -39,12 +39,7 @@ Write-Host "Chạy online: Console menu đầy đủ" -ForegroundColor Yellow
 
 # Hàm cơ bản hardcode
 function Test-Winget {
-    try {
-        winget --version | Out-Null
-        return $true
-    } catch {
-        return $false
-    }
+    try { winget --version | Out-Null; return $true } catch { return $false }
 }
 
 function Install-AppQuick {
