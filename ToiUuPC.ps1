@@ -153,15 +153,15 @@ $Tweaks = @{
                     Enable-ComputerRestore -Drive "C:\"
                 }
                 Checkpoint-Computer -Description "PMK Toolbox - $(Get-Date -Format 'dd/MM/yyyy HH:mm')" -RestorePointType MODIFY_SETTINGS
-                return "✅ Đã tạo điểm khôi phục"
-            } catch { return "❌ Lỗi: $_" }
+                return "Đã tạo điểm khôi phục"
+            } catch { return "Lỗi: $_" }
         }}
         @{Name="Xóa file tạm"; Action={
             try {
                 Get-ChildItem -Path "$env:TEMP", "C:\Windows\Temp" -Recurse -ErrorAction SilentlyContinue | Remove-Item -Force -Recurse -ErrorAction SilentlyContinue
                 Cleanmgr /sagerun:1 | Out-Null
-                return "✅ Đã xóa file tạm"
-            } catch { return "❌ Lỗi: $_" }
+                return "Đã xóa file tạm"
+            } catch { return "Lỗi: $_" }
         }}
         @{Name="Vô hiệu hóa Telemetry"; Action={
             $results = @()
@@ -186,8 +186,8 @@ $Tweaks = @{
             try {
                 powercfg -setactive 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c
                 powercfg -h off
-                return "✅ Đã áp dụng chế độ hiệu suất cao"
-            } catch { return "❌ Lỗi: $_" }
+                return "Đã áp dụng chế độ hiệu suất cao"
+            } catch { return "Lỗi: $_" }
         }}
     )
     
@@ -233,9 +233,9 @@ $Tweaks = @{
         }}
         @{Name="Tắt hiệu ứng trong suốt"; Action={
             return if (Set-RegistryTweak -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "EnableTransparency" -Value 0) {
-                "✅ Đã tắt hiệu ứng trong suốt"
+                "Đã tắt hiệu ứng trong suốt"
             } else {
-                "❌ Lỗi khi tắt hiệu ứng"
+                "Lỗi khi tắt hiệu ứng"
             }
         }}
         @{Name="Thay đổi hình nền (Màu đen)"; Action={
@@ -252,39 +252,33 @@ public class Wallpaper {
 }
 "@
                 $blackWallpaper = "$env:TEMP\pmk_black.bmp"
-                # Tạo file bitmap đen đơn giản
                 $width = 1920
                 $height = 1080
                 
-                # Header file BMP
                 $headerSize = 54
                 $fileSize = $headerSize + ($width * $height * 3)
                 
-                # Tạo byte array
                 [byte[]]$bmpData = New-Object byte[] $fileSize
                 
-                # File header (14 bytes)
-                $bmpData[0] = 0x42  # 'B'
-                $bmpData[1] = 0x4D  # 'M'
+                $bmpData[0] = 0x42
+                $bmpData[1] = 0x4D
                 [BitConverter]::GetBytes($fileSize).CopyTo($bmpData, 2)
-                [BitConverter]::GetBytes([int32]54).CopyTo($bmpData, 10)  # Offset to pixel data
+                [BitConverter]::GetBytes([int32]54).CopyTo($bmpData, 10)
                 
-                # DIB header (40 bytes)
-                [BitConverter]::GetBytes([int32]40).CopyTo($bmpData, 14)  # Header size
+                [BitConverter]::GetBytes([int32]40).CopyTo($bmpData, 14)
                 [BitConverter]::GetBytes([int32]$width).CopyTo($bmpData, 18)
                 [BitConverter]::GetBytes([int32]$height).CopyTo($bmpData, 22)
-                [BitConverter]::GetBytes([int16]1).CopyTo($bmpData, 26)   # Planes
-                [BitConverter]::GetBytes([int16]24).CopyTo($bmpData, 28)  # Bits per pixel
+                [BitConverter]::GetBytes([int16]1).CopyTo($bmpData, 26)
+                [BitConverter]::GetBytes([int16]24).CopyTo($bmpData, 28)
                 
-                # Pixel data (tất cả pixel đen)
                 for ($i = 54; $i -lt $bmpData.Length; $i++) {
                     $bmpData[$i] = 0x00
                 }
                 
                 [System.IO.File]::WriteAllBytes($blackWallpaper, $bmpData)
                 [Wallpaper]::SetWallpaper($blackWallpaper)
-                return "✅ Đã đổi hình nền màu đen"
-            } catch { return "❌ Lỗi: $_" }
+                return "Đã đổi hình nền màu đen"
+            } catch { return "Lỗi: $_" }
         }}
     )
     
@@ -298,8 +292,8 @@ public class Wallpaper {
                     Start-Process -FilePath "$env:SystemRoot\System32\OneDriveSetup.exe" -ArgumentList "/uninstall" -Wait -NoNewWindow
                 }
                 Get-Process -Name "OneDrive" -ErrorAction SilentlyContinue | Stop-Process -Force
-                return "✅ Đã xóa OneDrive"
-            } catch { return "❌ Lỗi: $_" }
+                return "Đã xóa OneDrive"
+            } catch { return "Lỗi: $_" }
         }}
         @{Name="Xóa Windows Bloatware"; Action={
             $bloatApps = @(
@@ -319,9 +313,9 @@ public class Wallpaper {
         }}
         @{Name="Tắt Windows Tips"; Action={
             return if (Set-RegistryTweak -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" -Name "SubscribedContent-338393Enabled" -Value 0) {
-                "✅ Đã tắt Windows Tips"
+                "Đã tắt Windows Tips"
             } else {
-                "❌ Lỗi khi tắt Tips"
+                "Lỗi khi tắt Tips"
             }
         }}
     )
@@ -337,14 +331,14 @@ public class Wallpaper {
             try {
                 Set-NetTCPSetting -CongestionProvider DCTCP -ErrorAction SilentlyContinue
                 Set-NetTCPSetting -AutoTuningLevelLocal Normal -ErrorAction SilentlyContinue
-                return "✅ Đã tối ưu cài đặt TCP"
-            } catch { return "❌ Lỗi: $_" }
+                return "Đã tối ưu cài đặt TCP"
+            } catch { return "Lỗi: $_" }
         }}
         @{Name="Tắt Notifications"; Action={
             return if (Set-RegistryTweak -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\PushNotifications" -Name "ToastEnabled" -Value 0) {
-                "✅ Đã tắt thông báo"
+                "Đã tắt thông báo"
             } else {
-                "❌ Lỗi khi tắt thông báo"
+                "Lỗi khi tắt thông báo"
             }
         }}
         @{Name="Bật NumLock khi khởi động"; Action={
@@ -557,9 +551,9 @@ function Create-MainWindow {
                 try {
                     Write-Host "Cài đặt: $appId..." -ForegroundColor Yellow
                     Start-Process -FilePath "winget" -ArgumentList "install --id $appId --accept-package-agreements --accept-source-agreements --silent" -Wait -NoNewWindow
-                    Write-Host "✅ Đã cài đặt: $appId" -ForegroundColor Green
+                    Write-Host "Đã cài đặt: $appId" -ForegroundColor Green
                 } catch {
-                    Write-Host "❌ Lỗi khi cài $appId: $($_.Exception.Message)" -ForegroundColor Red
+                    Write-Host "Lỗi khi cài $appId : $($_.Exception.Message)" -ForegroundColor Red
                 }
             }
             
@@ -699,10 +693,10 @@ function Create-MainWindow {
                 
                 try {
                     $result = & $tweak.Action
-                    $results += "✅ $tweakName: $result"
+                    $results += "✅ $tweakName : $result"
                     Write-Host "   $result" -ForegroundColor Green
                 } catch {
-                    $results += "❌ $tweakName: Lỗi - $($_.Exception.Message)"
+                    $results += "❌ $tweakName : Lỗi - $($_.Exception.Message)"
                     Write-Host "   ❌ Lỗi: $($_.Exception.Message)" -ForegroundColor Red
                 }
             }
