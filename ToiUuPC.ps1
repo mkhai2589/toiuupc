@@ -1,5 +1,7 @@
 # ToiUuPC.ps1 - Công cụ tối ưu Windows PMK
-# Run: irm bit.ly/pmktool | iex
+# Run: irm bit.ly/pmktool | iex 
+# hoặc
+#      irm https://raw.githubusercontent.com/mkhai2589/toiuupc/main/ToiUuPC.ps1 | iex
 # Author: Thuthuatwiki (PMK)
 # Version: 2.3 - Optimized performance, fixed UI lag, added DNS management and WinUtil tweaks
 
