@@ -1,20 +1,28 @@
 function Install-SelectedApps {
-    if (!(Test-Winget)) { Write-Host "⚠️ Winget not installed." -ForegroundColor Red; return }
+    if (!(Test-Winget)) {
+        Write-Host "⚠️ Winget not installed. Install from MS Store." -ForegroundColor Red
+        return
+    }
 
-    # Load config
     $appsJson = Get-Content "$PSScriptRoot\..\config\applications.json" -Raw | ConvertFrom-Json
     $apps = @{}
     foreach ($category in $appsJson.PSObject.Properties.Name) {
         $apps[$category] = $appsJson.$category
     }
 
-    # GUI/Console selection (tích hợp với GUI cũ)
-    # ... (logic chọn apps từ $global:SelectedApps hoặc console input)
+    # For console: List and select
+    if (!$global:SelectedApps -or $global:SelectedApps.Count -eq 0) {
+        Write-Host "Chọn apps (comma separated IDs, e.g. Brave.Brave,Discord.Discord):"
+        $selected = Read-Host
+        $global:SelectedApps = $selected.Split(',') | % { $_.Trim() } | ? { $_ }
+    }
 
-    foreach ($appId in $selectedApps) {
+    foreach ($appId in $global:SelectedApps) {
         try {
             winget install --id $appId --silent --accept-package-agreements --accept-source-agreements
-            Write-Host "✅ Installed $appId" -ForegroundColor Green
-        } catch { Write-Host "❌ Error installing $appId: $_" -ForegroundColor Red }
+            Write-Host "✅ Installed: $appId" -ForegroundColor Green
+        } catch {
+            Write-Host "❌ Error: $_" -ForegroundColor Red
+        }
     }
 }
