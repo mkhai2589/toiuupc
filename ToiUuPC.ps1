@@ -1,9 +1,7 @@
-# ToiUuPC.ps1 - PMK Toolbox v3.1 (Cyberpunk Console Edition - Online/Remote)
+# ToiUuPC.ps1 - PMK Toolbox v3.0 (Cyberpunk Neon Online Mode)
 # Run: irm https://raw.githubusercontent.com/mkhai2589/toiuupc/main/ToiUuPC.ps1 | iex
-# Author: Minh Khải (Thuthuatwiki PMK) - FB: https://www.facebook.com/khaiitcntt
-# Version: 3.1 - Cyberpunk style, fixed color, ESC escape, app list with STT
-
-Clear-Host
+# Author: Minh Khải (PMK) - https://www.facebook.com/khaiitcntt
+# Version: 3.0 - Neon UI, fixed color, ESC exit, full system info header
 
 # Kiểm tra & relaunch admin
 if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
@@ -14,87 +12,83 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
 
 $ProgressPreference = 'SilentlyContinue'
 
-# Dark Cyberpunk theme (màu cố định, không đổi sau khi thoát menu con)
-$Host.UI.RawUI.BackgroundColor = "Black"
-$Host.UI.RawUI.ForegroundColor = "White"
-[console]::CursorVisible = $true
-Clear-Host
+# Hàm reset màu console về chuẩn Cyberpunk (gọi lại sau mỗi action)
+function Reset-ConsoleColor {
+    $Host.UI.RawUI.BackgroundColor = "Black"
+    $Host.UI.RawUI.ForegroundColor = "White"
+    Clear-Host
+}
 
-# Logo Cyberpunk
-$logo = @"
-╔══════════════════════════════════════════════════════════════════════════╗
-║ ██████╗ ███╗   ███╗██╗  ██╗      ████████╗ ██████╗  ██████╗ ██╗       ║
-║ ██╔══██╗████╗ ████║██║ ██╔╝      ╚══██╔══╝██╔═══██╗██╔═══██╗██║       ║
-║ ██████╔╝██╔████╔██║█████╔╝          ██║   ██║   ██║██║   ██║██║       ║
-║ ██╔═══╝ ██║╚██╔╝██║██╔═██╗          ██║   ██║   ██║██║   ██║██║       ║
-║ ██║     ██║ ╚═╝ ██║██║  ██╗         ██║   ╚██████╔╝╚██████╔╝███████╗  ║
-║ ╚═╝     ╚═╝     ╚═╝╚═╝  ╚═╝         ╚═╝    ╚═════╝  ╚═════╝ ╚══════╝  ║
-║                     PMK TOOLBOX - Tối ưu Windows                     ║
-║                  Phiên bản: 3.1 | Windows 10/11                      ║
-╚══════════════════════════════════════════════════════════════════════════╝
-"@
-
-# Thông tin hệ thống trên cùng (Cyberpunk style)
+# Hàm hiển thị header thông tin hệ thống (luôn ở trên cùng)
 function Show-SystemHeader {
-    $user = $env:USERNAME
-    $computer = $env:COMPUTERNAME
-    $os = (Get-CimInstance Win32_OperatingSystem).Caption
-    $build = (Get-CimInstance Win32_OperatingSystem).BuildNumber
+    $os = Get-CimInstance Win32_OperatingSystem
+    $cpu = Get-CimInstance Win32_Processor | Select-Object -First 1
+    $cs = Get-CimInstance Win32_ComputerSystem
+    $gpu = Get-CimInstance Win32_VideoController | Select-Object -First 1
+
+    $osName = $os.Caption
+    $osBuild = $os.BuildNumber
+    $username = $env:USERNAME
+    $computername = $env:COMPUTERNAME
     $time = Get-Date -Format "HH:mm:ss dd/MM/yyyy"
     $timezone = (Get-TimeZone).Id
 
-    Write-Host "╔══════════════════════════════════════════════════════════════════════════╗" -ForegroundColor Magenta
-    Write-Host "║ USER: $user   |   PC: $computer   |   OS: $os $build   |   TIME: $time $timezone ║" -ForegroundColor Cyan
-    Write-Host "║ AUTHOR: Minh Khải (PMK)   |   FB: https://www.facebook.com/khaiitcntt ║" -ForegroundColor DarkCyan
-    Write-Host "╚══════════════════════════════════════════════════════════════════════════╝" -ForegroundColor Magenta
+    Write-Host "╔════════════════════════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
+    Write-Host "║ USER: $username   |   COMPUTER: $computername" -ForegroundColor Cyan
+    Write-Host "║ OS: $osName   |   Build: $osBuild   |   CPU: $($cpu.NumberOfCores) cores" -ForegroundColor Cyan
+    Write-Host "║ GPU: $($gpu.Name)   |   TIME: $time   |   ZONE: $timezone" -ForegroundColor Cyan
+    Write-Host "║ AUTHOR: Minh Khải (PMK)   |   FB: https://www.facebook.com/khaiitcntt" -ForegroundColor Magenta
+    Write-Host "╚════════════════════════════════════════════════════════════════════════════╝" -ForegroundColor Cyan
     Write-Host ""
 }
 
-# Danh sách app hardcode (hiển thị STT + icon)
+# Logo Cyberpunk Neon
+$logo = @"
+   ██████╗ ███╗   ███╗██╗  ██╗      ████████╗ ██████╗  ██████╗ ██╗
+   ██╔══██╗████╗ ████║██║ ██╔╝      ╚══██╔══╝██╔═══██╗██╔═══██╗██║
+   ██████╔╝██╔████╔██║█████╔╝          ██║   ██║   ██║██║   ██║██║
+   ██╔═══╝ ██║╚██╔╝██║██╔═██╗          ██║   ██║   ██║██║   ██║██║
+   ██║     ██║ ╚═╝ ██║██║  ██╗         ██║   ╚██████╔╝╚██████╔╝███████╗
+   ╚═╝     ╚═╝     ╚═╝╚═╝  ╚═╝         ╚═╝    ╚═════╝  ╚═════╝ ╚══════╝
+               PMK TOOLBOX - Tối ưu Windows | v3.0 | Cyberpunk Neon
+"@
+
+# Hàm cơ bản
+function Test-Winget { try { winget --version | Out-Null; $true } catch { $false } }
+
+# Danh sách app (hiển thị STT + icon + tên + ID)
 $AppList = @(
-    @{STT=1;  Name="Brave Browser";          ID="Brave.Brave";           Icon="🌐"},
-    @{STT=2;  Name="Google Chrome";          ID="Google.Chrome";         Icon="🔍"},
-    @{STT=3;  Name="Mozilla Firefox";        ID="Mozilla.Firefox";       Icon="🦊"},
-    @{STT=4;  Name="Discord";                ID="Discord.Discord";        Icon="🎮"},
-    @{STT=5;  Name="Telegram Desktop";       ID="Telegram.TelegramDesktop"; Icon="✈️"},
-    @{STT=6;  Name="Visual Studio Code";     ID="Microsoft.VisualStudioCode"; Icon="📝"},
-    @{STT=7;  Name="Git";                    ID="Git.Git";               Icon="🌿"},
-    @{STT=8;  Name="Python 3.12";            ID="Python.Python.3.12";    Icon="🐍"},
-    @{STT=9;  Name="7-Zip";                  ID="7zip.7zip";             Icon="🗜️"},
-    @{STT=10; Name="PowerToys";              ID="Microsoft.PowerToys";    Icon="🛠️"},
-    @{STT=11; Name="Windows Terminal";       ID="Microsoft.WindowsTerminal"; Icon="⌨️"},
-    @{STT=12; Name="LibreOffice";            ID="TheDocumentFoundation.LibreOffice"; Icon="📑"}
+    @{STT=1;  Icon="🚀"; Name="Brave";           ID="Brave.Brave"},
+    @{STT=2;  Icon="🔍"; Name="Google Chrome";    ID="Google.Chrome"},
+    @{STT=3;  Icon="🦊"; Name="Firefox";          ID="Mozilla.Firefox"},
+    @{STT=4;  Icon="🎮"; Name="Discord";          ID="Discord.Discord"},
+    @{STT=5;  Icon="✈️"; Name="Telegram";         ID="Telegram.TelegramDesktop"},
+    @{STT=6;  Icon="📝"; Name="VS Code";          ID="Microsoft.VisualStudioCode"},
+    @{STT=7;  Icon="🌿"; Name="Git";              ID="Git.Git"},
+    @{STT=8;  Icon="🐍"; Name="Python 3";         ID="Python.Python.3.12"},
+    @{STT=9;  Icon="🗜️"; Name="7-Zip";            ID="7zip.7zip"},
+    @{STT=10; Icon="🛠️"; Name="PowerToys";        ID="Microsoft.PowerToys"},
+    @{STT=11; Icon="⌨️"; Name="Windows Terminal"; ID="Microsoft.WindowsTerminal"},
+    @{STT=12; Icon="📑"; Name="LibreOffice";      ID="TheDocumentFoundation.LibreOffice"}
 )
 
-# Hàm cài app nhanh (hiển thị danh sách STT)
 function Install-AppQuick {
-    Clear-Host
+    Reset-ConsoleColor
     Show-SystemHeader
-    Write-Host "╔══════════════════════════════════════╗" -ForegroundColor Magenta
-    Write-Host "║       DANH SÁCH ỨNG DỤNG PHỔ BIẾN     ║" -ForegroundColor Cyan
-    Write-Host "╚══════════════════════════════════════╝" -ForegroundColor Magenta
-    Write-Host ""
-
+    Write-Host $logo -ForegroundColor Cyan
+    Write-Host "`nDanh sách ứng dụng có thể cài nhanh:" -ForegroundColor Neon
     foreach ($app in $AppList) {
-        Write-Host " [$($app.STT)] $($app.Icon) $($app.Name) ($($app.ID))" -ForegroundColor White
+        Write-Host " [$($app.STT)]  $($app.Icon)  $($app.Name)  ($($app.ID))" -ForegroundColor White
     }
+    Write-Host "`nNhập STT (ví dụ: 1,4,7) hoặc nhập Winget ID trực tiếp:" -ForegroundColor Cyan
+    Write-Host "Nhấn ESC để thoát về menu chính" -ForegroundColor DarkGray
 
-    Write-Host "`nNhập STT (ví dụ: 1,3,5) hoặc ESC để thoát" -ForegroundColor Green -NoNewline
-    Write-Host " > " -ForegroundColor Magenta -NoNewline
-
-    # Bắt phím ESC thoát nhanh
-    $key = [Console]::ReadKey($true)
-    if ($key.Key -eq "Escape") {
-        Write-Host "`nĐã thoát về menu chính..." -ForegroundColor Yellow
-        return
-    }
-
-    $input = $key.KeyChar + [Console]::ReadLine()
+    $input = Read-Host
     if ($input) {
-        foreach ($stt in $input.Split(',')) {
-            $stt = $stt.Trim()
-            if ($stt -match '^\d+$') {
-                $app = $AppList | Where-Object { $_.STT -eq [int]$stt }
+        foreach ($item in $input.Split(',')) {
+            $item = $item.Trim()
+            if ($item -match '^\d+$') {
+                $app = $AppList | Where-Object { $_.STT -eq [int]$item }
                 if ($app) {
                     Write-Host "Đang cài $($app.Name) ($($app.ID))..." -ForegroundColor Yellow
                     try {
@@ -103,110 +97,87 @@ function Install-AppQuick {
                     } catch {
                         Write-Host "❌ Lỗi cài $($app.Name): $_" -ForegroundColor Red
                     }
-                } else {
-                    Write-Host "STT $stt không tồn tại" -ForegroundColor Red
+                }
+            } else {
+                Write-Host "Đang cài $item..." -ForegroundColor Yellow
+                try {
+                    winget install --id $item --silent --accept-package-agreements --accept-source-agreements
+                    Write-Host "✅ Cài xong: $item" -ForegroundColor Green
+                } catch {
+                    Write-Host "❌ Lỗi cài $item: $_" -ForegroundColor Red
                 }
             }
         }
     }
-    Write-Host "`nNhấn phím bất kỳ để về menu..." -ForegroundColor DarkGray
-    [Console]::ReadKey($true) | Out-Null
 }
 
-# Các hàm khác (giữ nguyên)
+# Các hàm khác (giữ nguyên, thêm reset màu)
 function Disable-TelemetryQuick {
-    Clear-Host
+    Reset-ConsoleColor
     Show-SystemHeader
-    Write-Host "Đang tắt Telemetry..." -ForegroundColor Yellow
-    try {
-        Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection" -Name "AllowTelemetry" -Value 0 -Force -ErrorAction Stop
-        Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection" -Name "AllowTelemetry" -Value 0 -Force -ErrorAction Stop
-        Write-Host "✅ Telemetry đã tắt (cần reboot để apply đầy đủ)" -ForegroundColor Green
-    } catch {
-        Write-Host "❌ Lỗi: $_" -ForegroundColor Red
-    }
+    Write-Host $logo -ForegroundColor Cyan
+    Disable-TelemetryQuick
     Pause
 }
 
 function Clean-TempFiles {
-    Clear-Host
+    Reset-ConsoleColor
     Show-SystemHeader
-    Write-Host "Đang xóa file tạm..." -ForegroundColor Yellow
-    try {
-        Remove-Item -Path "$env:TEMP\*" -Recurse -Force -ErrorAction SilentlyContinue
-        Remove-Item -Path "C:\Windows\Temp\*" -Recurse -Force -ErrorAction SilentlyContinue
-        Write-Host "✅ Đã xóa file tạm" -ForegroundColor Green
-    } catch {
-        Write-Host "⚠️ Lỗi khi xóa file tạm: $_" -ForegroundColor Red
-    }
+    Write-Host $logo -ForegroundColor Cyan
+    Clean-TempFiles
     Pause
 }
 
 function Disable-UnneededServices {
-    Clear-Host
+    Reset-ConsoleColor
     Show-SystemHeader
-    Write-Host "Đang tắt dịch vụ không cần thiết..." -ForegroundColor Yellow
-    $services = @("DiagTrack", "dmwappushservice", "WMPNetworkSvc", "RemoteRegistry", "XblAuthManager", "XblGameSave", "XboxNetApiSvc")
-    foreach ($service in $services) {
-        try {
-            Set-Service -Name $service -StartupType Disabled -ErrorAction SilentlyContinue
-            Stop-Service -Name $service -Force -ErrorAction SilentlyContinue
-            Write-Host "✅ Đã tắt $service" -ForegroundColor Green
-        } catch {
-            Write-Host "⚠️ Không tắt được $service" -ForegroundColor Yellow
-        }
-    }
+    Write-Host $logo -ForegroundColor Cyan
+    Disable-UnneededServices
     Pause
 }
 
 function Create-RestorePoint {
-    Clear-Host
+    Reset-ConsoleColor
     Show-SystemHeader
-    Write-Host "Đang tạo điểm khôi phục..." -ForegroundColor Yellow
-    try {
-        Enable-ComputerRestore -Drive "C:\" -ErrorAction SilentlyContinue
-        Checkpoint-Computer -Description "PMK Toolbox - $(Get-Date -Format 'dd/MM/yyyy HH:mm')" -RestorePointType MODIFY_SETTINGS -ErrorAction Stop
-        Write-Host "✅ Đã tạo điểm khôi phục" -ForegroundColor Green
-    } catch {
-        Write-Host "❌ Lỗi: $_" -ForegroundColor Red
-    }
+    Write-Host $logo -ForegroundColor Cyan
+    Create-RestorePoint
     Pause
 }
 
-# Menu chính (Cyberpunk style, 2 cột như ảnh Ghost Toolbox)
+# Menu chính - phong cách Cyberpunk, viền neon
 do {
-    Clear-Host
+    Reset-ConsoleColor
     Show-SystemHeader
-    Write-Host "╔══════════════════════════════════════════════════════════════════════════╗" -ForegroundColor Magenta
-    Write-Host "║                        PMK TOOLBOX - TỐI ƯU WINDOWS                     ║" -ForegroundColor Cyan
-    Write-Host "╚══════════════════════════════════════════════════════════════════════════╝" -ForegroundColor Magenta
+    Write-Host $logo -ForegroundColor Cyan
 
-    Write-Host "`n" -NoNewline
-    Write-Host "  TWEAKS & CLEANER".PadRight(40) + "INSTALLER & TOOLS" -ForegroundColor DarkCyan
+    Write-Host "╔══════════════════════════════════════════════════════════════╗" -ForegroundColor Magenta
+    Write-Host "║                        MENU PMK TOOLBOX                      ║" -ForegroundColor Magenta
+    Write-Host "╚══════════════════════════════════════════════════════════════╝" -ForegroundColor Magenta
 
-    Write-Host "  [1] Tắt Telemetry nhanh" -ForegroundColor Cyan
-    Write-Host "  [2] Cài app nhanh (danh sách STT)" -ForegroundColor Cyan
-    Write-Host "  [3] Xóa file tạm" -ForegroundColor Cyan
-    Write-Host "  [4] Tắt dịch vụ không cần thiết" -ForegroundColor Cyan
-    Write-Host "  [5] Tạo điểm khôi phục" -ForegroundColor Cyan
-    Write-Host "  [6] Thoát" -ForegroundColor Cyan
+    Write-Host " 1. Kiểm tra Winget" -ForegroundColor Neon
+    Write-Host " 2. Cài app nhanh (danh sách STT + nhập IDs)" -ForegroundColor Neon
+    Write-Host " 3. Tắt Telemetry nhanh" -ForegroundColor Neon
+    Write-Host " 4. Xóa file tạm" -ForegroundColor Neon
+    Write-Host " 5. Tắt dịch vụ không cần thiết" -ForegroundColor Neon
+    Write-Host " 6. Tạo điểm khôi phục hệ thống" -ForegroundColor Neon
+    Write-Host " 7. Thoát (hoặc nhấn ESC bất kỳ lúc nào)" -ForegroundColor Neon
 
-    Write-Host "`nNhập số (1-6) hoặc ESC để thoát nhanh: " -ForegroundColor Green -NoNewline
+    Write-Host "`nNhập số (1-7): " -ForegroundColor Green -NoNewline
+
+    # Bắt phím ESC thoát ngay (dùng ReadKey)
     $key = [Console]::ReadKey($true)
+    if ($key.Key -eq "Escape") { Write-Host "`nThoát bằng ESC..." -ForegroundColor DarkGray; exit }
+
     $choice = $key.KeyChar
 
-    if ($key.Key -eq "Escape") {
-        Write-Host "`nThoát nhanh..." -ForegroundColor Yellow
-        exit
-    }
-
     switch ($choice) {
-        "1" { Disable-TelemetryQuick }
-        "2" { Install-AppQuick }
-        "3" { Clean-TempFiles }
-        "4" { Disable-UnneededServices }
-        "5" { Create-RestorePoint }
-        "6" { Write-Host "Thoát..." -ForegroundColor Cyan; exit }
-        default { Write-Host "Lựa chọn sai! Nhập 1-6" -ForegroundColor Red; Start-Sleep 1 }
+        "1" { if (Test-Winget) { Write-Host "✅ Winget OK" -ForegroundColor Green } else { Write-Host "❌ Winget chưa cài" -ForegroundColor Red }; Pause }
+        "2" { Install-AppQuick; Pause }
+        "3" { Disable-TelemetryQuick; Pause }
+        "4" { Clean-TempFiles; Pause }
+        "5" { Disable-UnneededServices; Pause }
+        "6" { Create-RestorePoint; Pause }
+        "7" { Write-Host "Thoát..." -ForegroundColor Cyan; exit }
+        default { Write-Host "Lựa chọn sai! Nhấn phím 1-7 hoặc ESC thoát" -ForegroundColor Red; Start-Sleep 1 }
     }
-} while ($choice -ne "6")
+} while ($true)
