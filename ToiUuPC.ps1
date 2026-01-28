@@ -1,7 +1,7 @@
-# ToiUuPC.ps1 - PMK Toolbox v3.0 (Online/Remote Optimized Only)
+# ToiUuPC.ps1 - PMK Toolbox v3.0
 # Run: irm https://raw.githubusercontent.com/mkhai2589/toiuupc/main/ToiUuPC.ps1 | iex
 # Author: Minh Khải (PMK) - https://www.facebook.com/khaiitcntt
-# Version: 3.0 - Cyberpunk Neon UI, fixed color, ESC exit, full header info
+# Version: 3.0
 
 Clear-Host
 
@@ -14,14 +14,13 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
 
 $ProgressPreference = 'SilentlyContinue'
 
-# Hàm reset màu console về chuẩn Cyberpunk (gọi lại sau mỗi action)
 function Reset-ConsoleColor {
     $Host.UI.RawUI.BackgroundColor = "Black"
     $Host.UI.RawUI.ForegroundColor = "White"
     Clear-Host
 }
 
-# Hàm hiển thị header thông tin hệ thống (luôn ở trên cùng, theo thứ tự bạn yêu cầu)
+# Hàm hiển thị header thông tin hệ thống
 function Show-SystemHeader {
     $os = Get-CimInstance Win32_OperatingSystem
     $cpu = Get-CimInstance Win32_Processor | Select-Object -First 1
@@ -50,7 +49,6 @@ function Show-SystemHeader {
     Write-Host ""
 }
 
-# Logo Cyberpunk Neon (không icon)
 $logo = @"
    ██████╗ ███╗   ███╗██╗  ██╗      ████████╗ ██████╗  ██████╗ ██╗
    ██╔══██╗████╗ ████║██║ ██╔╝      ╚══██╔══╝██╔═══██╗██╔═══██╗██║
@@ -61,12 +59,11 @@ $logo = @"
                PMK TOOLBOX - Tối ưu Windows | v3.0 | Cyberpunk Neon
 "@
 
-# Hàm cơ bản
 function Test-Winget {
     try { winget --version | Out-Null; $true } catch { $false }
 }
 
-# Danh sách app (không icon, có STT, ID rõ ràng)
+# Danh sách app 
 $AppList = @(
     @{STT=1;  Name="Brave";           ID="Brave.Brave"},
     @{STT=2;  Name="Google Chrome";    ID="Google.Chrome"},
@@ -125,7 +122,7 @@ function Install-AppQuick {
     }
 }
 
-# Các hàm khác (giữ nguyên, thêm reset màu)
+
 function Disable-TelemetryQuick {
     Reset-ConsoleColor
     Show-SystemHeader
@@ -189,7 +186,7 @@ function Create-RestorePoint {
     Pause
 }
 
-# Menu chính - phong cách Cyberpunk, viền neon, gạch ngang phân chia
+# Menu chính 
 do {
     Reset-ConsoleColor
     Show-SystemHeader
@@ -210,7 +207,7 @@ do {
 
     Write-Host "`nNhập số (1-7): " -ForegroundColor Green -NoNewline
 
-    # Bắt phím ESC thoát ngay (dùng ReadKey)
+    # Bắt phím ESC thoát ngay
     $key = [Console]::ReadKey($true)
     if ($key.Key -eq "Escape") { Write-Host "`nThoát bằng ESC..." -ForegroundColor DarkGray; exit }
 
