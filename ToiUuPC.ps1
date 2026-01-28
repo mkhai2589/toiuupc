@@ -1,7 +1,7 @@
-# ToiUuPC.ps1 - PMK Toolbox v3.0 
+# ToiUuPC.ps1 - PMK Toolbox v3.0 (Online/Remote Optimized Only)
 # Run: irm https://raw.githubusercontent.com/mkhai2589/toiuupc/main/ToiUuPC.ps1 | iex
 # Author: Thuthuatwiki (PMK) - Enhanced for online use
-# Version: 3.0 - Full console menu, dark theme, no local/folder dependency
+# Version: 3.0 - Modern console UI, app list with STT, no local dependency
 
 Clear-Host
 
@@ -14,52 +14,75 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
 
 $ProgressPreference = 'SilentlyContinue'
 
-# Dark theme
+# Dark theme console đẹp
 $Host.UI.RawUI.BackgroundColor = "Black"
 $Host.UI.RawUI.ForegroundColor = "White"
 Clear-Host
 
-# Logo
+# Logo hiện đại
 $logo = @"
 ╔══════════════════════════════════════════════════════════════════════════╗
-║ ██████╗ ███╗ ███╗██╗ ██╗ ████████╗ ██████╗ ██████╗ ██╗ ║
-║ ██╔══██╗████╗ ████║██║ ██╔╝ ╚══██╔══╝██╔═══██╗██╔═══██╗██║ ║
-║ ██████╔╝██╔████╔██║█████╔╝ ██║ ██║ ██║██║ ██║██║ ║
-║ ██╔═══╝ ██║╚██╔╝██║██╔═██╗ ██║ ██║ ██║██║ ██║██║ ║
-║ ██║ ██║ ╚═╝ ██║██║ ██╗ ██║ ╚██████╔╝╚██████╔╝███████╗ ║
-║ ╚═╝ ╚═╝ ╚═╝╚═╝ ╚═╝ ╚═╝ ╚═════╝ ╚═════╝ ╚══════╝ ║
-║ PMK TOOLBOX - Tối ưu Windows ║
-║ Phiên bản: 3.0 | Windows 10/11 ║
+║ ██████╗ ███╗   ███╗██╗  ██╗      ████████╗ ██████╗  ██████╗ ██╗       ║
+║ ██╔══██╗████╗ ████║██║ ██╔╝      ╚══██╔══╝██╔═══██╗██╔═══██╗██║       ║
+║ ██████╔╝██╔████╔██║█████╔╝          ██║   ██║   ██║██║   ██║██║       ║
+║ ██╔═══╝ ██║╚██╔╝██║██╔═██╗          ██║   ██║   ██║██║   ██║██║       ║
+║ ██║     ██║ ╚═╝ ██║██║  ██╗         ██║   ╚██████╔╝╚██████╔╝███████╗  ║
+║ ╚═╝     ╚═╝     ╚═╝╚═╝  ╚═╝         ╚═╝    ╚═════╝  ╚═════╝ ╚══════╝  ║
+║                        PMK TOOLBOX - Tối ưu Windows                      ║
+║                    Phiên bản: 3.0 | Windows 10/11                        ║
 ╚══════════════════════════════════════════════════════════════════════════╝
 "@
 Write-Host $logo -ForegroundColor Cyan
 
-Write-Host "`nPMK Toolbox v3.0 - Online/Remote Mode" -ForegroundColor Cyan
-Write-Host "Chạy online: Console menu đầy đủ" -ForegroundColor Yellow
+Write-Host "`nPMK Toolbox v3.0 - Online Mode" -ForegroundColor Cyan
+Write-Host "Menu console hiện đại - Chọn số để thực hiện" -ForegroundColor Green
 
 # Hàm cơ bản hardcode
 function Test-Winget {
     try { winget --version | Out-Null; return $true } catch { return $false }
 }
 
+# Danh sách app hardcode (từ config/applications.json cũ) để hiển thị STT
+$AppList = @(
+    @{STT=1; Name="Brave"; ID="Brave.Brave"; Icon="🚀"},
+    @{STT=2; Name="Google Chrome"; ID="Google.Chrome"; Icon="🔍"},
+    @{STT=3; Name="Firefox"; ID="Mozilla.Firefox"; Icon="🦊"},
+    @{STT=4; Name="Discord"; ID="Discord.Discord"; Icon="🎮"},
+    @{STT=5; Name="Telegram"; ID="Telegram.TelegramDesktop"; Icon="✈️"},
+    @{STT=6; Name="Visual Studio Code"; ID="Microsoft.VisualStudioCode"; Icon="📝"},
+    @{STT=7; Name="Git"; ID="Git.Git"; Icon="🌿"},
+    @{STT=8; Name="Python 3"; ID="Python.Python.3.12"; Icon="🐍"},
+    @{STT=9; Name="7-Zip"; ID="7zip.7zip"; Icon="🗜️"},
+    @{STT=10; Name="PowerToys"; ID="Microsoft.PowerToys"; Icon="🛠️"}
+)
+
 function Install-AppQuick {
-    Write-Host "Nhập Winget IDs (dùng dấu phẩy, ví dụ: Brave.Brave,Discord.Discord):" -ForegroundColor Yellow
-    $ids = Read-Host
-    if ($ids) {
-        foreach ($id in $ids.Split(',')) {
-            $id = $id.Trim()
-            if ($id) {
-                Write-Host "Đang cài $id..." -ForegroundColor Yellow
-                try {
-                    winget install --id $id --silent --accept-package-agreements --accept-source-agreements
-                    Write-Host "✅ Cài xong: $id" -ForegroundColor Green
-                } catch {
-                    Write-Host "❌ Lỗi cài ${id}: $_" -ForegroundColor Red
+    Write-Host "`nDanh sách app phổ biến (chọn bằng STT, ví dụ: 1,4,7):" -ForegroundColor Cyan
+    foreach ($app in $AppList) {
+        Write-Host "$($app.STT). $($app.Icon) $($app.Name) ($($app.ID))" -ForegroundColor White
+    }
+    Write-Host "`nNhập STT (dùng dấu phẩy nếu nhiều):" -ForegroundColor Yellow
+    $sttInput = Read-Host
+    if ($sttInput) {
+        foreach ($stt in $sttInput.Split(',')) {
+            $stt = $stt.Trim()
+            if ($stt -match '^\d+$') {
+                $app = $AppList | Where-Object { $_.STT -eq [int]$stt }
+                if ($app) {
+                    Write-Host "Đang cài $($app.Name) ($($app.ID))..." -ForegroundColor Yellow
+                    try {
+                        winget install --id $app.ID --silent --accept-package-agreements --accept-source-agreements
+                        Write-Host "✅ Cài xong: $($app.Name)" -ForegroundColor Green
+                    } catch {
+                        Write-Host "❌ Lỗi cài $($app.Name): $_" -ForegroundColor Red
+                    }
+                } else {
+                    Write-Host "STT $stt không tồn tại" -ForegroundColor Red
                 }
             }
         }
     } else {
-        Write-Host "Không có ID nào được nhập." -ForegroundColor Yellow
+        Write-Host "Không có STT nào được nhập." -ForegroundColor Yellow
     }
 }
 
@@ -110,19 +133,22 @@ function Create-RestorePoint {
     }
 }
 
-# Menu console đầy đủ
+# Menu console đầy đủ, UX/UI hiện đại hơn
 do {
     Clear-Host
     Write-Host $logo -ForegroundColor Cyan
-    Write-Host "`n=== MENU PMK TOOLBOX (Online Mode) ===" -ForegroundColor Green
-    Write-Host "1. Kiểm tra Winget" -ForegroundColor White
-    Write-Host "2. Cài app nhanh (nhập Winget IDs)" -ForegroundColor White
-    Write-Host "3. Tắt Telemetry nhanh" -ForegroundColor White
-    Write-Host "4. Xóa file tạm" -ForegroundColor White
-    Write-Host "5. Tắt dịch vụ không cần thiết" -ForegroundColor White
-    Write-Host "6. Tạo điểm khôi phục" -ForegroundColor White
-    Write-Host "7. Thoát" -ForegroundColor White
-    $choice = Read-Host "`nChọn (1-7)"
+    Write-Host "╔══════════════════════════════════════════════════════════════╗" -ForegroundColor DarkCyan
+    Write-Host "║               MENU PMK TOOLBOX (Online Mode)                 ║" -ForegroundColor DarkCyan
+    Write-Host "╚══════════════════════════════════════════════════════════════╝" -ForegroundColor DarkCyan
+    Write-Host "1. Kiểm tra Winget" -ForegroundColor Cyan
+    Write-Host "2. Cài app nhanh (danh sách STT + nhập IDs)" -ForegroundColor Cyan
+    Write-Host "3. Tắt Telemetry nhanh" -ForegroundColor Cyan
+    Write-Host "4. Xóa file tạm" -ForegroundColor Cyan
+    Write-Host "5. Tắt dịch vụ không cần thiết" -ForegroundColor Cyan
+    Write-Host "6. Tạo điểm khôi phục" -ForegroundColor Cyan
+    Write-Host "7. Thoát" -ForegroundColor Cyan
+    Write-Host "Nhập số (1-7): " -ForegroundColor Green -NoNewline
+    $choice = Read-Host
 
     switch ($choice) {
         "1" {
@@ -136,6 +162,6 @@ do {
         "5" { Disable-UnneededServices; Pause }
         "6" { Create-RestorePoint; Pause }
         "7" { Write-Host "Thoát..." -ForegroundColor Cyan; exit }
-        default { Write-Host "Lựa chọn sai!" -ForegroundColor Red; Start-Sleep 1 }
+        default { Write-Host "Lựa chọn sai! Nhập lại (1-7)" -ForegroundColor Red; Start-Sleep 1 }
     }
 } while ($choice -ne "7")
