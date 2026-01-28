@@ -1,7 +1,7 @@
 # ToiUuPC.ps1 - Công cụ tối ưu Windows PMK
 # Run: irm bit.ly/pmktool | iex
 # Author: Thuthuatwiki (PMK)
-# Version: 2.1 - Fixed all parse errors, improved stability
+# Version: 2.2 - Fixed GUI errors, improved UX/UI, added RAM speed and all disks info, realtime console output, WPF timer fixes
 
 Clear-Host
 
@@ -23,7 +23,7 @@ $logo = @"
 ║   ██║     ██║ ╚═╝ ██║██║  ██╗         ██║   ╚██████╔╝╚██████╔╝███████╗  ║
 ║   ╚═╝     ╚═╝     ╚═╝╚═╝  ╚═╝         ╚═╝    ╚═════╝  ╚═════╝ ╚══════╝  ║
 ║                        PMK Toolbox - Tối ưu Windows                      ║
-║                    Phiên bản: 2.1 | Windows 10/11                        ║
+║                    Phiên bản: 2.2 | Windows 10/11                        ║
 ╚══════════════════════════════════════════════════════════════════════════╝
 "@
 
@@ -41,8 +41,13 @@ function Test-Winget {
 }
 
 # Load WPF Assemblies
-Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase, System.Windows.Forms
-[System.Windows.Forms.Application]::EnableVisualStyles()
+try {
+    Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase
+} catch {
+    Write-Host "❌ Lỗi khi load WPF assemblies: $($_.Exception.Message)" -ForegroundColor Red
+    Pause
+    exit
+}
 #endregion
 
 #region Dữ liệu ứng dụng
@@ -148,7 +153,7 @@ function Remove-WindowsApp {
 }
 #endregion
 
-#region Danh sách Tweak (ĐÃ FIX TẤT CẢ LỖI PARSE)
+#region Danh sách Tweak
 $Tweaks = @{
     "🔧 Tối ưu hiệu suất" = @(
         @{Name="Tạo điểm khôi phục hệ thống"; Action={
@@ -378,14 +383,15 @@ public class Wallpaper {
 }
 #endregion
 
-#region Hàm lấy thông tin hệ thống (ĐÃ SỬA LỖI PARSE)
+#region Hàm lấy thông tin hệ thống (Thêm RAM bus và tất cả ổ đĩa)
 function Get-SystemInfoText {
     try {
         $os = Get-CimInstance -ClassName Win32_OperatingSystem -ErrorAction SilentlyContinue
         $cpu = Get-CimInstance -ClassName Win32_Processor -ErrorAction SilentlyContinue | Select-Object -First 1
         $cs = Get-CimInstance -ClassName Win32_ComputerSystem -ErrorAction SilentlyContinue
         $gpu = Get-CimInstance -ClassName Win32_VideoController -ErrorAction SilentlyContinue | Select-Object -First 1
-        $disk = Get-CimInstance -ClassName Win32_LogicalDisk -Filter "DeviceID='C:'" -ErrorAction SilentlyContinue
+        $ram = Get-CimInstance -ClassName Win32_PhysicalMemory -ErrorAction SilentlyContinue
+        $disks = Get-CimInstance -ClassName Win32_LogicalDisk | Where-Object { $_.DriveType -eq 3 } -ErrorAction SilentlyContinue
         
         # Xử lý giá trị null
         $osName = if ($os -and $os.Caption) { $os.Caption } else { "Không xác định" }
@@ -399,7 +405,8 @@ function Get-SystemInfoText {
         $cpuSpeed = if ($cpu -and $cpu.MaxClockSpeed) { [math]::Round($cpu.MaxClockSpeed / 1000, 2) } else { "N/A" }
         
         $totalRAM = if ($cs -and $cs.TotalPhysicalMemory) { [math]::Round($cs.TotalPhysicalMemory / 1GB, 2) } else { "N/A" }
-        $freeRAM = if ($os -and $os.FreePhysicalMemory) { [math]::Round($os.FreePhysicalMemory / 1GB, 2) } else { "N/A" }
+        $freeRAM = if ($os -and $os.FreePhysicalMemory) { [math]::Round($os.FreePhysicalMemory / 1MB / 1024, 2) } else { "N/A" }  # Sửa để đúng GB
+        $ramSpeed = if ($ram -and $ram.Speed) { ($ram | Select-Object -First 1).Speed } else { "N/A" }
         
         $gpuName = if ($gpu -and $gpu.Name) { $gpu.Name } else { "Không xác định" }
         $gpuRAM = if ($gpu -and $gpu.AdapterRAM) { [math]::Round($gpu.AdapterRAM / 1GB, 2) } else { "N/A" }
@@ -409,11 +416,15 @@ function Get-SystemInfoText {
             $resolution = "$($gpu.CurrentHorizontalResolution) x $($gpu.CurrentVerticalResolution)"
         }
         
-        $diskSize = if ($disk -and $disk.Size) { [math]::Round($disk.Size / 1GB, 2) } else { "N/A" }
-        $diskFree = if ($disk -and $disk.FreeSpace) { [math]::Round($disk.FreeSpace / 1GB, 2) } else { "N/A" }
-        $diskUsed = if ($disk -and $disk.Size -and $disk.FreeSpace) { 
-            [math]::Round(($disk.Size - $disk.FreeSpace) / 1GB, 2) 
-        } else { "N/A" }
+        $diskInfo = @()
+        foreach ($disk in $disks) {
+            $drive = $disk.DeviceID
+            $size = if ($disk.Size) { [math]::Round($disk.Size / 1GB, 2) } else { "N/A" }
+            $free = if ($disk.FreeSpace) { [math]::Round($disk.FreeSpace / 1GB, 2) } else { "N/A" }
+            $used = if ($size -ne "N/A" -and $free -ne "N/A") { $size - $free } else { "N/A" }
+            $diskInfo += "   • $drive Tổng: $size GB | Đã dùng: $used GB | Trống: $free GB"
+        }
+        $diskText = $diskInfo -join "`n"
         
         return @"
 ══════════════════════════════════════════════════════════════════════
@@ -434,16 +445,15 @@ function Get-SystemInfoText {
 💾 RAM:
    • Tổng: $totalRAM GB
    • Còn trống: $freeRAM GB
+   • Bus: $ramSpeed MHz
 
 🎮 GPU:
    • Card màn hình: $gpuName
    • Bộ nhớ: $gpuRAM GB
    • Độ phân giải: $resolution
 
-💿 Ổ đĩa (C:):
-   • Tổng dung lượng: $diskSize GB
-   • Đã sử dụng: $diskUsed GB
-   • Còn trống: $diskFree GB
+💿 Ổ đĩa:
+$diskText
 
 ══════════════════════════════════════════════════════════════════════
 "@
@@ -453,7 +463,7 @@ function Get-SystemInfoText {
 }
 #endregion
 
-#region Tạo GUI WPF
+#region Tạo GUI WPF (Cải thiện UX/UI: màu sắc hiện đại hơn, layout tốt hơn với Grid, padding lớn hơn)
 function Create-MainWindow {
     # Tạo cửa sổ chính
     $Window = New-Object Windows.Window
@@ -461,23 +471,23 @@ function Create-MainWindow {
     $Window.Width = 1200
     $Window.Height = 750
     $Window.WindowStartupLocation = "CenterScreen"
-    $Window.Background = [System.Windows.Media.Brushes]::White
+    $Window.Background = [System.Windows.Media.Brushes]::AliceBlue
     $Window.FontFamily = "Segoe UI"
     
     # Grid chính
     $MainGrid = New-Object Windows.Controls.Grid
     $MainGrid.Background = [System.Windows.Media.LinearGradientBrush]::new(
-        [System.Windows.Media.Color]::FromRgb(240, 244, 255),
-        [System.Windows.Media.Color]::FromRgb(220, 230, 255),
-        0
+        [System.Windows.Media.Color]::FromRgb(245, 248, 252),
+        [System.Windows.Media.Color]::FromRgb(225, 235, 245),
+        90
     )
     
     # Header
     $HeaderGrid = New-Object Windows.Controls.Grid
     $HeaderGrid.Height = 80
     $HeaderGrid.Background = [System.Windows.Media.LinearGradientBrush]::new(
-        [System.Windows.Media.Color]::FromRgb(70, 130, 180),
-        [System.Windows.Media.Color]::FromRgb(30, 144, 255),
+        [System.Windows.Media.Color]::FromRgb(25, 118, 210),
+        [System.Windows.Media.Color]::FromRgb(21, 101, 192),
         90
     )
     
@@ -490,7 +500,7 @@ function Create-MainWindow {
     $HeaderText.HorizontalAlignment = "Center"
     
     $VersionText = New-Object Windows.Controls.TextBlock
-    $VersionText.Text = "v2.1 | Windows 10/11 | By PMK"
+    $VersionText.Text = "v2.2 | Windows 10/11 | By PMK"
     $VersionText.FontSize = 12
     $VersionText.Foreground = [System.Windows.Media.Brushes]::LightGray
     $VersionText.VerticalAlignment = "Bottom"
@@ -502,9 +512,9 @@ function Create-MainWindow {
     
     # Tab Control
     $TabControl = New-Object Windows.Controls.TabControl
-    $TabControl.Margin = "10"
+    $TabControl.Margin = "15"
     $TabControl.BorderThickness = "1"
-    $TabControl.BorderBrush = [System.Windows.Media.Brushes]::LightGray
+    $TabControl.BorderBrush = [System.Windows.Media.Brushes]::Gainsboro
     
     # Tab 1: Cài đặt ứng dụng
     $TabInstall = New-Object Windows.Controls.TabItem
@@ -515,60 +525,62 @@ function Create-MainWindow {
     $InstallScroll.VerticalScrollBarVisibility = "Auto"
     
     $InstallStack = New-Object Windows.Controls.StackPanel
-    $InstallStack.Margin = "10"
+    $InstallStack.Margin = "15"
     
     # Biến lưu trữ ứng dụng đã chọn
     $global:SelectedApps = @{}
     
-    # Thêm từng danh mục ứng dụng
+    # Thêm từng danh mục ứng dụng với layout tốt hơn
     foreach ($category in $Apps.Keys) {
         $CategoryBorder = New-Object Windows.Controls.Border
         $CategoryBorder.BorderThickness = "1"
-        $CategoryBorder.BorderBrush = [System.Windows.Media.Brushes]::LightGray
-        $CategoryBorder.CornerRadius = "5"
-        $CategoryBorder.Margin = "0,0,0,10"
+        $CategoryBorder.BorderBrush = [System.Windows.Media.Brushes]::Gainsboro
+        $CategoryBorder.CornerRadius = "8"
+        $CategoryBorder.Margin = "0,0,0,15"
         $CategoryBorder.Background = [System.Windows.Media.Brushes]::White
+        $CategoryBorder.Padding = "10"
         
         $CategoryStack = New-Object Windows.Controls.StackPanel
         
         # Tiêu đề danh mục
         $CategoryHeader = New-Object Windows.Controls.TextBlock
         $CategoryHeader.Text = $category
-        $CategoryHeader.FontSize = 18
-        $CategoryHeader.FontWeight = "Bold"
-        $CategoryHeader.Margin = "10,10,10,5"
-        $CategoryHeader.Foreground = [System.Windows.Media.Brushes]::DarkSlateBlue
+        $CategoryHeader.FontSize = 20
+        $CategoryHeader.FontWeight = "SemiBold"
+        $CategoryHeader.Margin = "0,0,0,10"
+        $CategoryHeader.Foreground = [System.Windows.Media.Brushes]::DarkBlue
         
         $CategoryStack.Children.Add($CategoryHeader) | Out-Null
         
-        # Grid cho các ứng dụng
+        # Grid cho các ứng dụng (WrapPanel cho responsive)
         $AppGrid = New-Object Windows.Controls.WrapPanel
-        $AppGrid.Margin = "10"
+        $AppGrid.Margin = "0"
         $AppGrid.HorizontalAlignment = "Left"
         
         foreach ($app in $Apps[$category]) {
             $AppBorder = New-Object Windows.Controls.Border
-            $AppBorder.Width = 180
-            $AppBorder.Height = 60
-            $AppBorder.Margin = "5"
+            $AppBorder.Width = 200
+            $AppBorder.Height = 70
+            $AppBorder.Margin = "8"
             $AppBorder.BorderThickness = "1"
             $AppBorder.BorderBrush = [System.Windows.Media.Brushes]::LightGray
-            $AppBorder.CornerRadius = "5"
-            $AppBorder.Background = [System.Windows.Media.Brushes]::WhiteSmoke
+            $AppBorder.CornerRadius = "6"
+            $AppBorder.Background = [System.Windows.Media.Brushes]::White
             $AppBorder.Tag = $app.Winget
+            $AppBorder.Padding = "10"
             
             $AppStack = New-Object Windows.Controls.StackPanel
             $AppStack.Orientation = "Horizontal"
-            $AppStack.Margin = "10"
             
             $AppIcon = New-Object Windows.Controls.TextBlock
             $AppIcon.Text = $app.Icon
-            $AppIcon.FontSize = 20
-            $AppIcon.Margin = "0,0,10,0"
+            $AppIcon.FontSize = 24
+            $AppIcon.Margin = "0,0,12,0"
+            $AppIcon.VerticalAlignment = "Center"
             
             $AppText = New-Object Windows.Controls.TextBlock
             $AppText.Text = $app.Name
-            $AppText.FontSize = 14
+            $AppText.FontSize = 15
             $AppText.VerticalAlignment = "Center"
             $AppText.TextWrapping = "Wrap"
             
@@ -576,7 +588,17 @@ function Create-MainWindow {
             $AppStack.Children.Add($AppText) | Out-Null
             $AppBorder.Child = $AppStack
             
-            # Thêm sự kiện click
+            # Thêm sự kiện click với hiệu ứng hover
+            $AppBorder.Add_MouseEnter({
+                $this.Background = [System.Windows.Media.Brushes]::LightBlue
+            })
+            $AppBorder.Add_MouseLeave({
+                if ($global:SelectedApps.ContainsKey($this.Tag)) {
+                    $this.Background = [System.Windows.Media.Brushes]::LightGreen
+                } else {
+                    $this.Background = [System.Windows.Media.Brushes]::White
+                }
+            })
             $AppBorder.Add_MouseLeftButtonDown({
                 param($sender, $e)
                 $border = $sender
@@ -584,7 +606,7 @@ function Create-MainWindow {
                 
                 if ($global:SelectedApps.ContainsKey($appId)) {
                     # Bỏ chọn
-                    $border.Background = [System.Windows.Media.Brushes]::WhiteSmoke
+                    $border.Background = [System.Windows.Media.Brushes]::White
                     $global:SelectedApps.Remove($appId) | Out-Null
                 } else {
                     # Chọn
@@ -601,13 +623,13 @@ function Create-MainWindow {
         $InstallStack.Children.Add($CategoryBorder) | Out-Null
     }
     
-    # Nút cài đặt
+    # Nút cài đặt với layout tốt hơn
     $InstallButton = New-Object Windows.Controls.Button
     $InstallButton.Content = "🚀 CÀI ĐẶT ỨNG DỤNG ĐÃ CHỌN"
     $InstallButton.FontSize = 16
     $InstallButton.FontWeight = "Bold"
     $InstallButton.Height = 50
-    $InstallButton.Margin = "10"
+    $InstallButton.Margin = "0,15,0,0"
     $InstallButton.Background = [System.Windows.Media.LinearGradientBrush]::new(
         [System.Windows.Media.Color]::FromRgb(46, 204, 113),
         [System.Windows.Media.Color]::FromRgb(39, 174, 96),
@@ -615,6 +637,8 @@ function Create-MainWindow {
     )
     $InstallButton.Foreground = [System.Windows.Media.Brushes]::White
     $InstallButton.Cursor = "Hand"
+    $InstallButton.BorderThickness = "0"
+    $InstallButton.HorizontalAlignment = "Stretch"
     
     $InstallButton.Add_Click({
         if ($global:SelectedApps.Count -eq 0) {
@@ -631,8 +655,8 @@ function Create-MainWindow {
         )
         
         if ($result -eq "Yes") {
-            $InstallButton.IsEnabled = $false
-            $InstallButton.Content = "⏳ ĐANG CÀI ĐẶT..."
+            $this.IsEnabled = $false
+            $this.Content = "⏳ ĐANG CÀI ĐẶT..."
             
             $progress = 0
             $total = $global:SelectedApps.Count
@@ -640,11 +664,10 @@ function Create-MainWindow {
             foreach ($appId in $global:SelectedApps.Keys) {
                 $progress++
                 $percentage = [math]::Round(($progress / $total) * 100)
-                $InstallButton.Content = "⏳ ĐANG CÀI ĐẶT... ${percentage}%"
+                $this.Content = "⏳ ĐANG CÀI ĐẶT... ${percentage}%"
                 
                 try {
                     Write-Host "Cài đặt: $appId ..." -ForegroundColor Yellow
-                    # Cài đặt bằng winget
                     $wingetArgs = @("install", "--id", $appId, "--accept-package-agreements", "--accept-source-agreements", "--silent")
                     Start-Process -FilePath "winget" -ArgumentList $wingetArgs -Wait -NoNewWindow
                     Write-Host "✅ Đã cài đặt: $appId" -ForegroundColor Green
@@ -653,13 +676,13 @@ function Create-MainWindow {
                 }
             }
             
-            $InstallButton.Content = "✅ HOÀN TẤT CÀI ĐẶT!"
-            $InstallButton.Background = [System.Windows.Media.Brushes]::Green
+            $this.Content = "✅ HOÀN TẤT CÀI ĐẶT!"
+            $this.Background = [System.Windows.Media.Brushes]::Green
             [System.Windows.MessageBox]::Show("Đã cài đặt xong $total ứng dụng!", "Thành công", "OK", "Information")
             
-            # Reset button sau 3 giây
-            $timer = New-Object System.Windows.Forms.Timer
-            $timer.Interval = 3000
+            # Reset button sau 3 giây sử dụng DispatcherTimer
+            $timer = New-Object System.Windows.Threading.DispatcherTimer
+            $timer.Interval = [TimeSpan]::FromSeconds(3)
             $timer.Add_Tick({
                 $InstallButton.Content = "🚀 CÀI ĐẶT ỨNG DỤNG ĐÃ CHỌN"
                 $InstallButton.Background = [System.Windows.Media.LinearGradientBrush]::new(
@@ -668,8 +691,7 @@ function Create-MainWindow {
                     90
                 )
                 $InstallButton.IsEnabled = $true
-                $timer.Stop()
-                $timer.Dispose()
+                $this.Stop()
             })
             $timer.Start()
         }
@@ -698,29 +720,30 @@ function Create-MainWindow {
     $TweakScroll.VerticalScrollBarVisibility = "Auto"
     
     $TweakStack = New-Object Windows.Controls.StackPanel
-    $TweakStack.Margin = "10"
+    $TweakStack.Margin = "15"
     
     # Biến lưu trữ tweaks đã chọn
     $global:SelectedTweaks = @{}
     
-    # Tạo các nhóm tweak
+    # Tạo các nhóm tweak với layout tốt hơn
     foreach ($category in $Tweaks.Keys) {
         $CategoryBorder = New-Object Windows.Controls.Border
         $CategoryBorder.BorderThickness = "1"
-        $CategoryBorder.BorderBrush = [System.Windows.Media.Brushes]::LightGray
-        $CategoryBorder.CornerRadius = "5"
+        $CategoryBorder.BorderBrush = [System.Windows.Media.Brushes]::Gainsboro
+        $CategoryBorder.CornerRadius = "8"
         $CategoryBorder.Margin = "0,0,0,15"
         $CategoryBorder.Background = [System.Windows.Media.Brushes]::White
+        $CategoryBorder.Padding = "10"
         
         $CategoryStack = New-Object Windows.Controls.StackPanel
         
         # Tiêu đề danh mục tweak
         $CategoryHeader = New-Object Windows.Controls.TextBlock
         $CategoryHeader.Text = $category
-        $CategoryHeader.FontSize = 18
-        $CategoryHeader.FontWeight = "Bold"
-        $CategoryHeader.Margin = "10,10,10,5"
-        $CategoryHeader.Foreground = [System.Windows.Media.Brushes]::DarkSlateBlue
+        $CategoryHeader.FontSize = 20
+        $CategoryHeader.FontWeight = "SemiBold"
+        $CategoryHeader.Margin = "0,0,0,10"
+        $CategoryHeader.Foreground = [System.Windows.Media.Brushes]::DarkBlue
         
         $CategoryStack.Children.Add($CategoryHeader) | Out-Null
         
@@ -728,22 +751,18 @@ function Create-MainWindow {
         foreach ($tweak in $Tweaks[$category]) {
             $CheckBox = New-Object Windows.Controls.CheckBox
             $CheckBox.Content = $tweak.Name
-            $CheckBox.FontSize = 14
-            $CheckBox.Margin = "20,5,10,5"
+            $CheckBox.FontSize = 15
+            $CheckBox.Margin = "15,8,0,8"
             $CheckBox.Tag = $tweak
             $CheckBox.IsChecked = $false
             
             # Lưu sự kiện thay đổi
             $CheckBox.Add_Checked({
-                param($sender, $e)
-                $cb = $sender
-                $global:SelectedTweaks[$cb.Content] = $cb.Tag
+                $global:SelectedTweaks[$this.Content] = $this.Tag
             })
             
             $CheckBox.Add_Unchecked({
-                param($sender, $e)
-                $cb = $sender
-                $global:SelectedTweaks.Remove($cb.Content) | Out-Null
+                $global:SelectedTweaks.Remove($this.Content) | Out-Null
             })
             
             $CategoryStack.Children.Add($CheckBox) | Out-Null
@@ -759,14 +778,16 @@ function Create-MainWindow {
     $ExecuteTweaksButton.FontSize = 16
     $ExecuteTweaksButton.FontWeight = "Bold"
     $ExecuteTweaksButton.Height = 50
-    $ExecuteTweaksButton.Margin = "10"
+    $ExecuteTweaksButton.Margin = "0,15,0,0"
     $ExecuteTweaksButton.Background = [System.Windows.Media.LinearGradientBrush]::new(
-        [System.Windows.Media.Color]::FromRgb(52, 152, 219),
-        [System.Windows.Media.Color]::FromRgb(41, 128, 185),
+        [System.Windows.Media.Color]::FromRgb(25, 118, 210),
+        [System.Windows.Media.Color]::FromRgb(21, 101, 192),
         90
     )
     $ExecuteTweaksButton.Foreground = [System.Windows.Media.Brushes]::White
     $ExecuteTweaksButton.Cursor = "Hand"
+    $ExecuteTweaksButton.BorderThickness = "0"
+    $ExecuteTweaksButton.HorizontalAlignment = "Stretch"
     
     $ExecuteTweaksButton.Add_Click({
         if ($global:SelectedTweaks.Count -eq 0) {
@@ -783,8 +804,8 @@ function Create-MainWindow {
         )
         
         if ($result -eq "Yes") {
-            $ExecuteTweaksButton.IsEnabled = $false
-            $ExecuteTweaksButton.Content = "⏳ ĐANG ÁP DỤNG..."
+            $this.IsEnabled = $false
+            $this.Content = "⏳ ĐANG ÁP DỤNG..."
             
             $results = @()
             $progress = 0
@@ -794,7 +815,7 @@ function Create-MainWindow {
                 $tweak = $global:SelectedTweaks[$tweakName]
                 $progress++
                 $percentage = [math]::Round(($progress / $total) * 100)
-                $ExecuteTweaksButton.Content = "⏳ ĐANG ÁP DỤNG... ${percentage}%"
+                $this.Content = "⏳ ĐANG ÁP DỤNG... ${percentage}%"
                 
                 Write-Host "`n[${progress}/${total}] $tweakName ..." -ForegroundColor Yellow
                 
@@ -827,22 +848,21 @@ function Create-MainWindow {
             $resultWindow.Content = $resultTextBox
             $resultWindow.ShowDialog() | Out-Null
             
-            $ExecuteTweaksButton.Content = "✅ HOÀN TẤT!"
-            $ExecuteTweaksButton.Background = [System.Windows.Media.Brushes]::Green
+            $this.Content = "✅ HOÀN TẤT!"
+            $this.Background = [System.Windows.Media.Brushes]::Green
             
-            # Reset button sau 3 giây
-            $timer = New-Object System.Windows.Forms.Timer
-            $timer.Interval = 3000
+            # Reset button sau 3 giây sử dụng DispatcherTimer
+            $timer = New-Object System.Windows.Threading.DispatcherTimer
+            $timer.Interval = [TimeSpan]::FromSeconds(3)
             $timer.Add_Tick({
                 $ExecuteTweaksButton.Content = "⚡ ÁP DỤNG TWEAKS ĐÃ CHỌN"
                 $ExecuteTweaksButton.Background = [System.Windows.Media.LinearGradientBrush]::new(
-                    [System.Windows.Media.Color]::FromRgb(52, 152, 219),
-                    [System.Windows.Media.Color]::FromRgb(41, 128, 185),
+                    [System.Windows.Media.Color]::FromRgb(25, 118, 210),
+                    [System.Windows.Media.Color]::FromRgb(21, 101, 192),
                     90
                 )
                 $ExecuteTweaksButton.IsEnabled = $true
-                $timer.Stop()
-                $timer.Dispose()
+                $this.Stop()
             })
             $timer.Start()
         }
@@ -860,6 +880,7 @@ function Create-MainWindow {
     
     $InfoStack = New-Object Windows.Controls.StackPanel
     $InfoStack.Margin = "20"
+    $InfoStack.HorizontalAlignment = "Center"
     
     $InfoText = New-Object Windows.Controls.TextBox
     $InfoText.Text = Get-SystemInfoText
@@ -868,17 +889,27 @@ function Create-MainWindow {
     $InfoText.IsReadOnly = $true
     $InfoText.VerticalScrollBarVisibility = "Auto"
     $InfoText.TextWrapping = "Wrap"
+    $InfoText.Width = 800
     $InfoText.Height = 500
+    $InfoText.Background = [System.Windows.Media.Brushes]::White
+    $InfoText.BorderBrush = [System.Windows.Media.Brushes]::LightGray
+    $InfoText.BorderThickness = "1"
     
     # Nút refresh thông tin
     $RefreshButton = New-Object Windows.Controls.Button
     $RefreshButton.Content = "🔄 LÀM MỚI THÔNG TIN"
     $RefreshButton.FontSize = 14
     $RefreshButton.FontWeight = "Bold"
-    $RefreshButton.Margin = "0,10,0,0"
-    $RefreshButton.Width = 200
-    $RefreshButton.Height = 40
-    $RefreshButton.Background = [System.Windows.Media.Brushes]::LightBlue
+    $RefreshButton.Margin = "0,15,0,0"
+    $RefreshButton.Width = 220
+    $RefreshButton.Height = 45
+    $RefreshButton.Background = [System.Windows.Media.LinearGradientBrush]::new(
+        [System.Windows.Media.Color]::FromRgb(124, 179, 66),
+        [System.Windows.Media.Color]::FromRgb(104, 159, 56),
+        90
+    )
+    $RefreshButton.Foreground = [System.Windows.Media.Brushes]::White
+    $RefreshButton.BorderThickness = "0"
     
     $RefreshButton.Add_Click({
         $InfoText.Text = "Đang cập nhật thông tin hệ thống..."
@@ -893,7 +924,7 @@ function Create-MainWindow {
     # Footer
     $FooterGrid = New-Object Windows.Controls.Grid
     $FooterGrid.Height = 60
-    $FooterGrid.Background = [System.Windows.Media.Brushes]::LightGray
+    $FooterGrid.Background = [System.Windows.Media.Brushes]::Whitesmoke
     
     $ButtonPanel = New-Object Windows.Controls.StackPanel
     $ButtonPanel.Orientation = "Horizontal"
@@ -903,12 +934,17 @@ function Create-MainWindow {
     # Nút khởi động lại
     $RestartButton = New-Object Windows.Controls.Button
     $RestartButton.Content = "🔄 KHỞI ĐỘNG LẠI"
-    $RestartButton.Width = 150
-    $RestartButton.Height = 40
-    $RestartButton.Margin = "10"
-    $RestartButton.Background = [System.Windows.Media.Brushes]::Orange
+    $RestartButton.Width = 180
+    $RestartButton.Height = 45
+    $RestartButton.Margin = "15"
+    $RestartButton.Background = [System.Windows.Media.LinearGradientBrush]::new(
+        [System.Windows.Media.Color]::FromRgb(255, 152, 0),
+        [System.Windows.Media.Color]::FromRgb(245, 124, 0),
+        90
+    )
     $RestartButton.Foreground = [System.Windows.Media.Brushes]::White
     $RestartButton.FontWeight = "Bold"
+    $RestartButton.BorderThickness = "0"
     
     $RestartButton.Add_Click({
         $result = [System.Windows.MessageBox]::Show("Bạn có muốn khởi động lại máy tính ngay bây giờ?", "Xác nhận", "YesNo", "Question")
@@ -920,12 +956,17 @@ function Create-MainWindow {
     # Nút thoát
     $ExitButton = New-Object Windows.Controls.Button
     $ExitButton.Content = "❌ THOÁT"
-    $ExitButton.Width = 150
-    $ExitButton.Height = 40
-    $ExitButton.Margin = "10"
-    $ExitButton.Background = [System.Windows.Media.Brushes]::Red
+    $ExitButton.Width = 180
+    $ExitButton.Height = 45
+    $ExitButton.Margin = "15"
+    $ExitButton.Background = [System.Windows.Media.LinearGradientBrush]::new(
+        [System.Windows.Media.Color]::FromRgb(229, 57, 53),
+        [System.Windows.Media.Color]::FromRgb(211, 47, 47),
+        90
+    )
     $ExitButton.Foreground = [System.Windows.Media.Brushes]::White
     $ExitButton.FontWeight = "Bold"
+    $ExitButton.BorderThickness = "0"
     
     $ExitButton.Add_Click({
         $Window.Close()
