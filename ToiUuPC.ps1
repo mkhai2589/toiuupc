@@ -17,7 +17,7 @@ $logo = @"
     ║   ██║     ██║ ╚═╝ ██║██║  ██╗                             ║
     ║   ╚═╝     ╚═╝     ╚═╝╚═╝  ╚═╝                             ║
     ║                                                            ║
-    ║     PMK - MinhKhai                                         ║
+    ║               PMK - Thuthuatwiki                           ║
     ║     Tối ưu Windows - PMK Toolbox                           ║
     ╚════════════════════════════════════════════════════════════╝
 
@@ -39,7 +39,7 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
 [void][System.Reflection.Assembly]::LoadWithPartialName('PresentationCore')
 [void][System.Reflection.Assembly]::LoadWithPartialName('WindowsBase')
 
-# Danh sách ứng dụng (giữ nguyên)
+# Danh sách ứng dụng
 $Apps = @{
     "Browsers" = @(
         @{Name="Brave";          Winget="Brave.Brave"}
@@ -143,6 +143,7 @@ $Tweaks = @{
         }}
         @{Name="Disable Microsoft Copilot"; Action={
             Write-Host "Disabling Copilot..." -ForegroundColor Yellow
+            New-Item -Path "HKCU:\Software\Policies\Microsoft\Windows\WindowsCopilot" -Force | Out-Null
             Set-ItemProperty -Path "HKCU:\Software\Policies\Microsoft\Windows\WindowsCopilot" -Name "TurnOffWindowsCopilot" -Value 1 -Type DWord -Force
             Write-Host "Done!" -ForegroundColor Green
         }}
@@ -164,13 +165,18 @@ $Tweaks = @{
         @{Name="Remove OneDrive"; Action={
             Write-Host "Removing OneDrive..." -ForegroundColor Yellow
             taskkill /f /im OneDrive.exe -ErrorAction SilentlyContinue
-            & "$env:SystemRoot\SysWOW64\OneDriveSetup.exe" /uninstall
+            & "$env:SystemRoot\SysWOW64\OneDriveSetup.exe" /uninstall -ErrorAction SilentlyContinue
             Write-Host "OneDrive removed!" -ForegroundColor Green
         }}
         @{Name="Disable Windows Update Delivery Optimization"; Action={
             Write-Host "Disabling Delivery Optimization..." -ForegroundColor Yellow
             Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DeliveryOptimization" -Name "DODownloadMode" -Value 0 -Type DWord -Force
             Write-Host "Done!" -ForegroundColor Green
+        }}
+        @{Name="Disable Windows Defender Real-time Protection (Caution)"; Action={
+            Write-Host "Disabling Defender Real-time (Caution)..." -ForegroundColor Red
+            Set-MpPreference -DisableRealtimeMonitoring $true -ErrorAction SilentlyContinue
+            Write-Host "Done! (Restart required)" -ForegroundColor Red
         }}
     )
     "Customize Preferences" = @(
@@ -204,10 +210,20 @@ $Tweaks = @{
             Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "SnapAssist" -Value 0 -Type DWord -Force
             Write-Host "Done!" -ForegroundColor Green
         }}
+        @{Name="Disable Task View Button"; Action={
+            Write-Host "Disabling Task View Button..." -ForegroundColor Yellow
+            Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "ShowTaskViewButton" -Value 0 -Type DWord -Force
+            Write-Host "Done!" -ForegroundColor Green
+        }}
+        @{Name="Disable Search Button in Taskbar"; Action={
+            Write-Host "Disabling Search Button..." -ForegroundColor Yellow
+            Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" -Name "SearchboxTaskbarMode" -Value 0 -Type DWord -Force
+            Write-Host "Done!" -ForegroundColor Green
+        }}
     )
 }
 
-# WPF GUI (fix output thừa)
+# WPF GUI
 $Window = New-Object Windows.Window
 $Window.Title = "PMK Toolbox - ToiUuPC"
 $Window.Width = 1200
