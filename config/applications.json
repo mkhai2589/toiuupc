@@ -1,10 +1,33 @@
 {
-  "Web Browser": [
-    {"Name": "Brave", "Winget": "Brave.Brave"},
-    {"Name": "Google Chrome", "Winget": "Google.Chrome"}
+  "🌐 Trình duyệt": [
+    {"Name": "Brave", "Winget": "Brave.Brave", "Icon": "🚀"},
+    {"Name": "Google Chrome", "Winget": "Google.Chrome", "Icon": "🔍"},
+    {"Name": "Firefox", "Winget": "Mozilla.Firefox", "Icon": "🦊"},
+    {"Name": "Microsoft Edge", "Winget": "Microsoft.Edge", "Icon": "⚡"},
+    {"Name": "Opera", "Winget": "Opera.Opera", "Icon": "🎭"}
   ],
-  "Communication": [
-    {"Name": "Discord", "Winget": "Discord.Discord"}
+  "💬 Giao tiếp": [
+    {"Name": "Discord", "Winget": "Discord.Discord", "Icon": "🎮"},
+    {"Name": "Telegram", "Winget": "Telegram.TelegramDesktop", "Icon": "✈️"},
+    {"Name": "Zoom", "Winget": "Zoom.Zoom", "Icon": "📹"},
+    {"Name": "Skype", "Winget": "Microsoft.Skype", "Icon": "💼"}
+  ],
+  "🛠️ Công cụ phát triển": [
+    {"Name": "Visual Studio Code", "Winget": "Microsoft.VisualStudioCode", "Icon": "📝"},
+    {"Name": "Git", "Winget": "Git.Git", "Icon": "🌿"},
+    {"Name": "Python 3", "Winget": "Python.Python.3.12", "Icon": "🐍"},
+    {"Name": "Node.js", "Winget": "OpenJS.NodeJS", "Icon": "⬢"}
+  ],
+  "🎨 Đa phương tiện": [
+    {"Name": "VLC", "Winget": "VideoLAN.VLC", "Icon": "🎬"},
+    {"Name": "Spotify", "Winget": "Spotify.Spotify", "Icon": "🎵"},
+    {"Name": "GIMP", "Winget": "GIMP.GIMP", "Icon": "🖼️"},
+    {"Name": "OBS Studio", "Winget": "OBSProject.OBSStudio", "Icon": "🎥"}
+  ],
+  "📦 Tiện ích hệ thống": [
+    {"Name": "7-Zip", "Winget": "7zip.7zip", "Icon": "🗜️"},
+    {"Name": "WinRAR", "Winget": "RARLab.WinRAR", "Icon": "📦"},
+    {"Name": "CCleaner", "Winget": "Piriform.CCleaner", "Icon": "🧹"},
+    {"Name": "Everything", "Winget": "voidtools.Everything", "Icon": "🔎"}
   ]
-  // Thêm tiếp các category khác
 }
