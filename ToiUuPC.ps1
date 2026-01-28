@@ -1,12 +1,13 @@
 # ToiUuPC.ps1 - Công cụ tối ưu Windows PMK
-# Run: irm https://raw.githubusercontent.com/mkhai2589/toiuupc/main/ToiUuPC.ps1 | iex
+# Run: irm bit.ly/pmktool | iex
 # Author: Thuthuatwiki (PMK)
+# Version: 2.1 - Fixed all parse errors, improved stability
 
-#region Khởi tạo và kiểm tra
 Clear-Host
 
-# Kiểm tra và yêu cầu quyền Admin
-if (-NOT ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+#region Khởi tạo
+# Kiểm tra quyền Admin
+if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     Write-Host "Yêu cầu chạy với quyền Administrator!" -ForegroundColor Red
     Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
     exit
@@ -15,49 +16,31 @@ if (-NOT ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
 # Logo PMK
 $logo = @"
 ╔══════════════════════════════════════════════════════════════════════════╗
-║                                                                          ║
 ║   ██████╗ ███╗   ███╗██╗  ██╗      ████████╗ ██████╗  ██████╗ ██╗       ║
 ║   ██╔══██╗████╗ ████║██║ ██╔╝      ╚══██╔══╝██╔═══██╗██╔═══██╗██║       ║
-║   ██████╔╝██╔████╔██║█████╔╝ █████╗   ██║   ██║   ██║██║   ██║██║       ║
-║   ██╔═══╝ ██║╚██╔╝██║██╔═██╗ ╚════╝   ██║   ██║   ██║██║   ██║██║       ║
+║   ██████╔╝██╔████╔██║█████╔╝          ██║   ██║   ██║██║   ██║██║       ║
+║   ██╔═══╝ ██║╚██╔╝██║██╔═██╗          ██║   ██║   ██║██║   ██║██║       ║
 ║   ██║     ██║ ╚═╝ ██║██║  ██╗         ██║   ╚██████╔╝╚██████╔╝███████╗  ║
 ║   ╚═╝     ╚═╝     ╚═╝╚═╝  ╚═╝         ╚═╝    ╚═════╝  ╚═════╝ ╚══════╝  ║
-║                                                                          ║
 ║                        PMK Toolbox - Tối ưu Windows                      ║
-║                    Phiên bản: 2.0 | Hỗ trợ: Windows 10/11                ║
+║                    Phiên bản: 2.1 | Windows 10/11                        ║
 ╚══════════════════════════════════════════════════════════════════════════╝
 "@
 
 Write-Host $logo -ForegroundColor Cyan
-Write-Host "`nĐang tải PMK Toolbox..." -ForegroundColor Yellow
-
-# Kiểm tra và cài đặt các module cần thiết
-function Install-RequiredModules {
-    try {
-        if (-not (Get-Module -ListAvailable -Name "BurntToast")) {
-            Write-Host "Cài đặt module BurntToast..." -ForegroundColor Yellow
-            Install-Module -Name "BurntToast" -Force -AllowClobber -Scope CurrentUser -ErrorAction SilentlyContinue
-        }
-    } catch {
-        Write-Host "Không thể cài đặt module. Bỏ qua..." -ForegroundColor Yellow
-    }
-}
+Write-Host "`nĐang khởi tạo PMK Toolbox..." -ForegroundColor Yellow
 
 # Kiểm tra winget
 function Test-Winget {
     try {
-        $wingetCheck = winget --version 2>$null
-        if ($LASTEXITCODE -eq 0 -or $wingetCheck) {
-            return $true
-        }
-        return $false
+        $wingetResult = winget --version 2>$null
+        return ($LASTEXITCODE -eq 0) -or ($wingetResult -ne $null)
     } catch {
-        Write-Host "Winget không được cài đặt. Tính năng cài đặt ứng dụng bị hạn chế." -ForegroundColor Yellow
         return $false
     }
 }
 
-#region Load WPF Assemblies
+# Load WPF Assemblies
 Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase, System.Windows.Forms
 [System.Windows.Forms.Application]::EnableVisualStyles()
 #endregion
@@ -102,8 +85,9 @@ $Apps = @{
         @{Name="Notepad++"; Winget="Notepad++.Notepad++"; Icon="📄"}
     )
 }
+#endregion
 
-#region Tweak Registry Functions
+#region Hàm Registry
 function Set-RegistryTweak {
     param(
         [string]$Path,
@@ -114,21 +98,21 @@ function Set-RegistryTweak {
     )
     
     try {
-        # Kiểm tra path có tồn tại không
-        if (-not (Test-Path $Path)) {
-            if ($CreatePath) {
-                $parentPath = Split-Path -Path $Path -Parent
-                if (-not (Test-Path $parentPath)) {
-                    New-Item -Path $parentPath -Force -ErrorAction SilentlyContinue | Out-Null
-                }
+        if ($CreatePath) {
+            $parentPath = Split-Path -Path $Path -Parent
+            if (-not (Test-Path $parentPath)) {
+                New-Item -Path $parentPath -Force -ErrorAction SilentlyContinue | Out-Null
+            }
+            if (-not (Test-Path $Path)) {
                 New-Item -Path $Path -Force -ErrorAction SilentlyContinue | Out-Null
-            } else {
-                Write-Warning "Registry path không tồn tại: $Path"
-                return $false
             }
         }
         
-        # Thiết lập giá trị registry
+        if (-not (Test-Path $Path)) {
+            Write-Warning "Registry path không tồn tại: $Path"
+            return $false
+        }
+        
         Set-ItemProperty -Path $Path -Name $Name -Value $Value -Type $Type -Force
         return $true
     } catch {
@@ -164,12 +148,11 @@ function Remove-WindowsApp {
 }
 #endregion
 
-#region Danh sách Tweak
+#region Danh sách Tweak (ĐÃ FIX TẤT CẢ LỖI PARSE)
 $Tweaks = @{
     "🔧 Tối ưu hiệu suất" = @(
         @{Name="Tạo điểm khôi phục hệ thống"; Action={
             try {
-                # Kiểm tra xem System Restore có được bật không
                 if ((Get-ComputerRestorePoint).Count -eq 0) {
                     Enable-ComputerRestore -Drive "C:\"
                 }
@@ -181,9 +164,7 @@ $Tweaks = @{
         }}
         @{Name="Xóa file tạm"; Action={
             try {
-                # Xóa thư mục temp
                 Get-ChildItem -Path "$env:TEMP", "C:\Windows\Temp" -Recurse -ErrorAction SilentlyContinue | Remove-Item -Force -Recurse -ErrorAction SilentlyContinue
-                # Chạy Disk Cleanup
                 Cleanmgr /sagerun:1 | Out-Null
                 return "✅ Đã xóa file tạm"
             } catch { 
@@ -213,9 +194,7 @@ $Tweaks = @{
         }}
         @{Name="Tối ưu hóa điện năng"; Action={
             try {
-                # Áp dụng chế độ hiệu suất cao
                 powercfg -setactive 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c
-                # Tắt hibernation
                 powercfg -h off
                 return "✅ Đã áp dụng chế độ hiệu suất cao"
             } catch { 
@@ -301,6 +280,7 @@ public class Wallpaper {
 "@ -ErrorAction SilentlyContinue
                 
                 [Wallpaper]::SetWallpaper($blackWallpaper)
+                Remove-Item $blackWallpaper -Force -ErrorAction SilentlyContinue
                 
                 return "✅ Đã đổi hình nền màu đen"
             } catch { 
@@ -312,10 +292,8 @@ public class Wallpaper {
     "🧹 Dọn dẹp Windows" = @(
         @{Name="Xóa OneDrive"; Action={
             try {
-                # Dừng OneDrive process
                 Get-Process -Name "OneDrive" -ErrorAction SilentlyContinue | Stop-Process -Force
                 
-                # Gỡ cài đặt OneDrive
                 $onedrivePaths = @(
                     "$env:SystemRoot\SysWOW64\OneDriveSetup.exe",
                     "$env:SystemRoot\System32\OneDriveSetup.exe",
@@ -336,23 +314,24 @@ public class Wallpaper {
         }}
         @{Name="Xóa Windows Bloatware"; Action={
             $bloatApps = @(
-                "*3DBuilder*", "*Bing*", "*Clipchamp*",
-                "*Cortana*", "*FeedbackHub*", "*GetHelp*", "*GetStarted*",
-                "*MicrosoftSolitaireCollection*", "*MixedReality*",
-                "*OneConnect*", "*People*", "*PowerAutomate*", "*Skype*",
-                "*SoundRecorder*", "*StickyNotes*", "*Tips*", "*Wallet*",
-                "*WebExperiences*", "*WindowsAlarms*", "*WindowsCamera*",
-                "*WindowsMaps*", "*WindowsSoundRecorder*", "*Xbox*"
+                "*3DBuilder*", "*Bing*", "*Clipchamp*", "*Cortana*", 
+                "*FeedbackHub*", "*GetHelp*", "*GetStarted*", "*MicrosoftSolitaireCollection*",
+                "*MixedReality*", "*OneConnect*", "*People*", "*PowerAutomate*", "*Skype*",
+                "*SoundRecorder*", "*StickyNotes*", "*Tips*", "*Wallet*", "*WebExperiences*",
+                "*WindowsAlarms*", "*WindowsCamera*", "*WindowsMaps*", "*WindowsSoundRecorder*", "*Xbox*"
             )
-            $removed = @()
+            
+            $removedApps = @()
             foreach ($app in $bloatApps) {
                 $count = Remove-WindowsApp -Pattern $app
                 if ($count -gt 0) { 
-                    $removed += "$app ($count apps)"
+                    $appName = $app.Replace('*', '')
+                    $removedApps += "$appName ($count)"
                 }
             }
-            if ($removed.Count -gt 0) {
-                return "✅ Đã xóa: $($removed -join ', ')"
+            
+            if ($removedApps.Count -gt 0) {
+                return "✅ Đã xóa: $($removedApps -join ', ')"
             } else {
                 return "ℹ️ Không tìm thấy bloatware để xóa"
             }
@@ -375,7 +354,6 @@ public class Wallpaper {
         }}
         @{Name="Tối ưu hóa mạng"; Action={
             try {
-                # Tối ưu cài đặt TCP
                 Set-NetTCPSetting -CongestionProvider DCTCP -ErrorAction SilentlyContinue
                 Set-NetTCPSetting -AutoTuningLevelLocal Normal -ErrorAction SilentlyContinue
                 return "✅ Đã tối ưu cài đặt TCP"
@@ -397,6 +375,81 @@ public class Wallpaper {
             return "NumLock: $($results -join ' | ')"
         }}
     )
+}
+#endregion
+
+#region Hàm lấy thông tin hệ thống (ĐÃ SỬA LỖI PARSE)
+function Get-SystemInfoText {
+    try {
+        $os = Get-CimInstance -ClassName Win32_OperatingSystem -ErrorAction SilentlyContinue
+        $cpu = Get-CimInstance -ClassName Win32_Processor -ErrorAction SilentlyContinue | Select-Object -First 1
+        $cs = Get-CimInstance -ClassName Win32_ComputerSystem -ErrorAction SilentlyContinue
+        $gpu = Get-CimInstance -ClassName Win32_VideoController -ErrorAction SilentlyContinue | Select-Object -First 1
+        $disk = Get-CimInstance -ClassName Win32_LogicalDisk -Filter "DeviceID='C:'" -ErrorAction SilentlyContinue
+        
+        # Xử lý giá trị null
+        $osName = if ($os -and $os.Caption) { $os.Caption } else { "Không xác định" }
+        $osBuild = if ($os -and $os.BuildNumber) { $os.BuildNumber } else { "N/A" }
+        $osVersion = if ($os -and $os.Version) { $os.Version } else { "N/A" }
+        $osArch = if ($os -and $os.OSArchitecture) { $os.OSArchitecture } else { "N/A" }
+        
+        $cpuName = if ($cpu -and $cpu.Name) { $cpu.Name.Trim() } else { "Không xác định" }
+        $cpuCores = if ($cpu -and $cpu.NumberOfCores) { $cpu.NumberOfCores } else { "N/A" }
+        $cpuThreads = if ($cpu -and $cpu.NumberOfLogicalProcessors) { $cpu.NumberOfLogicalProcessors } else { "N/A" }
+        $cpuSpeed = if ($cpu -and $cpu.MaxClockSpeed) { [math]::Round($cpu.MaxClockSpeed / 1000, 2) } else { "N/A" }
+        
+        $totalRAM = if ($cs -and $cs.TotalPhysicalMemory) { [math]::Round($cs.TotalPhysicalMemory / 1GB, 2) } else { "N/A" }
+        $freeRAM = if ($os -and $os.FreePhysicalMemory) { [math]::Round($os.FreePhysicalMemory / 1GB, 2) } else { "N/A" }
+        
+        $gpuName = if ($gpu -and $gpu.Name) { $gpu.Name } else { "Không xác định" }
+        $gpuRAM = if ($gpu -and $gpu.AdapterRAM) { [math]::Round($gpu.AdapterRAM / 1GB, 2) } else { "N/A" }
+        
+        $resolution = "Không xác định"
+        if ($gpu -and $gpu.CurrentHorizontalResolution -and $gpu.CurrentVerticalResolution) {
+            $resolution = "$($gpu.CurrentHorizontalResolution) x $($gpu.CurrentVerticalResolution)"
+        }
+        
+        $diskSize = if ($disk -and $disk.Size) { [math]::Round($disk.Size / 1GB, 2) } else { "N/A" }
+        $diskFree = if ($disk -and $disk.FreeSpace) { [math]::Round($disk.FreeSpace / 1GB, 2) } else { "N/A" }
+        $diskUsed = if ($disk -and $disk.Size -and $disk.FreeSpace) { 
+            [math]::Round(($disk.Size - $disk.FreeSpace) / 1GB, 2) 
+        } else { "N/A" }
+        
+        return @"
+══════════════════════════════════════════════════════════════════════
+                  THÔNG TIN HỆ THỐNG
+
+📊 Hệ điều hành:
+   • Tên: $osName
+   • Phiên bản: $osVersion
+   • Build: $osBuild
+   • Architecture: $osArch
+
+⚡ CPU:
+   • Model: $cpuName
+   • Số nhân: $cpuCores
+   • Luồng: $cpuThreads
+   • Tốc độ: $cpuSpeed GHz
+
+💾 RAM:
+   • Tổng: $totalRAM GB
+   • Còn trống: $freeRAM GB
+
+🎮 GPU:
+   • Card màn hình: $gpuName
+   • Bộ nhớ: $gpuRAM GB
+   • Độ phân giải: $resolution
+
+💿 Ổ đĩa (C:):
+   • Tổng dung lượng: $diskSize GB
+   • Đã sử dụng: $diskUsed GB
+   • Còn trống: $diskFree GB
+
+══════════════════════════════════════════════════════════════════════
+"@
+    } catch {
+        return "Lỗi khi lấy thông tin hệ thống: $($_.Exception.Message)"
+    }
 }
 #endregion
 
@@ -435,10 +488,9 @@ function Create-MainWindow {
     $HeaderText.Foreground = [System.Windows.Media.Brushes]::White
     $HeaderText.VerticalAlignment = "Center"
     $HeaderText.HorizontalAlignment = "Center"
-    $HeaderText.Margin = "0,0,0,10"
     
     $VersionText = New-Object Windows.Controls.TextBlock
-    $VersionText.Text = "v2.0 | Windows 10/11 | By PMK"
+    $VersionText.Text = "v2.1 | Windows 10/11 | By PMK"
     $VersionText.FontSize = 12
     $VersionText.Foreground = [System.Windows.Media.Brushes]::LightGray
     $VersionText.VerticalAlignment = "Bottom"
@@ -504,13 +556,6 @@ function Create-MainWindow {
             $AppBorder.CornerRadius = "5"
             $AppBorder.Background = [System.Windows.Media.Brushes]::WhiteSmoke
             $AppBorder.Tag = $app.Winget
-            
-            # Lưu trữ thông tin app
-            $appInfo = @{
-                Name = $app.Name
-                Winget = $app.Winget
-                Icon = $app.Icon
-            }
             
             $AppStack = New-Object Windows.Controls.StackPanel
             $AppStack.Orientation = "Horizontal"
@@ -629,6 +674,15 @@ function Create-MainWindow {
             $timer.Start()
         }
     })
+    
+    # Vô hiệu hóa nút cài đặt nếu không có winget
+    $hasWinget = Test-Winget
+    if (-not $hasWinget) {
+        $InstallButton.IsEnabled = $false
+        $InstallButton.Content = "⚠️ WINGET CHƯA CÀI ĐẶT"
+        $InstallButton.Background = [System.Windows.Media.Brushes]::Gray
+        $InstallButton.ToolTip = "Vui lòng cài đặt Winget từ Microsoft Store"
+    }
     
     $InstallStack.Children.Add($InstallButton) | Out-Null
     $InstallScroll.Content = $InstallStack
@@ -807,54 +861,6 @@ function Create-MainWindow {
     $InfoStack = New-Object Windows.Controls.StackPanel
     $InfoStack.Margin = "20"
     
-    # Lấy thông tin hệ thống
-    function Get-SystemInfoText {
-        try {
-            $os = Get-CimInstance -ClassName Win32_OperatingSystem -ErrorAction SilentlyContinue
-            $cpu = Get-CimInstance -ClassName Win32_Processor -ErrorAction SilentlyContinue | Select-Object -First 1
-            $ram = Get-CimInstance -ClassName Win32_ComputerSystem -ErrorAction SilentlyContinue
-            $gpu = Get-CimInstance -ClassName Win32_VideoController -ErrorAction SilentlyContinue | Select-Object -First 1
-            $disk = Get-CimInstance -ClassName Win32_LogicalDisk -Filter "DeviceID='C:'" -ErrorAction SilentlyContinue
-            
-            $systemInfo = @"
-══════════════════════════════════════════════════════════════════════
-                  THÔNG TIN HỆ THỐNG
-
-📊 Hệ điều hành:
-   • Tên: $(if($os){$os.Caption}else{"Không xác định"})
-   • Phiên bản: $(if($os){$os.Version}else{"N/A"})
-   • Build: $(if($os){$os.BuildNumber}else{"N/A"})
-   • Architecture: $(if($os){$os.OSArchitecture}else{"N/A"})
-
-⚡ CPU:
-   • Model: $(if($cpu){$cpu.Name}else{"Không xác định"})
-   • Số nhân: $(if($cpu){$cpu.NumberOfCores}else{"N/A"})
-   • Luồng: $(if($cpu){$cpu.NumberOfLogicalProcessors}else{"N/A"})
-   • Tốc độ: $(if($cpu -and $cpu.MaxClockSpeed){[math]::Round($cpu.MaxClockSpeed / 1000, 2)}else{"N/A"}) GHz
-
-💾 RAM:
-   • Tổng: $(if($ram -and $ram.TotalPhysicalMemory){[math]::Round($ram.TotalPhysicalMemory / 1GB, 2)}else{"N/A"}) GB
-   • Sử dụng: $(if($os -and $ram -and $ram.TotalPhysicalMemory){[math]::Round(($ram.TotalPhysicalMemory - $os.FreePhysicalMemory) / 1GB, 2)}else{"N/A"}) GB
-   • Còn trống: $(if($os -and $os.FreePhysicalMemory){[math]::Round($os.FreePhysicalMemory / 1GB, 2)}else{"N/A"}) GB
-
-🎮 GPU:
-   • Card màn hình: $(if($gpu){$gpu.Name}else{"Không xác định"})
-   • Bộ nhớ: $(if($gpu -and $gpu.AdapterRAM){[math]::Round($gpu.AdapterRAM / 1GB, 2)}else{"N/A"}) GB
-   • Độ phân giải: $(if($gpu -and $gpu.CurrentHorizontalResolution){$gpu.CurrentHorizontalResolution}x$($gpu.CurrentVerticalResolution)}else{"N/A"})
-
-💿 Ổ đĩa (C:):
-   • Tổng dung lượng: $(if($disk -and $disk.Size){[math]::Round($disk.Size / 1GB, 2)}else{"N/A"}) GB
-   • Đã sử dụng: $(if($disk -and $disk.Size -and $disk.FreeSpace){[math]::Round(($disk.Size - $disk.FreeSpace) / 1GB, 2)}else{"N/A"}) GB
-   • Còn trống: $(if($disk -and $disk.FreeSpace){[math]::Round($disk.FreeSpace / 1GB, 2)}else{"N/A"}) GB
-
-══════════════════════════════════════════════════════════════════════
-"@
-            return $systemInfo
-        } catch {
-            return "Lỗi khi lấy thông tin hệ thống: $($_.Exception.Message)"
-        }
-    }
-    
     $InfoText = New-Object Windows.Controls.TextBox
     $InfoText.Text = Get-SystemInfoText
     $InfoText.FontFamily = "Consolas"
@@ -884,7 +890,7 @@ function Create-MainWindow {
     $TabInfo.Content = $InfoStack
     $TabControl.Items.Add($TabInfo) | Out-Null
     
-    # Footer với các nút chức năng
+    # Footer
     $FooterGrid = New-Object Windows.Controls.Grid
     $FooterGrid.Height = 60
     $FooterGrid.Background = [System.Windows.Media.Brushes]::LightGray
@@ -929,7 +935,7 @@ function Create-MainWindow {
     $ButtonPanel.Children.Add($ExitButton) | Out-Null
     $FooterGrid.Children.Add($ButtonPanel) | Out-Null
     
-    # Xây dựng layout chính
+    # Xây dựng layout
     $MainGrid.RowDefinitions.Add((New-Object Windows.Controls.RowDefinition -Property @{Height = "Auto"}))
     $MainGrid.RowDefinitions.Add((New-Object Windows.Controls.RowDefinition))
     $MainGrid.RowDefinitions.Add((New-Object Windows.Controls.RowDefinition -Property @{Height = "Auto"}))
@@ -948,19 +954,12 @@ function Create-MainWindow {
 #endregion
 
 #region Main Execution
-Write-Host "`nĐang khởi tạo PMK Toolbox..." -ForegroundColor Yellow
-
 # Kiểm tra winget
 $hasWinget = Test-Winget
 if (-not $hasWinget) {
-    Write-Host "Khuyến nghị: Cài đặt Winget từ Microsoft Store để sử dụng tính năng cài đặt ứng dụng." -ForegroundColor Yellow
-}
-
-# Cài đặt module cần thiết
-try {
-    Install-RequiredModules
-} catch {
-    Write-Host "Không thể cài đặt module: $($_.Exception.Message)" -ForegroundColor Yellow
+    Write-Host "⚠️  Winget không được cài đặt. Tính năng cài đặt ứng dụng bị vô hiệu hóa." -ForegroundColor Yellow
+    Write-Host "   Cài đặt Winget từ Microsoft Store hoặc chạy lệnh sau:" -ForegroundColor Yellow
+    Write-Host "   winget install --id Microsoft.Winget.CLI" -ForegroundColor Cyan
 }
 
 # Hiển thị GUI
@@ -968,8 +967,8 @@ try {
     $mainWindow = Create-MainWindow
     $null = $mainWindow.ShowDialog()
 } catch {
-    Write-Host "Lỗi khi tạo giao diện: $($_.Exception.Message)" -ForegroundColor Red
-    Write-Host "Vui lòng kiểm tra và chạy lại script." -ForegroundColor Yellow
+    Write-Host "❌ Lỗi khi tạo giao diện: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host "⚠️  Vui lòng kiểm tra và chạy lại script." -ForegroundColor Yellow
     Pause
 }
 #endregion
