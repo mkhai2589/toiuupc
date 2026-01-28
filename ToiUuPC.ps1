@@ -1,17 +1,20 @@
 # ToiUuPC.ps1 - Công cụ tối ưu Windows PMK
 # Run: irm bit.ly/pmktool | iex
 # Author: Thuthuatwiki (PMK)
-# Version: 2.2 - Fixed GUI errors, improved UX/UI, added RAM speed and all disks info, realtime console output, WPF timer fixes
+# Version: 2.3 - Optimized performance, fixed UI lag, added DNS management and WinUtil tweaks
 
 Clear-Host
 
-#region Khởi tạo
+#region Khởi tạo với hiệu suất cao
 # Kiểm tra quyền Admin
 if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     Write-Host "Yêu cầu chạy với quyền Administrator!" -ForegroundColor Red
     Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
     exit
 }
+
+# Disable progress bars for better performance
+$ProgressPreference = 'SilentlyContinue'
 
 # Logo PMK
 $logo = @"
@@ -23,12 +26,12 @@ $logo = @"
 ║   ██║     ██║ ╚═╝ ██║██║  ██╗         ██║   ╚██████╔╝╚██████╔╝███████╗  ║
 ║   ╚═╝     ╚═╝     ╚═╝╚═╝  ╚═╝         ╚═╝    ╚═════╝  ╚═════╝ ╚══════╝  ║
 ║                        PMK Toolbox - Tối ưu Windows                      ║
-║                    Phiên bản: 2.2 | Windows 10/11                        ║
+║                    Phiên bản: 2.3 | Windows 10/11                        ║
 ╚══════════════════════════════════════════════════════════════════════════╝
 "@
 
 Write-Host $logo -ForegroundColor Cyan
-Write-Host "`nĐang khởi tạo PMK Toolbox..." -ForegroundColor Yellow
+Write-Host "`nĐang khởi tạo PMK Toolbox... (Tối ưu hiệu năng)" -ForegroundColor Yellow
 
 # Kiểm tra winget
 function Test-Winget {
@@ -40,17 +43,49 @@ function Test-Winget {
     }
 }
 
-# Load WPF Assemblies
+# Load WPF Assemblies với timeout
 try {
-    Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase
+    # Sử dụng runspace để tránh block UI
+    $loadAssemblyJob = [PowerShell]::Create().AddScript({
+        Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase, System.Windows.Forms
+    })
+    $loadAssemblyHandle = $loadAssemblyJob.BeginInvoke()
+    
+    # Timeout 10 giây
+    $timeout = 10000
+    $startTime = Get-Date
+    while (-not $loadAssemblyHandle.IsCompleted) {
+        if (((Get-Date) - $startTime).TotalMilliseconds -gt $timeout) {
+            Write-Warning "Timeout khi load WPF assemblies"
+            $loadAssemblyJob.Stop()
+            break
+        }
+        Start-Sleep -Milliseconds 100
+    }
+    
+    if ($loadAssemblyHandle.IsCompleted) {
+        $loadAssemblyJob.EndInvoke($loadAssemblyHandle)
+    }
+    
+    $loadAssemblyJob.Dispose()
 } catch {
-    Write-Host "❌ Lỗi khi load WPF assemblies: $($_.Exception.Message)" -ForegroundColor Red
-    Pause
-    exit
+    Write-Host "⚠️  Lỗi khi load WPF assemblies: $($_.Exception.Message)" -ForegroundColor Yellow
+    Write-Host "Thử load với phương pháp thay thế..." -ForegroundColor Cyan
+    
+    # Thử phương pháp backup
+    try {
+        [System.Reflection.Assembly]::LoadWithPartialName('PresentationFramework') | Out-Null
+        [System.Reflection.Assembly]::LoadWithPartialName('PresentationCore') | Out-Null
+        [System.Reflection.Assembly]::LoadWithPartialName('WindowsBase') | Out-Null
+    } catch {
+        Write-Host "❌ Không thể load WPF. Vui lòng cài đặt .NET Framework 4.8 trở lên." -ForegroundColor Red
+        Pause
+        exit
+    }
 }
 #endregion
 
-#region Dữ liệu ứng dụng
+#region Dữ liệu ứng dụng (Optimized for memory)
 $Apps = @{
     "🌐 Trình duyệt" = @(
         @{Name="Brave"; Winget="Brave.Brave"; Icon="🚀"}
@@ -58,41 +93,94 @@ $Apps = @{
         @{Name="Firefox"; Winget="Mozilla.Firefox"; Icon="🦊"}
         @{Name="Microsoft Edge"; Winget="Microsoft.Edge"; Icon="⚡"}
         @{Name="Opera"; Winget="Opera.Opera"; Icon="🎭"}
-        @{Name="Vivaldi"; Winget="Vivaldi.Vivaldi"; Icon="🎵"}
     )
     "💬 Giao tiếp" = @(
         @{Name="Discord"; Winget="Discord.Discord"; Icon="🎮"}
         @{Name="Telegram"; Winget="Telegram.TelegramDesktop"; Icon="✈️"}
         @{Name="Zoom"; Winget="Zoom.Zoom"; Icon="📹"}
         @{Name="Skype"; Winget="Microsoft.Skype"; Icon="💼"}
-        @{Name="WhatsApp"; Winget="WhatsApp.WhatsApp"; Icon="💚"}
     )
     "🛠️ Công cụ phát triển" = @(
         @{Name="Visual Studio Code"; Winget="Microsoft.VisualStudioCode"; Icon="📝"}
         @{Name="Git"; Winget="Git.Git"; Icon="🌿"}
         @{Name="Python 3"; Winget="Python.Python.3.12"; Icon="🐍"}
         @{Name="Node.js"; Winget="OpenJS.NodeJS"; Icon="⬢"}
-        @{Name="Docker Desktop"; Winget="Docker.DockerDesktop"; Icon="🐳"}
-        @{Name="Postman"; Winget="Postman.Postman"; Icon="📮"}
     )
     "🎨 Đa phương tiện" = @(
         @{Name="VLC"; Winget="VideoLAN.VLC"; Icon="🎬"}
         @{Name="Spotify"; Winget="Spotify.Spotify"; Icon="🎵"}
         @{Name="GIMP"; Winget="GIMP.GIMP"; Icon="🖼️"}
         @{Name="OBS Studio"; Winget="OBSProject.OBSStudio"; Icon="🎥"}
-        @{Name="Audacity"; Winget="Audacity.Audacity"; Icon="🎤"}
     )
     "📦 Tiện ích hệ thống" = @(
         @{Name="7-Zip"; Winget="7zip.7zip"; Icon="🗜️"}
         @{Name="WinRAR"; Winget="RARLab.WinRAR"; Icon="📦"}
         @{Name="CCleaner"; Winget="Piriform.CCleaner"; Icon="🧹"}
         @{Name="Everything"; Winget="voidtools.Everything"; Icon="🔎"}
-        @{Name="Notepad++"; Winget="Notepad++.Notepad++"; Icon="📄"}
     )
 }
 #endregion
 
-#region Hàm Registry
+#region DNS Servers Data
+$DNSServers = @{
+    "Default DHCP" = @{
+        "Primary" = ""
+        "Secondary" = ""
+        "Primary6" = ""
+        "Secondary6" = ""
+    }
+    "Google" = @{
+        "Primary" = "8.8.8.8"
+        "Secondary" = "8.8.4.4"
+        "Primary6" = "2001:4860:4860::8888"
+        "Secondary6" = "2001:4860:4860::8844"
+    }
+    "Cloudflare" = @{
+        "Primary" = "1.1.1.1"
+        "Secondary" = "1.0.0.1"
+        "Primary6" = "2606:4700:4700::1111"
+        "Secondary6" = "2606:4700:4700::1001"
+    }
+    "Cloudflare_Malware" = @{
+        "Primary" = "1.1.1.2"
+        "Secondary" = "1.0.0.2"
+        "Primary6" = "2606:4700:4700::1112"
+        "Secondary6" = "2606:4700:4700::1002"
+    }
+    "Cloudflare_Malware_Adult" = @{
+        "Primary" = "1.1.1.3"
+        "Secondary" = "1.0.0.3"
+        "Primary6" = "2606:4700:4700::1113"
+        "Secondary6" = "2606:4700:4700::1003"
+    }
+    "Open_DNS" = @{
+        "Primary" = "208.67.222.222"
+        "Secondary" = "208.67.220.220"
+        "Primary6" = "2620:119:35::35"
+        "Secondary6" = "2620:119:53::53"
+    }
+    "Quad9" = @{
+        "Primary" = "9.9.9.9"
+        "Secondary" = "149.112.112.112"
+        "Primary6" = "2620:fe::fe"
+        "Secondary6" = "2620:fe::9"
+    }
+    "AdGuard_Ads_Trackers" = @{
+        "Primary" = "94.140.14.14"
+        "Secondary" = "94.140.15.15"
+        "Primary6" = "2a10:50c0::ad1:ff"
+        "Secondary6" = "2a10:50c0::ad2:ff"
+    }
+    "AdGuard_Ads_Trackers_Malware_Adult" = @{
+        "Primary" = "94.140.14.15"
+        "Secondary" = "94.140.15.16"
+        "Primary6" = "2a10:50c0::bad1:ff"
+        "Secondary6" = "2a10:50c0::bad2:ff"
+    }
+}
+#endregion
+
+#region Hàm Registry (Optimized)
 function Set-RegistryTweak {
     param(
         [string]$Path,
@@ -104,24 +192,17 @@ function Set-RegistryTweak {
     
     try {
         if ($CreatePath) {
-            $parentPath = Split-Path -Path $Path -Parent
-            if (-not (Test-Path $parentPath)) {
-                New-Item -Path $parentPath -Force -ErrorAction SilentlyContinue | Out-Null
-            }
-            if (-not (Test-Path $Path)) {
-                New-Item -Path $Path -Force -ErrorAction SilentlyContinue | Out-Null
-            }
+            $null = New-Item -Path $Path -Force -ErrorAction SilentlyContinue
         }
         
         if (-not (Test-Path $Path)) {
-            Write-Warning "Registry path không tồn tại: $Path"
             return $false
         }
         
-        Set-ItemProperty -Path $Path -Name $Name -Value $Value -Type $Type -Force
+        Set-ItemProperty -Path $Path -Name $Name -Value $Value -Type $Type -Force -ErrorAction Stop
         return $true
     } catch {
-        Write-Warning "Lỗi khi thiết lập registry: $_"
+        Write-Warning "Lỗi registry: $_"
         return $false
     }
 }
@@ -131,60 +212,60 @@ function Remove-WindowsApp {
     
     try {
         $removedCount = 0
-        # Xóa app cho tất cả users
-        $apps = Get-AppxPackage -AllUsers | Where-Object {$_.Name -like $Pattern}
-        foreach ($app in $apps) {
-            Remove-AppxPackage -Package $app.PackageFullName -AllUsers -ErrorAction SilentlyContinue
-            $removedCount++
+        Get-AppxPackage -AllUsers | Where-Object {$_.Name -like $Pattern} | ForEach-Object {
+            try {
+                Remove-AppxPackage -Package $_.PackageFullName -ErrorAction SilentlyContinue
+                $removedCount++
+            } catch {}
         }
-        
-        # Xóa app provisioned
-        $provisioned = Get-AppxProvisionedPackage -Online | Where-Object {$_.DisplayName -like $Pattern}
-        foreach ($app in $provisioned) {
-            Remove-AppxProvisionedPackage -Online -PackageName $app.PackageName -ErrorAction SilentlyContinue
-            $removedCount++
-        }
-        
         return $removedCount
     } catch {
-        Write-Warning "Lỗi khi xóa app: $_"
         return 0
     }
 }
 #endregion
 
-#region Danh sách Tweak
+#region Danh sách Tweak mở rộng (WinUtil inspired)
 $Tweaks = @{
     "🔧 Tối ưu hiệu suất" = @(
         @{Name="Tạo điểm khôi phục hệ thống"; Action={
             try {
                 if ((Get-ComputerRestorePoint).Count -eq 0) {
-                    Enable-ComputerRestore -Drive "C:\"
+                    Enable-ComputerRestore -Drive "C:\" -ErrorAction SilentlyContinue
                 }
-                Checkpoint-Computer -Description "PMK Toolbox - $(Get-Date -Format 'dd/MM/yyyy HH:mm')" -RestorePointType MODIFY_SETTINGS
+                Checkpoint-Computer -Description "PMK Toolbox - $(Get-Date -Format 'dd/MM/yyyy HH:mm')" -RestorePointType MODIFY_SETTINGS -ErrorAction SilentlyContinue
                 return "✅ Đã tạo điểm khôi phục"
             } catch { 
-                return "❌ Lỗi: $($_.Exception.Message)"
+                return "⚠️ Không thể tạo điểm khôi phục"
             }
         }}
         @{Name="Xóa file tạm"; Action={
             try {
-                Get-ChildItem -Path "$env:TEMP", "C:\Windows\Temp" -Recurse -ErrorAction SilentlyContinue | Remove-Item -Force -Recurse -ErrorAction SilentlyContinue
-                Cleanmgr /sagerun:1 | Out-Null
+                Remove-Item -Path "$env:TEMP\*" -Recurse -Force -ErrorAction SilentlyContinue
+                Remove-Item -Path "C:\Windows\Temp\*" -Recurse -Force -ErrorAction SilentlyContinue
                 return "✅ Đã xóa file tạm"
             } catch { 
-                return "❌ Lỗi: $($_.Exception.Message)"
+                return "⚠️ Đã xóa một phần file tạm"
             }
         }}
         @{Name="Vô hiệu hóa Telemetry"; Action={
             $results = @()
-            $results += if (Set-RegistryTweak -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection" -Name "AllowTelemetry" -Value 0 -Type DWord -CreatePath) {"✅"} else {"❌"}
-            $results += if (Set-RegistryTweak -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\AppCompat" -Name "AITEnable" -Value 0 -Type DWord -CreatePath) {"✅"} else {"❌"}
-            $results += if (Set-RegistryTweak -Path "HKLM:\SOFTWARE\Policies\Microsoft\SQMClient\Windows" -Name "CEIPEnable" -Value 0 -Type DWord -CreatePath) {"✅"} else {"❌"}
-            return "Telemetry: $($results -join ' | ')"
+            $paths = @(
+                @{Path="HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection"; Name="AllowTelemetry"; Value=0}
+                @{Path="HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection"; Name="AllowTelemetry"; Value=0}
+                @{Path="HKLM:\SOFTWARE\Policies\Microsoft\Windows\AppCompat"; Name="AITEnable"; Value=0}
+            )
+            foreach ($reg in $paths) {
+                if (Set-RegistryTweak -Path $reg.Path -Name $reg.Name -Value $reg.Value -CreatePath) {
+                    $results += "✅"
+                } else {
+                    $results += "⚠️"
+                }
+            }
+            return "Telemetry: $($results -join ' ')"
         }}
         @{Name="Tắt dịch vụ không cần thiết"; Action={
-            $services = @("DiagTrack", "dmwappushservice", "WMPNetworkSvc", "RemoteRegistry", "Fax")
+            $services = @("DiagTrack", "dmwappushservice", "WMPNetworkSvc", "RemoteRegistry")
             $results = @()
             foreach ($service in $services) {
                 try {
@@ -192,18 +273,28 @@ $Tweaks = @{
                     Stop-Service -Name $service -Force -ErrorAction SilentlyContinue
                     $results += "✅"
                 } catch { 
-                    $results += "❌"
+                    $results += "⚠️"
                 }
             }
-            return "Dịch vụ: $($results -join ' | ')"
+            return "Dịch vụ: $($results -join ' ')"
         }}
         @{Name="Tối ưu hóa điện năng"; Action={
             try {
-                powercfg -setactive 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c
-                powercfg -h off
+                powercfg -setactive 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c 2>$null
+                powercfg -h off 2>$null
                 return "✅ Đã áp dụng chế độ hiệu suất cao"
             } catch { 
-                return "❌ Lỗi: $($_.Exception.Message)"
+                return "⚠️ Không thể thay đổi điện năng"
+            }
+        }}
+        @{Name="Tắt Hibernation"; Action={
+            try {
+                Set-RegistryTweak -Path "HKLM:\System\CurrentControlSet\Control\Session Manager\Power" -Name "HibernateEnabled" -Value 0 -CreatePath
+                Set-RegistryTweak -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FlyoutMenuSettings" -Name "ShowHibernateOption" -Value 0 -CreatePath
+                powercfg.exe /hibernate off 2>$null
+                return "✅ Đã tắt Hibernation"
+            } catch {
+                return "⚠️ Không thể tắt Hibernation"
             }
         }}
     )
@@ -211,110 +302,155 @@ $Tweaks = @{
     "🛡️ Bảo mật & Riêng tư" = @(
         @{Name="Tắt Cortana"; Action={
             $results = @()
-            $results += if (Set-RegistryTweak -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search" -Name "AllowCortana" -Value 0 -Type DWord -CreatePath) {"✅"} else {"❌"}
-            $results += if (Set-RegistryTweak -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search" -Name "AllowSearchToUseLocation" -Value 0 -Type DWord -CreatePath) {"✅"} else {"❌"}
-            return "Cortana: $($results -join ' | ')"
+            $paths = @(
+                @{Path="HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search"; Name="AllowCortana"; Value=0}
+                @{Path="HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search"; Name="AllowSearchToUseLocation"; Value=0}
+            )
+            foreach ($reg in $paths) {
+                if (Set-RegistryTweak -Path $reg.Path -Name $reg.Name -Value $reg.Value -CreatePath) {
+                    $results += "✅"
+                } else {
+                    $results += "⚠️"
+                }
+            }
+            return "Cortana: $($results -join ' ')"
         }}
         @{Name="Vô hiệu hóa quảng cáo"; Action={
             $results = @()
-            $results += if (Set-RegistryTweak -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\AdvertisingInfo" -Name "Enabled" -Value 0 -Type DWord -CreatePath) {"✅"} else {"❌"}
-            $results += if (Set-RegistryTweak -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\AdvertisingInfo" -Name "DisabledByGroupPolicy" -Value 1 -Type DWord -CreatePath) {"✅"} else {"❌"}
-            return "Quảng cáo: $($results -join ' | ')"
+            $paths = @(
+                @{Path="HKCU:\Software\Microsoft\Windows\CurrentVersion\AdvertisingInfo"; Name="Enabled"; Value=0}
+                @{Path="HKLM:\SOFTWARE\Policies\Microsoft\Windows\AdvertisingInfo"; Name="DisabledByGroupPolicy"; Value=1}
+            )
+            foreach ($reg in $paths) {
+                if (Set-RegistryTweak -Path $reg.Path -Name $reg.Name -Value $reg.Value -CreatePath) {
+                    $results += "✅"
+                } else {
+                    $results += "⚠️"
+                }
+            }
+            return "Quảng cáo: $($results -join ' ')"
         }}
         @{Name="Tắt theo dõi vị trí"; Action={
             $results = @()
-            $results += if (Set-RegistryTweak -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\location" -Name "Value" -Value "Deny" -Type String -CreatePath) {"✅"} else {"❌"}
-            $results += if (Set-RegistryTweak -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Sensor\Overrides\{BFA794E4-F964-4FDB-90F6-51056BFE4B44}" -Name "SensorPermissionState" -Value 0 -Type DWord -CreatePath) {"✅"} else {"❌"}
-            return "Vị trí: $($results -join ' | ')"
+            $paths = @(
+                @{Path="HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\location"; Name="Value"; Value="Deny"; Type="String"}
+                @{Path="HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Sensor\Overrides\{BFA794E4-F964-4FDB-90F6-51056BFE4B44}"; Name="SensorPermissionState"; Value=0}
+            )
+            foreach ($reg in $paths) {
+                if (Set-RegistryTweak -Path $reg.Path -Name $reg.Name -Value $reg.Value -Type $reg.Type -CreatePath) {
+                    $results += "✅"
+                } else {
+                    $results += "⚠️"
+                }
+            }
+            return "Vị trí: $($results -join ' ')"
         }}
         @{Name="Tắt Windows Defender (Không khuyến khích)"; Action={
+            if (Set-RegistryTweak -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender" -Name "DisableAntiSpyware" -Value 1 -CreatePath) {
+                return "✅ Đã tắt Windows Defender"
+            } else {
+                return "⚠️ Không thể tắt Defender"
+            }
+        }}
+        @{Name="Tắt Activity History"; Action={
             $results = @()
-            $results += if (Set-RegistryTweak -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender" -Name "DisableAntiSpyware" -Value 1 -Type DWord -CreatePath) {"✅"} else {"❌"}
-            return "Defender: $($results -join ' | ')"
+            $paths = @(
+                @{Path="HKLM:\SOFTWARE\Policies\Microsoft\Windows\System"; Name="EnableActivityFeed"; Value=0}
+                @{Path="HKLM:\SOFTWARE\Policies\Microsoft\Windows\System"; Name="PublishUserActivities"; Value=0}
+                @{Path="HKLM:\SOFTWARE\Policies\Microsoft\Windows\System"; Name="UploadUserActivities"; Value=0}
+            )
+            foreach ($reg in $paths) {
+                if (Set-RegistryTweak -Path $reg.Path -Name $reg.Name -Value $reg.Value -CreatePath) {
+                    $results += "✅"
+                } else {
+                    $results += "⚠️"
+                }
+            }
+            return "Activity History: $($results -join ' ')"
         }}
     )
     
     "🎨 Tùy chỉnh giao diện" = @(
         @{Name="Chế độ tối (Dark Mode)"; Action={
             $results = @()
-            $results += if (Set-RegistryTweak -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "AppsUseLightTheme" -Value 0 -Type DWord) {"✅"} else {"❌"}
-            $results += if (Set-RegistryTweak -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "SystemUsesLightTheme" -Value 0 -Type DWord) {"✅"} else {"❌"}
-            return "Dark Mode: $($results -join ' | ')"
+            $paths = @(
+                @{Path="HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"; Name="AppsUseLightTheme"; Value=0}
+                @{Path="HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"; Name="SystemUsesLightTheme"; Value=0}
+            )
+            foreach ($reg in $paths) {
+                if (Set-RegistryTweak -Path $reg.Path -Name $reg.Name -Value $reg.Value) {
+                    $results += "✅"
+                } else {
+                    $results += "⚠️"
+                }
+            }
+            return "Dark Mode: $($results -join ' ')"
         }}
         @{Name="Hiển thị file ẩn và phần mở rộng"; Action={
             $results = @()
-            $results += if (Set-RegistryTweak -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "Hidden" -Value 1 -Type DWord) {"✅"} else {"❌"}
-            $results += if (Set-RegistryTweak -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "HideFileExt" -Value 0 -Type DWord) {"✅"} else {"❌"}
-            $results += if (Set-RegistryTweak -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "ShowSuperHidden" -Value 1 -Type DWord) {"✅"} else {"❌"}
-            return "File Explorer: $($results -join ' | ')"
+            $paths = @(
+                @{Path="HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"; Name="Hidden"; Value=1}
+                @{Path="HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"; Name="HideFileExt"; Value=0}
+                @{Path="HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"; Name="ShowSuperHidden"; Value=1}
+            )
+            foreach ($reg in $paths) {
+                if (Set-RegistryTweak -Path $reg.Path -Name $reg.Name -Value $reg.Value) {
+                    $results += "✅"
+                } else {
+                    $results += "⚠️"
+                }
+            }
+            return "File Explorer: $($results -join ' ')"
         }}
         @{Name="Tắt hiệu ứng trong suốt"; Action={
-            return if (Set-RegistryTweak -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "EnableTransparency" -Value 0 -Type DWord) {
-                "✅ Đã tắt hiệu ứng trong suốt"
+            if (Set-RegistryTweak -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "EnableTransparency" -Value 0) {
+                return "✅ Đã tắt hiệu ứng trong suốt"
             } else {
-                "❌ Lỗi khi tắt hiệu ứng"
+                return "⚠️ Không thể tắt hiệu ứng"
             }
         }}
-        @{Name="Thay đổi hình nền (Màu đen)"; Action={
-            try {
-                # Tạo hình nền đen đơn giản
-                $blackWallpaper = "$env:TEMP\pmk_black.bmp"
-                
-                # Tạo file BMP đen (1x1 pixel)
-                $bmpData = [byte[]]@(
-                    0x42,0x4D,0x3A,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x36,0x00,0x00,0x00,
-                    0x28,0x00,0x00,0x00,0x01,0x00,0x00,0x00,0x01,0x00,0x00,0x00,0x01,0x00,
-                    0x18,0x00,0x00,0x00,0x00,0x00,0x04,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-                    0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-                    0x00,0x00
-                )
-                
-                [System.IO.File]::WriteAllBytes($blackWallpaper, $bmpData)
-                
-                # Sử dụng COM object để đặt hình nền
-                Add-Type @"
-using System;
-using System.Runtime.InteropServices;
-public class Wallpaper {
-    [DllImport("user32.dll", CharSet = CharSet.Auto)]
-    private static extern int SystemParametersInfo(int uAction, int uParam, string lpvParam, int fuWinIni);
-    public static void SetWallpaper(string path) {
-        SystemParametersInfo(20, 0, path, 0x01 | 0x02);
-    }
-}
-"@ -ErrorAction SilentlyContinue
-                
-                [Wallpaper]::SetWallpaper($blackWallpaper)
-                Remove-Item $blackWallpaper -Force -ErrorAction SilentlyContinue
-                
-                return "✅ Đã đổi hình nền màu đen"
-            } catch { 
-                return "❌ Lỗi đổi wallpaper: $($_.Exception.Message)"
+        @{Name="Bật NumLock khi khởi động"; Action={
+            $results = @()
+            $paths = @(
+                @{Path="HKU:\.DEFAULT\Control Panel\Keyboard"; Name="InitialKeyboardIndicators"; Value=2}
+                @{Path="HKCU:\Control Panel\Keyboard"; Name="InitialKeyboardIndicators"; Value=2}
+            )
+            foreach ($reg in $paths) {
+                if (Set-RegistryTweak -Path $reg.Path -Name $reg.Name -Value $reg.Value -CreatePath) {
+                    $results += "✅"
+                } else {
+                    $results += "⚠️"
+                }
             }
+            return "NumLock: $($results -join ' ')"
         }}
     )
     
     "🧹 Dọn dẹp Windows" = @(
         @{Name="Xóa OneDrive"; Action={
             try {
-                Get-Process -Name "OneDrive" -ErrorAction SilentlyContinue | Stop-Process -Force
+                # Dừng tiến trình OneDrive
+                Get-Process -Name "OneDrive" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
                 
-                $onedrivePaths = @(
+                # Hủy cài đặt OneDrive
+                $setupPaths = @(
                     "$env:SystemRoot\SysWOW64\OneDriveSetup.exe",
-                    "$env:SystemRoot\System32\OneDriveSetup.exe",
-                    "$env:ProgramFiles\Microsoft OneDrive\OneDriveSetup.exe",
-                    "$env:ProgramFiles(x86)\Microsoft OneDrive\OneDriveSetup.exe"
+                    "$env:SystemRoot\System32\OneDriveSetup.exe"
                 )
                 
-                foreach ($path in $onedrivePaths) {
+                foreach ($path in $setupPaths) {
                     if (Test-Path $path) {
                         Start-Process -FilePath $path -ArgumentList "/uninstall" -Wait -NoNewWindow -ErrorAction SilentlyContinue
                     }
                 }
                 
+                # Xóa thư mục OneDrive
+                Remove-Item "$env:LOCALAPPDATA\Microsoft\OneDrive" -Recurse -Force -ErrorAction SilentlyContinue
+                Remove-Item "$env:ProgramData\Microsoft OneDrive" -Recurse -Force -ErrorAction SilentlyContinue
+                
                 return "✅ Đã xóa OneDrive"
             } catch { 
-                return "❌ Lỗi: $($_.Exception.Message)"
+                return "⚠️ Không thể xóa hoàn toàn OneDrive"
             }
         }}
         @{Name="Xóa Windows Bloatware"; Action={
@@ -322,30 +458,33 @@ public class Wallpaper {
                 "*3DBuilder*", "*Bing*", "*Clipchamp*", "*Cortana*", 
                 "*FeedbackHub*", "*GetHelp*", "*GetStarted*", "*MicrosoftSolitaireCollection*",
                 "*MixedReality*", "*OneConnect*", "*People*", "*PowerAutomate*", "*Skype*",
-                "*SoundRecorder*", "*StickyNotes*", "*Tips*", "*Wallet*", "*WebExperiences*",
-                "*WindowsAlarms*", "*WindowsCamera*", "*WindowsMaps*", "*WindowsSoundRecorder*", "*Xbox*"
+                "*Tips*", "*Wallet*", "*WebExperiences*",
+                "*WindowsAlarms*", "*WindowsCamera*", "*WindowsMaps*", "*Xbox*"
             )
             
-            $removedApps = @()
+            $removedCount = 0
             foreach ($app in $bloatApps) {
-                $count = Remove-WindowsApp -Pattern $app
-                if ($count -gt 0) { 
-                    $appName = $app.Replace('*', '')
-                    $removedApps += "$appName ($count)"
-                }
+                $removedCount += (Remove-WindowsApp -Pattern $app)
             }
             
-            if ($removedApps.Count -gt 0) {
-                return "✅ Đã xóa: $($removedApps -join ', ')"
+            if ($removedCount -gt 0) {
+                return "✅ Đã xóa $removedCount ứng dụng bloatware"
             } else {
                 return "ℹ️ Không tìm thấy bloatware để xóa"
             }
         }}
         @{Name="Tắt Windows Tips"; Action={
-            return if (Set-RegistryTweak -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" -Name "SubscribedContent-338393Enabled" -Value 0 -Type DWord -CreatePath) {
-                "✅ Đã tắt Windows Tips"
+            if (Set-RegistryTweak -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" -Name "SubscribedContent-338393Enabled" -Value 0 -CreatePath) {
+                return "✅ Đã tắt Windows Tips"
             } else {
-                "❌ Lỗi khi tắt Tips"
+                return "⚠️ Không thể tắt Tips"
+            }
+        }}
+        @{Name="Tắt Consumer Features"; Action={
+            if (Set-RegistryTweak -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\CloudContent" -Name "DisableWindowsConsumerFeatures" -Value 1 -CreatePath) {
+                return "✅ Đã tắt Consumer Features"
+            } else {
+                return "⚠️ Không thể tắt Consumer Features"
             }
         }}
     )
@@ -353,68 +492,124 @@ public class Wallpaper {
     "⚡ Tweak nâng cao" = @(
         @{Name="Tắt Game Bar & DVR"; Action={
             $results = @()
-            $results += if (Set-RegistryTweak -Path "HKCU:\System\GameConfigStore" -Name "GameDVR_Enabled" -Value 0 -Type DWord -CreatePath) {"✅"} else {"❌"}
-            $results += if (Set-RegistryTweak -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\GameDVR" -Name "AppCaptureEnabled" -Value 0 -Type DWord -CreatePath) {"✅"} else {"❌"}
-            return "Game Bar: $($results -join ' | ')"
-        }}
-        @{Name="Tối ưu hóa mạng"; Action={
-            try {
-                Set-NetTCPSetting -CongestionProvider DCTCP -ErrorAction SilentlyContinue
-                Set-NetTCPSetting -AutoTuningLevelLocal Normal -ErrorAction SilentlyContinue
-                return "✅ Đã tối ưu cài đặt TCP"
-            } catch { 
-                return "❌ Lỗi: $($_.Exception.Message)"
+            $paths = @(
+                @{Path="HKCU:\System\GameConfigStore"; Name="GameDVR_Enabled"; Value=0}
+                @{Path="HKCU:\Software\Microsoft\Windows\CurrentVersion\GameDVR"; Name="AppCaptureEnabled"; Value=0}
+            )
+            foreach ($reg in $paths) {
+                if (Set-RegistryTweak -Path $reg.Path -Name $reg.Name -Value $reg.Value -CreatePath) {
+                    $results += "✅"
+                } else {
+                    $results += "⚠️"
+                }
             }
+            return "Game Bar: $($results -join ' ')"
         }}
         @{Name="Tắt Notifications"; Action={
-            return if (Set-RegistryTweak -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\PushNotifications" -Name "ToastEnabled" -Value 0 -Type DWord -CreatePath) {
-                "✅ Đã tắt thông báo"
+            if (Set-RegistryTweak -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\PushNotifications" -Name "ToastEnabled" -Value 0) {
+                return "✅ Đã tắt thông báo"
             } else {
-                "❌ Lỗi khi tắt thông báo"
+                return "⚠️ Không thể tắt thông báo"
             }
         }}
-        @{Name="Bật NumLock khi khởi động"; Action={
-            $results = @()
-            $results += if (Set-RegistryTweak -Path "HKU:\.DEFAULT\Control Panel\Keyboard" -Name "InitialKeyboardIndicators" -Value 2 -Type DWord -CreatePath) {"✅"} else {"❌"}
-            $results += if (Set-RegistryTweak -Path "HKCU:\Control Panel\Keyboard" -Name "InitialKeyboardIndicators" -Value 2 -Type DWord -CreatePath) {"✅"} else {"❌"}
-            return "NumLock: $($results -join ' | ')"
+        @{Name="Prefer IPv4 over IPv6"; Action={
+            if (Set-RegistryTweak -Path "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip6\Parameters" -Name "DisabledComponents" -Value 32) {
+                return "✅ Ưu tiên IPv4"
+            } else {
+                return "⚠️ Không thể thay đổi IPv4/IPv6"
+            }
+        }}
+        @{Name="Tắt Storage Sense"; Action={
+            if (Set-RegistryTweak -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\StorageSense\Parameters\StoragePolicy" -Name "01" -Value 0) {
+                return "✅ Đã tắt Storage Sense"
+            } else {
+                return "⚠️ Không thể tắt Storage Sense"
+            }
+        }}
+        @{Name="Set UTC Time (Dual Boot)"; Action={
+            if (Set-RegistryTweak -Path "HKLM:\SYSTEM\CurrentControlSet\Control\TimeZoneInformation" -Name "RealTimeIsUniversal" -Value 1 -Type "QWord") {
+                return "✅ Đã đặt thời gian UTC (Dual Boot)"
+            } else {
+                return "⚠️ Không thể đặt UTC"
+            }
         }}
     )
 }
 #endregion
 
-#region Hàm lấy thông tin hệ thống (Thêm RAM bus và tất cả ổ đĩa)
+#region Hàm quản lý DNS
+function Set-DNSServer {
+    param(
+        [string]$DNSServerName
+    )
+    
+    try {
+        $dnsConfig = $DNSServers[$DNSServerName]
+        
+        if ($DNSServerName -eq "Default DHCP") {
+            # Reset về DHCP
+            $adapters = Get-NetAdapter | Where-Object {$_.Status -eq "Up"}
+            foreach ($adapter in $adapters) {
+                Set-DnsClientServerAddress -InterfaceIndex $adapter.InterfaceIndex -ResetServerAddresses -ErrorAction SilentlyContinue
+            }
+            return "✅ Đã reset DNS về DHCP"
+        }
+        
+        if ($dnsConfig) {
+            $adapters = Get-NetAdapter | Where-Object {$_.Status -eq "Up"}
+            $successCount = 0
+            
+            foreach ($adapter in $adapters) {
+                try {
+                    $dnsAddresses = @()
+                    if ($dnsConfig.Primary) { $dnsAddresses += $dnsConfig.Primary }
+                    if ($dnsConfig.Secondary) { $dnsAddresses += $dnsConfig.Secondary }
+                    
+                    Set-DnsClientServerAddress -InterfaceIndex $adapter.InterfaceIndex -ServerAddresses $dnsAddresses -ErrorAction Stop
+                    $successCount++
+                } catch {
+                    Write-Warning "Không thể đặt DNS cho adapter $($adapter.Name): $_"
+                }
+            }
+            
+            # Flush DNS cache
+            Clear-DnsClientCache -ErrorAction SilentlyContinue
+            
+            if ($successCount -gt 0) {
+                return "✅ Đã đặt DNS $DNSServerName cho $successCount adapter(s)"
+            } else {
+                return "❌ Không thể đặt DNS cho bất kỳ adapter nào"
+            }
+        } else {
+            return "❌ Cấu hình DNS không tồn tại"
+        }
+    } catch {
+        return "❌ Lỗi khi đặt DNS: $_"
+    }
+}
+#endregion
+
+#region Hàm lấy thông tin hệ thống (Optimized)
 function Get-SystemInfoText {
     try {
-        $os = Get-CimInstance -ClassName Win32_OperatingSystem -ErrorAction SilentlyContinue
-        $cpu = Get-CimInstance -ClassName Win32_Processor -ErrorAction SilentlyContinue | Select-Object -First 1
-        $cs = Get-CimInstance -ClassName Win32_ComputerSystem -ErrorAction SilentlyContinue
-        $gpu = Get-CimInstance -ClassName Win32_VideoController -ErrorAction SilentlyContinue | Select-Object -First 1
-        $ram = Get-CimInstance -ClassName Win32_PhysicalMemory -ErrorAction SilentlyContinue
-        $disks = Get-CimInstance -ClassName Win32_LogicalDisk | Where-Object { $_.DriveType -eq 3 } -ErrorAction SilentlyContinue
+        # Sử dụng WMI thay vì CIM để nhanh hơn
+        $os = Get-WmiObject -Class Win32_OperatingSystem -ErrorAction SilentlyContinue
+        $cpu = Get-WmiObject -Class Win32_Processor -ErrorAction SilentlyContinue | Select-Object -First 1
+        $cs = Get-WmiObject -Class Win32_ComputerSystem -ErrorAction SilentlyContinue
+        $gpu = Get-WmiObject -Class Win32_VideoController -ErrorAction SilentlyContinue | Select-Object -First 1
+        $disks = Get-WmiObject -Class Win32_LogicalDisk -Filter "DriveType=3" -ErrorAction SilentlyContinue
         
-        # Xử lý giá trị null
-        $osName = if ($os -and $os.Caption) { $os.Caption } else { "Không xác định" }
-        $osBuild = if ($os -and $os.BuildNumber) { $os.BuildNumber } else { "N/A" }
-        $osVersion = if ($os -and $os.Version) { $os.Version } else { "N/A" }
-        $osArch = if ($os -and $os.OSArchitecture) { $os.OSArchitecture } else { "N/A" }
+        $osName = if ($os.Caption) { $os.Caption } else { "Không xác định" }
+        $osBuild = if ($os.BuildNumber) { $os.BuildNumber } else { "N/A" }
         
-        $cpuName = if ($cpu -and $cpu.Name) { $cpu.Name.Trim() } else { "Không xác định" }
-        $cpuCores = if ($cpu -and $cpu.NumberOfCores) { $cpu.NumberOfCores } else { "N/A" }
-        $cpuThreads = if ($cpu -and $cpu.NumberOfLogicalProcessors) { $cpu.NumberOfLogicalProcessors } else { "N/A" }
-        $cpuSpeed = if ($cpu -and $cpu.MaxClockSpeed) { [math]::Round($cpu.MaxClockSpeed / 1000, 2) } else { "N/A" }
+        $cpuName = if ($cpu.Name) { $cpu.Name.Trim() } else { "Không xác định" }
+        $cpuCores = if ($cpu.NumberOfCores) { $cpu.NumberOfCores } else { "N/A" }
+        $cpuSpeed = if ($cpu.MaxClockSpeed) { [math]::Round($cpu.MaxClockSpeed / 1000, 2) } else { "N/A" }
         
-        $totalRAM = if ($cs -and $cs.TotalPhysicalMemory) { [math]::Round($cs.TotalPhysicalMemory / 1GB, 2) } else { "N/A" }
-        $freeRAM = if ($os -and $os.FreePhysicalMemory) { [math]::Round($os.FreePhysicalMemory / 1MB / 1024, 2) } else { "N/A" }  # Sửa để đúng GB
-        $ramSpeed = if ($ram -and $ram.Speed) { ($ram | Select-Object -First 1).Speed } else { "N/A" }
+        $totalRAM = if ($cs.TotalPhysicalMemory) { [math]::Round($cs.TotalPhysicalMemory / 1GB, 2) } else { "N/A" }
         
-        $gpuName = if ($gpu -and $gpu.Name) { $gpu.Name } else { "Không xác định" }
-        $gpuRAM = if ($gpu -and $gpu.AdapterRAM) { [math]::Round($gpu.AdapterRAM / 1GB, 2) } else { "N/A" }
-        
-        $resolution = "Không xác định"
-        if ($gpu -and $gpu.CurrentHorizontalResolution -and $gpu.CurrentVerticalResolution) {
-            $resolution = "$($gpu.CurrentHorizontalResolution) x $($gpu.CurrentVerticalResolution)"
-        }
+        $gpuName = if ($gpu.Name) { $gpu.Name } else { "Không xác định" }
+        $gpuRAM = if ($gpu.AdapterRAM) { [math]::Round($gpu.AdapterRAM / 1GB, 2) } else { "N/A" }
         
         $diskInfo = @()
         foreach ($disk in $disks) {
@@ -424,7 +619,7 @@ function Get-SystemInfoText {
             $used = if ($size -ne "N/A" -and $free -ne "N/A") { $size - $free } else { "N/A" }
             $diskInfo += "   • $drive Tổng: $size GB | Đã dùng: $used GB | Trống: $free GB"
         }
-        $diskText = $diskInfo -join "`n"
+        $diskText = if ($diskInfo.Count -gt 0) { $diskInfo -join "`n" } else { "   • Không có ổ đĩa nào được tìm thấy" }
         
         return @"
 ══════════════════════════════════════════════════════════════════════
@@ -432,25 +627,19 @@ function Get-SystemInfoText {
 
 📊 Hệ điều hành:
    • Tên: $osName
-   • Phiên bản: $osVersion
    • Build: $osBuild
-   • Architecture: $osArch
 
 ⚡ CPU:
    • Model: $cpuName
    • Số nhân: $cpuCores
-   • Luồng: $cpuThreads
    • Tốc độ: $cpuSpeed GHz
 
 💾 RAM:
    • Tổng: $totalRAM GB
-   • Còn trống: $freeRAM GB
-   • Bus: $ramSpeed MHz
 
 🎮 GPU:
    • Card màn hình: $gpuName
    • Bộ nhớ: $gpuRAM GB
-   • Độ phân giải: $resolution
 
 💿 Ổ đĩa:
 $diskText
@@ -463,192 +652,305 @@ $diskText
 }
 #endregion
 
-#region Tạo GUI WPF (Cải thiện UX/UI: màu sắc hiện đại hơn, layout tốt hơn với Grid, padding lớn hơn)
+#region Tạo GUI WPF với Virtualization (Performance Optimized)
 function Create-MainWindow {
-    # Tạo cửa sổ chính
+    # Tạo cửa sổ chính với Virtualization
     $Window = New-Object Windows.Window
     $Window.Title = "PMK Toolbox - Tối ưu Windows"
     $Window.Width = 1200
     $Window.Height = 750
     $Window.WindowStartupLocation = "CenterScreen"
-    $Window.Background = [System.Windows.Media.Brushes]::AliceBlue
+    $Window.Background = [System.Windows.Media.Brushes]::WhiteSmoke
     $Window.FontFamily = "Segoe UI"
     
-    # Grid chính
+    # Grid chính với VirtualizingStackPanel
     $MainGrid = New-Object Windows.Controls.Grid
-    $MainGrid.Background = [System.Windows.Media.LinearGradientBrush]::new(
-        [System.Windows.Media.Color]::FromRgb(245, 248, 252),
-        [System.Windows.Media.Color]::FromRgb(225, 235, 245),
-        90
-    )
     
-    # Header
-    $HeaderGrid = New-Object Windows.Controls.Grid
-    $HeaderGrid.Height = 80
-    $HeaderGrid.Background = [System.Windows.Media.LinearGradientBrush]::new(
-        [System.Windows.Media.Color]::FromRgb(25, 118, 210),
-        [System.Windows.Media.Color]::FromRgb(21, 101, 192),
-        90
-    )
-    
+    # Header đơn giản hóa
     $HeaderText = New-Object Windows.Controls.TextBlock
     $HeaderText.Text = "PMK TOOLBOX - TỐI ƯU WINDOWS"
-    $HeaderText.FontSize = 28
+    $HeaderText.FontSize = 24
     $HeaderText.FontWeight = "Bold"
-    $HeaderText.Foreground = [System.Windows.Media.Brushes]::White
-    $HeaderText.VerticalAlignment = "Center"
+    $HeaderText.Foreground = [System.Windows.Media.Brushes]::DarkBlue
     $HeaderText.HorizontalAlignment = "Center"
+    $HeaderText.Margin = "0,10,0,10"
     
-    $VersionText = New-Object Windows.Controls.TextBlock
-    $VersionText.Text = "v2.2 | Windows 10/11 | By PMK"
-    $VersionText.FontSize = 12
-    $VersionText.Foreground = [System.Windows.Media.Brushes]::LightGray
-    $VersionText.VerticalAlignment = "Bottom"
-    $VersionText.HorizontalAlignment = "Center"
-    $VersionText.Margin = "0,0,0,10"
-    
-    $HeaderGrid.Children.Add($HeaderText) | Out-Null
-    $HeaderGrid.Children.Add($VersionText) | Out-Null
-    
-    # Tab Control
+    # Tab Control với Virtualization
     $TabControl = New-Object Windows.Controls.TabControl
-    $TabControl.Margin = "15"
-    $TabControl.BorderThickness = "1"
-    $TabControl.BorderBrush = [System.Windows.Media.Brushes]::Gainsboro
+    $TabControl.Margin = "10"
     
-    # Tab 1: Cài đặt ứng dụng
+    # Tab 1: Cài đặt ứng dụng (Optimized với VirtualizingStackPanel)
     $TabInstall = New-Object Windows.Controls.TabItem
     $TabInstall.Header = "📦 CÀI ĐẶT ỨNG DỤNG"
-    $TabInstall.FontWeight = "Bold"
     
     $InstallScroll = New-Object Windows.Controls.ScrollViewer
     $InstallScroll.VerticalScrollBarVisibility = "Auto"
     
-    $InstallStack = New-Object Windows.Controls.StackPanel
-    $InstallStack.Margin = "15"
+    # Sử dụng VirtualizingStackPanel cho hiệu năng
+    $VirtualInstallStack = New-Object Windows.Controls.VirtualizingStackPanel
+    $VirtualInstallStack.Margin = "10"
     
-    # Biến lưu trữ ứng dụng đã chọn
     $global:SelectedApps = @{}
     
-    # Thêm từng danh mục ứng dụng với layout tốt hơn
     foreach ($category in $Apps.Keys) {
-        $CategoryBorder = New-Object Windows.Controls.Border
-        $CategoryBorder.BorderThickness = "1"
-        $CategoryBorder.BorderBrush = [System.Windows.Media.Brushes]::Gainsboro
-        $CategoryBorder.CornerRadius = "8"
-        $CategoryBorder.Margin = "0,0,0,15"
-        $CategoryBorder.Background = [System.Windows.Media.Brushes]::White
-        $CategoryBorder.Padding = "10"
+        $CategoryGroup = New-Object Windows.Controls.Expander
+        $CategoryGroup.Header = $category
+        $CategoryGroup.IsExpanded = $false
+        $CategoryGroup.Margin = "0,0,0,5"
         
-        $CategoryStack = New-Object Windows.Controls.StackPanel
-        
-        # Tiêu đề danh mục
-        $CategoryHeader = New-Object Windows.Controls.TextBlock
-        $CategoryHeader.Text = $category
-        $CategoryHeader.FontSize = 20
-        $CategoryHeader.FontWeight = "SemiBold"
-        $CategoryHeader.Margin = "0,0,0,10"
-        $CategoryHeader.Foreground = [System.Windows.Media.Brushes]::DarkBlue
-        
-        $CategoryStack.Children.Add($CategoryHeader) | Out-Null
-        
-        # Grid cho các ứng dụng (WrapPanel cho responsive)
-        $AppGrid = New-Object Windows.Controls.WrapPanel
-        $AppGrid.Margin = "0"
-        $AppGrid.HorizontalAlignment = "Left"
+        $AppPanel = New-Object Windows.Controls.WrapPanel
+        $AppPanel.Margin = "10,5,10,5"
         
         foreach ($app in $Apps[$category]) {
-            $AppBorder = New-Object Windows.Controls.Border
-            $AppBorder.Width = 200
-            $AppBorder.Height = 70
-            $AppBorder.Margin = "8"
-            $AppBorder.BorderThickness = "1"
-            $AppBorder.BorderBrush = [System.Windows.Media.Brushes]::LightGray
-            $AppBorder.CornerRadius = "6"
-            $AppBorder.Background = [System.Windows.Media.Brushes]::White
-            $AppBorder.Tag = $app.Winget
-            $AppBorder.Padding = "10"
+            $AppButton = New-Object Windows.Controls.Button
+            $AppButton.Content = "$($app.Icon) $($app.Name)"
+            $AppButton.Tag = $app.Winget
+            $AppButton.Margin = "5"
+            $AppButton.Padding = "10,5"
+            $AppButton.Background = [System.Windows.Media.Brushes]::White
+            $AppButton.BorderBrush = [System.Windows.Media.Brushes]::LightGray
             
-            $AppStack = New-Object Windows.Controls.StackPanel
-            $AppStack.Orientation = "Horizontal"
-            
-            $AppIcon = New-Object Windows.Controls.TextBlock
-            $AppIcon.Text = $app.Icon
-            $AppIcon.FontSize = 24
-            $AppIcon.Margin = "0,0,12,0"
-            $AppIcon.VerticalAlignment = "Center"
-            
-            $AppText = New-Object Windows.Controls.TextBlock
-            $AppText.Text = $app.Name
-            $AppText.FontSize = 15
-            $AppText.VerticalAlignment = "Center"
-            $AppText.TextWrapping = "Wrap"
-            
-            $AppStack.Children.Add($AppIcon) | Out-Null
-            $AppStack.Children.Add($AppText) | Out-Null
-            $AppBorder.Child = $AppStack
-            
-            # Thêm sự kiện click với hiệu ứng hover
-            $AppBorder.Add_MouseEnter({
-                $this.Background = [System.Windows.Media.Brushes]::LightBlue
-            })
-            $AppBorder.Add_MouseLeave({
-                if ($global:SelectedApps.ContainsKey($this.Tag)) {
-                    $this.Background = [System.Windows.Media.Brushes]::LightGreen
-                } else {
-                    $this.Background = [System.Windows.Media.Brushes]::White
-                }
-            })
-            $AppBorder.Add_MouseLeftButtonDown({
+            $AppButton.Add_Click({
                 param($sender, $e)
-                $border = $sender
-                $appId = $border.Tag
+                $button = $sender
+                $appId = $button.Tag
                 
                 if ($global:SelectedApps.ContainsKey($appId)) {
-                    # Bỏ chọn
-                    $border.Background = [System.Windows.Media.Brushes]::White
+                    $button.Background = [System.Windows.Media.Brushes]::White
                     $global:SelectedApps.Remove($appId) | Out-Null
                 } else {
-                    # Chọn
-                    $border.Background = [System.Windows.Media.Brushes]::LightGreen
+                    $button.Background = [System.Windows.Media.Brushes]::LightGreen
                     $global:SelectedApps[$appId] = $true
                 }
             })
             
-            $AppGrid.Children.Add($AppBorder) | Out-Null
+            $AppPanel.Children.Add($AppButton) | Out-Null
         }
         
-        $CategoryStack.Children.Add($AppGrid) | Out-Null
-        $CategoryBorder.Child = $CategoryStack
-        $InstallStack.Children.Add($CategoryBorder) | Out-Null
+        $CategoryGroup.Content = $AppPanel
+        $VirtualInstallStack.Children.Add($CategoryGroup) | Out-Null
     }
     
-    # Nút cài đặt với layout tốt hơn
     $InstallButton = New-Object Windows.Controls.Button
     $InstallButton.Content = "🚀 CÀI ĐẶT ỨNG DỤNG ĐÃ CHỌN"
-    $InstallButton.FontSize = 16
+    $InstallButton.FontSize = 14
     $InstallButton.FontWeight = "Bold"
-    $InstallButton.Height = 50
-    $InstallButton.Margin = "0,15,0,0"
-    $InstallButton.Background = [System.Windows.Media.LinearGradientBrush]::new(
-        [System.Windows.Media.Color]::FromRgb(46, 204, 113),
-        [System.Windows.Media.Color]::FromRgb(39, 174, 96),
-        90
-    )
+    $InstallButton.Height = 40
+    $InstallButton.Margin = "0,20,0,0"
+    $InstallButton.Background = [System.Windows.Media.Brushes]::Green
     $InstallButton.Foreground = [System.Windows.Media.Brushes]::White
-    $InstallButton.Cursor = "Hand"
-    $InstallButton.BorderThickness = "0"
-    $InstallButton.HorizontalAlignment = "Stretch"
     
+    $hasWinget = Test-Winget
+    if (-not $hasWinget) {
+        $InstallButton.IsEnabled = $false
+        $InstallButton.Content = "⚠️ WINGET CHƯA CÀI ĐẶT"
+        $InstallButton.Background = [System.Windows.Media.Brushes]::Gray
+    }
+    
+    $VirtualInstallStack.Children.Add($InstallButton) | Out-Null
+    $InstallScroll.Content = $VirtualInstallStack
+    $TabInstall.Content = $InstallScroll
+    $TabControl.Items.Add($TabInstall) | Out-Null
+    
+    # Tab 2: Tweak hệ thống
+    $TabTweaks = New-Object Windows.Controls.TabItem
+    $TabTweaks.Header = "⚙️ TỐI ƯU HỆ THỐNG"
+    
+    $TweakScroll = New-Object Windows.Controls.ScrollViewer
+    $TweakScroll.VerticalScrollBarVisibility = "Auto"
+    
+    $TweakStack = New-Object Windows.Controls.StackPanel
+    $TweakStack.Margin = "10"
+    
+    $global:SelectedTweaks = @{}
+    
+    foreach ($category in $Tweaks.Keys) {
+        $CategoryGroup = New-Object Windows.Controls.Expander
+        $CategoryGroup.Header = $category
+        $CategoryGroup.IsExpanded = $false
+        $CategoryGroup.Margin = "0,0,0,5"
+        
+        $TweakPanel = New-Object Windows.Controls.StackPanel
+        $TweakPanel.Margin = "10,5,10,5"
+        
+        foreach ($tweak in $Tweaks[$category]) {
+            $CheckBox = New-Object Windows.Controls.CheckBox
+            $CheckBox.Content = $tweak.Name
+            $CheckBox.FontSize = 13
+            $CheckBox.Margin = "5"
+            $CheckBox.Tag = $tweak
+            
+            $CheckBox.Add_Checked({
+                $global:SelectedTweaks[$this.Content] = $this.Tag
+            })
+            
+            $CheckBox.Add_Unchecked({
+                $global:SelectedTweaks.Remove($this.Content) | Out-Null
+            })
+            
+            $TweakPanel.Children.Add($CheckBox) | Out-Null
+        }
+        
+        $CategoryGroup.Content = $TweakPanel
+        $TweakStack.Children.Add($CategoryGroup) | Out-Null
+    }
+    
+    $ExecuteTweaksButton = New-Object Windows.Controls.Button
+    $ExecuteTweaksButton.Content = "⚡ ÁP DỤNG TWEAKS ĐÃ CHỌN"
+    $ExecuteTweaksButton.FontSize = 14
+    $ExecuteTweaksButton.FontWeight = "Bold"
+    $ExecuteTweaksButton.Height = 40
+    $ExecuteTweaksButton.Margin = "0,20,0,0"
+    $ExecuteTweaksButton.Background = [System.Windows.Media.Brushes]::Orange
+    $ExecuteTweaksButton.Foreground = [System.Windows.Media.Brushes]::White
+    
+    $TweakStack.Children.Add($ExecuteTweaksButton) | Out-Null
+    $TweakScroll.Content = $TweakStack
+    $TabTweaks.Content = $TweakScroll
+    $TabControl.Items.Add($TabTweaks) | Out-Null
+    
+    # Tab 3: Quản lý DNS
+    $TabDNS = New-Object Windows.Controls.TabItem
+    $TabDNS.Header = "🌐 QUẢN LÝ DNS"
+    
+    $DNSStack = New-Object Windows.Controls.StackPanel
+    $DNSStack.Margin = "20"
+    $DNSStack.HorizontalAlignment = "Center"
+    
+    $DNSText = New-Object Windows.Controls.TextBlock
+    $DNSText.Text = "Chọn DNS Server để áp dụng:"
+    $DNSText.FontSize = 16
+    $DNSText.Margin = "0,0,0,10"
+    
+    $DNSComboBox = New-Object Windows.Controls.ComboBox
+    $DNSComboBox.Width = 300
+    $DNSComboBox.FontSize = 14
+    $DNSComboBox.ItemsSource = $DNSServers.Keys
+    $DNSComboBox.SelectedIndex = 0
+    
+    $ApplyDNSButton = New-Object Windows.Controls.Button
+    $ApplyDNSButton.Content = "ÁP DỤNG DNS"
+    $ApplyDNSButton.FontSize = 14
+    $ApplyDNSButton.FontWeight = "Bold"
+    $ApplyDNSButton.Width = 150
+    $ApplyDNSButton.Height = 40
+    $ApplyDNSButton.Margin = "0,20,0,0"
+    $ApplyDNSButton.Background = [System.Windows.Media.Brushes]::Blue
+    $ApplyDNSButton.Foreground = [System.Windows.Media.Brushes]::White
+    
+    $ApplyDNSButton.Add_Click({
+        $selectedDNS = $DNSComboBox.SelectedValue
+        if ($selectedDNS) {
+            $this.IsEnabled = $false
+            $this.Content = "ĐANG ÁP DỤNG..."
+            
+            # Chạy trong background job
+            $job = Start-Job -ScriptBlock {
+                param($dnsName)
+                . (Get-Command Set-DNSServer).ScriptBlock
+                Set-DNSServer -DNSServerName $dnsName
+            } -ArgumentList $selectedDNS
+            
+            while ($job.State -eq "Running") {
+                Start-Sleep -Milliseconds 100
+            }
+            
+            $result = Receive-Job -Job $job
+            Remove-Job -Job $job
+            
+            [System.Windows.MessageBox]::Show($result, "Kết quả", "OK", "Information")
+            
+            $this.Content = "ÁP DỤNG DNS"
+            $this.IsEnabled = $true
+        }
+    })
+    
+    $DNSStack.Children.Add($DNSText) | Out-Null
+    $DNSStack.Children.Add($DNSComboBox) | Out-Null
+    $DNSStack.Children.Add($ApplyDNSButton) | Out-Null
+    $TabDNS.Content = $DNSStack
+    $TabControl.Items.Add($TabDNS) | Out-Null
+    
+    # Tab 4: Thông tin hệ thống
+    $TabInfo = New-Object Windows.Controls.TabItem
+    $TabInfo.Header = "💻 THÔNG TIN HỆ THỐNG"
+    
+    $InfoStack = New-Object Windows.Controls.StackPanel
+    $InfoStack.Margin = "20"
+    
+    $InfoText = New-Object Windows.Controls.TextBox
+    $InfoText.Text = Get-SystemInfoText
+    $InfoText.FontFamily = "Consolas"
+    $InfoText.FontSize = 12
+    $InfoText.IsReadOnly = $true
+    $InfoText.VerticalScrollBarVisibility = "Auto"
+    $InfoText.TextWrapping = "Wrap"
+    $InfoText.Width = 700
+    $InfoText.Height = 400
+    
+    $RefreshButton = New-Object Windows.Controls.Button
+    $RefreshButton.Content = "🔄 LÀM MỚI THÔNG TIN"
+    $RefreshButton.FontSize = 14
+    $RefreshButton.Margin = "0,15,0,0"
+    $RefreshButton.Width = 200
+    $RefreshButton.Height = 40
+    
+    $RefreshButton.Add_Click({
+        $InfoText.Text = "Đang cập nhật thông tin hệ thống..."
+        $InfoText.Text = Get-SystemInfoText
+    })
+    
+    $InfoStack.Children.Add($InfoText) | Out-Null
+    $InfoStack.Children.Add($RefreshButton) | Out-Null
+    $TabInfo.Content = $InfoStack
+    $TabControl.Items.Add($TabInfo) | Out-Null
+    
+    # Footer buttons
+    $FooterPanel = New-Object Windows.Controls.StackPanel
+    $FooterPanel.Orientation = "Horizontal"
+    $FooterPanel.HorizontalAlignment = "Center"
+    $FooterPanel.Margin = "0,10,0,10"
+    
+    $RestartButton = New-Object Windows.Controls.Button
+    $RestartButton.Content = "🔄 KHỞI ĐỘNG LẠI"
+    $RestartButton.Width = 150
+    $RestartButton.Height = 40
+    $RestartButton.Margin = "10"
+    $RestartButton.Background = [System.Windows.Media.Brushes]::OrangeRed
+    
+    $ExitButton = New-Object Windows.Controls.Button
+    $ExitButton.Content = "❌ THOÁT"
+    $ExitButton.Width = 150
+    $ExitButton.Height = 40
+    $ExitButton.Margin = "10"
+    $ExitButton.Background = [System.Windows.Media.Brushes]::Red
+    $ExitButton.Foreground = [System.Windows.Media.Brushes]::White
+    
+    $FooterPanel.Children.Add($RestartButton) | Out-Null
+    $FooterPanel.Children.Add($ExitButton) | Out-Null
+    
+    # Xây dựng layout
+    $MainGrid.RowDefinitions.Add((New-Object Windows.Controls.RowDefinition -Property @{Height = "Auto"}))
+    $MainGrid.RowDefinitions.Add((New-Object Windows.Controls.RowDefinition))
+    $MainGrid.RowDefinitions.Add((New-Object Windows.Controls.RowDefinition -Property @{Height = "Auto"}))
+    
+    [Windows.Controls.Grid]::SetRow($HeaderText, 0)
+    [Windows.Controls.Grid]::SetRow($TabControl, 1)
+    [Windows.Controls.Grid]::SetRow($FooterPanel, 2)
+    
+    $MainGrid.Children.Add($HeaderText) | Out-Null
+    $MainGrid.Children.Add($TabControl) | Out-Null
+    $MainGrid.Children.Add($FooterPanel) | Out-Null
+    
+    # Sự kiện nút
     $InstallButton.Add_Click({
         if ($global:SelectedApps.Count -eq 0) {
             [System.Windows.MessageBox]::Show("Vui lòng chọn ít nhất một ứng dụng!", "Thông báo", "OK", "Information")
             return
         }
         
-        $appList = $global:SelectedApps.Keys -join "`n"
         $result = [System.Windows.MessageBox]::Show(
-            "Bạn muốn cài đặt $($global:SelectedApps.Count) ứng dụng?`n`n$appList",
+            "Bạn muốn cài đặt $($global:SelectedApps.Count) ứng dụng?",
             "Xác nhận cài đặt",
             "YesNo",
             "Question"
@@ -668,28 +970,21 @@ function Create-MainWindow {
                 
                 try {
                     Write-Host "Cài đặt: $appId ..." -ForegroundColor Yellow
-                    $wingetArgs = @("install", "--id", $appId, "--accept-package-agreements", "--accept-source-agreements", "--silent")
-                    Start-Process -FilePath "winget" -ArgumentList $wingetArgs -Wait -NoNewWindow
+                    Start-Process -FilePath "winget" -ArgumentList "install --id $appId --accept-package-agreements --accept-source-agreements --silent" -Wait -NoNewWindow
                     Write-Host "✅ Đã cài đặt: $appId" -ForegroundColor Green
                 } catch {
-                    Write-Host "❌ Lỗi khi cài $appId : $($_.Exception.Message)" -ForegroundColor Red
+                    Write-Host "❌ Lỗi khi cài $appId" -ForegroundColor Red
                 }
             }
             
-            $this.Content = "✅ HOÀN TẤT CÀI ĐẶT!"
-            $this.Background = [System.Windows.Media.Brushes]::Green
+            $this.Content = "✅ HOÀN TẤT!"
             [System.Windows.MessageBox]::Show("Đã cài đặt xong $total ứng dụng!", "Thành công", "OK", "Information")
             
-            # Reset button sau 3 giây sử dụng DispatcherTimer
+            # Reset button
             $timer = New-Object System.Windows.Threading.DispatcherTimer
-            $timer.Interval = [TimeSpan]::FromSeconds(3)
+            $timer.Interval = [TimeSpan]::FromSeconds(2)
             $timer.Add_Tick({
                 $InstallButton.Content = "🚀 CÀI ĐẶT ỨNG DỤNG ĐÃ CHỌN"
-                $InstallButton.Background = [System.Windows.Media.LinearGradientBrush]::new(
-                    [System.Windows.Media.Color]::FromRgb(46, 204, 113),
-                    [System.Windows.Media.Color]::FromRgb(39, 174, 96),
-                    90
-                )
                 $InstallButton.IsEnabled = $true
                 $this.Stop()
             })
@@ -697,107 +992,14 @@ function Create-MainWindow {
         }
     })
     
-    # Vô hiệu hóa nút cài đặt nếu không có winget
-    $hasWinget = Test-Winget
-    if (-not $hasWinget) {
-        $InstallButton.IsEnabled = $false
-        $InstallButton.Content = "⚠️ WINGET CHƯA CÀI ĐẶT"
-        $InstallButton.Background = [System.Windows.Media.Brushes]::Gray
-        $InstallButton.ToolTip = "Vui lòng cài đặt Winget từ Microsoft Store"
-    }
-    
-    $InstallStack.Children.Add($InstallButton) | Out-Null
-    $InstallScroll.Content = $InstallStack
-    $TabInstall.Content = $InstallScroll
-    $TabControl.Items.Add($TabInstall) | Out-Null
-    
-    # Tab 2: Tweak hệ thống
-    $TabTweaks = New-Object Windows.Controls.TabItem
-    $TabTweaks.Header = "⚙️ TỐI ƯU HỆ THỐNG"
-    $TabTweaks.FontWeight = "Bold"
-    
-    $TweakScroll = New-Object Windows.Controls.ScrollViewer
-    $TweakScroll.VerticalScrollBarVisibility = "Auto"
-    
-    $TweakStack = New-Object Windows.Controls.StackPanel
-    $TweakStack.Margin = "15"
-    
-    # Biến lưu trữ tweaks đã chọn
-    $global:SelectedTweaks = @{}
-    
-    # Tạo các nhóm tweak với layout tốt hơn
-    foreach ($category in $Tweaks.Keys) {
-        $CategoryBorder = New-Object Windows.Controls.Border
-        $CategoryBorder.BorderThickness = "1"
-        $CategoryBorder.BorderBrush = [System.Windows.Media.Brushes]::Gainsboro
-        $CategoryBorder.CornerRadius = "8"
-        $CategoryBorder.Margin = "0,0,0,15"
-        $CategoryBorder.Background = [System.Windows.Media.Brushes]::White
-        $CategoryBorder.Padding = "10"
-        
-        $CategoryStack = New-Object Windows.Controls.StackPanel
-        
-        # Tiêu đề danh mục tweak
-        $CategoryHeader = New-Object Windows.Controls.TextBlock
-        $CategoryHeader.Text = $category
-        $CategoryHeader.FontSize = 20
-        $CategoryHeader.FontWeight = "SemiBold"
-        $CategoryHeader.Margin = "0,0,0,10"
-        $CategoryHeader.Foreground = [System.Windows.Media.Brushes]::DarkBlue
-        
-        $CategoryStack.Children.Add($CategoryHeader) | Out-Null
-        
-        # Tạo checkbox cho từng tweak
-        foreach ($tweak in $Tweaks[$category]) {
-            $CheckBox = New-Object Windows.Controls.CheckBox
-            $CheckBox.Content = $tweak.Name
-            $CheckBox.FontSize = 15
-            $CheckBox.Margin = "15,8,0,8"
-            $CheckBox.Tag = $tweak
-            $CheckBox.IsChecked = $false
-            
-            # Lưu sự kiện thay đổi
-            $CheckBox.Add_Checked({
-                $global:SelectedTweaks[$this.Content] = $this.Tag
-            })
-            
-            $CheckBox.Add_Unchecked({
-                $global:SelectedTweaks.Remove($this.Content) | Out-Null
-            })
-            
-            $CategoryStack.Children.Add($CheckBox) | Out-Null
-        }
-        
-        $CategoryBorder.Child = $CategoryStack
-        $TweakStack.Children.Add($CategoryBorder) | Out-Null
-    }
-    
-    # Nút thực thi tweaks
-    $ExecuteTweaksButton = New-Object Windows.Controls.Button
-    $ExecuteTweaksButton.Content = "⚡ ÁP DỤNG TWEAKS ĐÃ CHỌN"
-    $ExecuteTweaksButton.FontSize = 16
-    $ExecuteTweaksButton.FontWeight = "Bold"
-    $ExecuteTweaksButton.Height = 50
-    $ExecuteTweaksButton.Margin = "0,15,0,0"
-    $ExecuteTweaksButton.Background = [System.Windows.Media.LinearGradientBrush]::new(
-        [System.Windows.Media.Color]::FromRgb(25, 118, 210),
-        [System.Windows.Media.Color]::FromRgb(21, 101, 192),
-        90
-    )
-    $ExecuteTweaksButton.Foreground = [System.Windows.Media.Brushes]::White
-    $ExecuteTweaksButton.Cursor = "Hand"
-    $ExecuteTweaksButton.BorderThickness = "0"
-    $ExecuteTweaksButton.HorizontalAlignment = "Stretch"
-    
     $ExecuteTweaksButton.Add_Click({
         if ($global:SelectedTweaks.Count -eq 0) {
             [System.Windows.MessageBox]::Show("Vui lòng chọn ít nhất một tweak!", "Thông báo", "OK", "Information")
             return
         }
         
-        $tweakList = $global:SelectedTweaks.Keys -join "`n"
         $result = [System.Windows.MessageBox]::Show(
-            "Bạn có chắc muốn áp dụng $($global:SelectedTweaks.Count) tweak?`n`n$tweakList",
+            "Bạn có chắc muốn áp dụng $($global:SelectedTweaks.Count) tweak?",
             "Xác nhận áp dụng tweak",
             "YesNo",
             "Warning"
@@ -842,109 +1044,23 @@ function Create-MainWindow {
             $resultTextBox.FontSize = 12
             $resultTextBox.IsReadOnly = $true
             $resultTextBox.VerticalScrollBarVisibility = "Auto"
-            $resultTextBox.HorizontalScrollBarVisibility = "Auto"
-            $resultTextBox.TextWrapping = "Wrap"
             
             $resultWindow.Content = $resultTextBox
             $resultWindow.ShowDialog() | Out-Null
             
             $this.Content = "✅ HOÀN TẤT!"
-            $this.Background = [System.Windows.Media.Brushes]::Green
             
-            # Reset button sau 3 giây sử dụng DispatcherTimer
+            # Reset button
             $timer = New-Object System.Windows.Threading.DispatcherTimer
-            $timer.Interval = [TimeSpan]::FromSeconds(3)
+            $timer.Interval = [TimeSpan]::FromSeconds(2)
             $timer.Add_Tick({
                 $ExecuteTweaksButton.Content = "⚡ ÁP DỤNG TWEAKS ĐÃ CHỌN"
-                $ExecuteTweaksButton.Background = [System.Windows.Media.LinearGradientBrush]::new(
-                    [System.Windows.Media.Color]::FromRgb(25, 118, 210),
-                    [System.Windows.Media.Color]::FromRgb(21, 101, 192),
-                    90
-                )
                 $ExecuteTweaksButton.IsEnabled = $true
                 $this.Stop()
             })
             $timer.Start()
         }
     })
-    
-    $TweakStack.Children.Add($ExecuteTweaksButton) | Out-Null
-    $TweakScroll.Content = $TweakStack
-    $TabTweaks.Content = $TweakScroll
-    $TabControl.Items.Add($TabTweaks) | Out-Null
-    
-    # Tab 3: Thông tin hệ thống
-    $TabInfo = New-Object Windows.Controls.TabItem
-    $TabInfo.Header = "💻 THÔNG TIN HỆ THỐNG"
-    $TabInfo.FontWeight = "Bold"
-    
-    $InfoStack = New-Object Windows.Controls.StackPanel
-    $InfoStack.Margin = "20"
-    $InfoStack.HorizontalAlignment = "Center"
-    
-    $InfoText = New-Object Windows.Controls.TextBox
-    $InfoText.Text = Get-SystemInfoText
-    $InfoText.FontFamily = "Consolas"
-    $InfoText.FontSize = 12
-    $InfoText.IsReadOnly = $true
-    $InfoText.VerticalScrollBarVisibility = "Auto"
-    $InfoText.TextWrapping = "Wrap"
-    $InfoText.Width = 800
-    $InfoText.Height = 500
-    $InfoText.Background = [System.Windows.Media.Brushes]::White
-    $InfoText.BorderBrush = [System.Windows.Media.Brushes]::LightGray
-    $InfoText.BorderThickness = "1"
-    
-    # Nút refresh thông tin
-    $RefreshButton = New-Object Windows.Controls.Button
-    $RefreshButton.Content = "🔄 LÀM MỚI THÔNG TIN"
-    $RefreshButton.FontSize = 14
-    $RefreshButton.FontWeight = "Bold"
-    $RefreshButton.Margin = "0,15,0,0"
-    $RefreshButton.Width = 220
-    $RefreshButton.Height = 45
-    $RefreshButton.Background = [System.Windows.Media.LinearGradientBrush]::new(
-        [System.Windows.Media.Color]::FromRgb(124, 179, 66),
-        [System.Windows.Media.Color]::FromRgb(104, 159, 56),
-        90
-    )
-    $RefreshButton.Foreground = [System.Windows.Media.Brushes]::White
-    $RefreshButton.BorderThickness = "0"
-    
-    $RefreshButton.Add_Click({
-        $InfoText.Text = "Đang cập nhật thông tin hệ thống..."
-        $InfoText.Text = Get-SystemInfoText
-    })
-    
-    $InfoStack.Children.Add($InfoText) | Out-Null
-    $InfoStack.Children.Add($RefreshButton) | Out-Null
-    $TabInfo.Content = $InfoStack
-    $TabControl.Items.Add($TabInfo) | Out-Null
-    
-    # Footer
-    $FooterGrid = New-Object Windows.Controls.Grid
-    $FooterGrid.Height = 60
-    $FooterGrid.Background = [System.Windows.Media.Brushes]::Whitesmoke
-    
-    $ButtonPanel = New-Object Windows.Controls.StackPanel
-    $ButtonPanel.Orientation = "Horizontal"
-    $ButtonPanel.HorizontalAlignment = "Center"
-    $ButtonPanel.VerticalAlignment = "Center"
-    
-    # Nút khởi động lại
-    $RestartButton = New-Object Windows.Controls.Button
-    $RestartButton.Content = "🔄 KHỞI ĐỘNG LẠI"
-    $RestartButton.Width = 180
-    $RestartButton.Height = 45
-    $RestartButton.Margin = "15"
-    $RestartButton.Background = [System.Windows.Media.LinearGradientBrush]::new(
-        [System.Windows.Media.Color]::FromRgb(255, 152, 0),
-        [System.Windows.Media.Color]::FromRgb(245, 124, 0),
-        90
-    )
-    $RestartButton.Foreground = [System.Windows.Media.Brushes]::White
-    $RestartButton.FontWeight = "Bold"
-    $RestartButton.BorderThickness = "0"
     
     $RestartButton.Add_Click({
         $result = [System.Windows.MessageBox]::Show("Bạn có muốn khởi động lại máy tính ngay bây giờ?", "Xác nhận", "YesNo", "Question")
@@ -953,41 +1069,9 @@ function Create-MainWindow {
         }
     })
     
-    # Nút thoát
-    $ExitButton = New-Object Windows.Controls.Button
-    $ExitButton.Content = "❌ THOÁT"
-    $ExitButton.Width = 180
-    $ExitButton.Height = 45
-    $ExitButton.Margin = "15"
-    $ExitButton.Background = [System.Windows.Media.LinearGradientBrush]::new(
-        [System.Windows.Media.Color]::FromRgb(229, 57, 53),
-        [System.Windows.Media.Color]::FromRgb(211, 47, 47),
-        90
-    )
-    $ExitButton.Foreground = [System.Windows.Media.Brushes]::White
-    $ExitButton.FontWeight = "Bold"
-    $ExitButton.BorderThickness = "0"
-    
     $ExitButton.Add_Click({
         $Window.Close()
     })
-    
-    $ButtonPanel.Children.Add($RestartButton) | Out-Null
-    $ButtonPanel.Children.Add($ExitButton) | Out-Null
-    $FooterGrid.Children.Add($ButtonPanel) | Out-Null
-    
-    # Xây dựng layout
-    $MainGrid.RowDefinitions.Add((New-Object Windows.Controls.RowDefinition -Property @{Height = "Auto"}))
-    $MainGrid.RowDefinitions.Add((New-Object Windows.Controls.RowDefinition))
-    $MainGrid.RowDefinitions.Add((New-Object Windows.Controls.RowDefinition -Property @{Height = "Auto"}))
-    
-    [Windows.Controls.Grid]::SetRow($HeaderGrid, 0)
-    [Windows.Controls.Grid]::SetRow($TabControl, 1)
-    [Windows.Controls.Grid]::SetRow($FooterGrid, 2)
-    
-    $MainGrid.Children.Add($HeaderGrid) | Out-Null
-    $MainGrid.Children.Add($TabControl) | Out-Null
-    $MainGrid.Children.Add($FooterGrid) | Out-Null
     
     $Window.Content = $MainGrid
     return $Window
@@ -1006,10 +1090,84 @@ if (-not $hasWinget) {
 # Hiển thị GUI
 try {
     $mainWindow = Create-MainWindow
+    
+    # Tối ưu hóa hiệu năng GUI
+    [System.Windows.Forms.Application]::EnableVisualStyles()
+    
+    # Sử dụng Dispatcher để tránh block UI
+    $mainWindow.Add_Loaded({
+        # Đảm bảo GUI được render xong
+        $this.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+    })
+    
     $null = $mainWindow.ShowDialog()
 } catch {
     Write-Host "❌ Lỗi khi tạo giao diện: $($_.Exception.Message)" -ForegroundColor Red
-    Write-Host "⚠️  Vui lòng kiểm tra và chạy lại script." -ForegroundColor Yellow
-    Pause
+    Write-Host "Stack Trace: $($_.ScriptStackTrace)" -ForegroundColor DarkYellow
+    
+    # Fallback to simple console menu
+    Write-Host "`nChuyển sang chế độ dòng lệnh..." -ForegroundColor Yellow
+    Show-ConsoleMenu
+}
+
+function Show-ConsoleMenu {
+    do {
+        Clear-Host
+        Write-Host $logo -ForegroundColor Cyan
+        Write-Host "`n=== MENU DÒNG LỆNH ===" -ForegroundColor Green
+        Write-Host "1. Hiển thị thông tin hệ thống"
+        Write-Host "2. Xóa file tạm"
+        Write-Host "3. Tạo điểm khôi phục"
+        Write-Host "4. Tắt dịch vụ không cần thiết"
+        Write-Host "5. Thoát"
+        Write-Host "`nChọn chức năng (1-5): " -ForegroundColor Yellow -NoNewline
+        
+        $choice = Read-Host
+        
+        switch ($choice) {
+            "1" {
+                Write-Host "`n" (Get-SystemInfoText) -ForegroundColor Cyan
+                Pause
+            }
+            "2" {
+                Write-Host "Đang xóa file tạm..." -ForegroundColor Yellow
+                Remove-Item -Path "$env:TEMP\*" -Recurse -Force -ErrorAction SilentlyContinue
+                Write-Host "✅ Đã xóa file tạm" -ForegroundColor Green
+                Pause
+            }
+            "3" {
+                Write-Host "Đang tạo điểm khôi phục..." -ForegroundColor Yellow
+                try {
+                    Checkpoint-Computer -Description "PMK Toolbox Console - $(Get-Date)" -RestorePointType MODIFY_SETTINGS
+                    Write-Host "✅ Đã tạo điểm khôi phục" -ForegroundColor Green
+                } catch {
+                    Write-Host "❌ Lỗi: $($_.Exception.Message)" -ForegroundColor Red
+                }
+                Pause
+            }
+            "4" {
+                Write-Host "Đang tắt dịch vụ không cần thiết..." -ForegroundColor Yellow
+                $services = @("DiagTrack", "dmwappushservice", "WMPNetworkSvc", "RemoteRegistry")
+                foreach ($service in $services) {
+                    try {
+                        Set-Service -Name $service -StartupType Disabled -ErrorAction SilentlyContinue
+                        Stop-Service -Name $service -Force -ErrorAction SilentlyContinue
+                        Write-Host "✅ Đã tắt $service" -ForegroundColor Green
+                    } catch {
+                        Write-Host "⚠️ Không thể tắt $service" -ForegroundColor Yellow
+                    }
+                }
+                Pause
+            }
+            "5" {
+                Write-Host "Thoát..." -ForegroundColor Cyan
+                exit
+            }
+            default {
+                Write-Host "Lựa chọn không hợp lệ!" -ForegroundColor Red
+                Start-Sleep -Seconds 1
+            }
+        }
+    } while ($choice -ne "5")
 }
 #endregion
