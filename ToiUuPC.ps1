@@ -1,86 +1,63 @@
 # ToiUuPC.ps1 - PMK Toolbox v3.0
 # Run: irm https://raw.githubusercontent.com/mkhai2589/toiuupc/main/ToiUuPC.ps1 | iex
 # Author: Minh Khải (PMK) - https://www.facebook.com/khaiitcntt
-# Version: 3.1 - Modern Clean Design with Category Layout
+# Version: 3.2 - Clean Design, No Emoji, Single Page
 
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 Clear-Host
 
 # Check Admin
 if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-    Write-Host "Yêu cầu chạy với quyền Administrator!" -ForegroundColor Red
+    Write-Host "Yeu cau chay voi quyen Administrator!" -ForegroundColor Red
     Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
     exit
 }
 
 $ProgressPreference = 'SilentlyContinue'
 
-# ===== MODERN COLOR PALETTE =====
-$BG_COLOR      = "Black"
-$PRIMARY_COLOR = "Cyan"
-$ACCENT_COLOR  = "Magenta"
+# ===== COLOR PALETTE =====
+$TEXT_COLOR = "White"
+$ACCENT_COLOR = "Cyan"
 $SUCCESS_COLOR = "Green"
-$WARNING_COLOR = "Yellow"
-$ERROR_COLOR   = "Red"
-$INFO_COLOR    = "DarkGray"
-$TEXT_COLOR    = "White"
-$CATEGORY_COLOR = "DarkCyan"
-$BORDER_COLOR  = "Gray"
+$ERROR_COLOR = "Red"
+$BORDER_COLOR = "DarkGray"
 
 # Reset console
 function Reset-ConsoleStyle {
-    $Host.UI.RawUI.BackgroundColor = $BG_COLOR
+    $Host.UI.RawUI.BackgroundColor = "Black"
     $Host.UI.RawUI.ForegroundColor = $TEXT_COLOR
     Clear-Host
 }
 
-# Header hệ thống
+# Header system info
 function Show-SystemHeader {
     $os = Get-CimInstance Win32_OperatingSystem
     $cpu = Get-CimInstance Win32_Processor | Select-Object -First 1
     $cs = Get-CimInstance Win32_ComputerSystem
-    $gpu = Get-CimInstance Win32_VideoController | Select-Object -First 1
     $ram = [math]::Round($cs.TotalPhysicalMemory / 1GB, 2)
     
-    $time = Get-Date -Format "HH:mm:ss dd/MM/yyyy"
-    
-    Write-Host "╔════════════════════════════════════════════════════════════════════════════════════════╗" -ForegroundColor $PRIMARY_COLOR
-    Write-Host "║" -NoNewline -ForegroundColor $PRIMARY_COLOR
-    Write-Host " PMK TOOLBOX v3.1 " -NoNewline -ForegroundColor $ACCENT_COLOR
-    Write-Host "|" -NoNewline -ForegroundColor $PRIMARY_COLOR
-    Write-Host " User: $($env:USERNAME) " -NoNewline -ForegroundColor $TEXT_COLOR
-    Write-Host "|" -NoNewline -ForegroundColor $PRIMARY_COLOR
-    Write-Host " PC: $($env:COMPUTERNAME) " -NoNewline -ForegroundColor $TEXT_COLOR
-    Write-Host "|" -NoNewline -ForegroundColor $PRIMARY_COLOR
-    Write-Host " Time: $time " -NoNewline -ForegroundColor $TEXT_COLOR
-    Write-Host "║" -ForegroundColor $PRIMARY_COLOR
-    
-    Write-Host "║" -NoNewline -ForegroundColor $PRIMARY_COLOR
-    Write-Host " OS: $($os.Caption) ($($os.OSArchitecture)) " -NoNewline -ForegroundColor $TEXT_COLOR
-    Write-Host "|" -NoNewline -ForegroundColor $PRIMARY_COLOR
-    Write-Host " CPU: $($cpu.Name.Split('@')[0].Trim()) " -NoNewline -ForegroundColor $TEXT_COLOR
-    Write-Host "|" -NoNewline -ForegroundColor $PRIMARY_COLOR
-    Write-Host " RAM: $ram GB " -NoNewline -ForegroundColor $TEXT_COLOR
-    Write-Host "║" -ForegroundColor $PRIMARY_COLOR
-    
-    Write-Host "╚════════════════════════════════════════════════════════════════════════════════════════╝" -ForegroundColor $PRIMARY_COLOR
+    Write-Host "==================================================================================" -ForegroundColor $BORDER_COLOR
+    Write-Host "PMK TOOLBOX v3.2" -ForegroundColor $ACCENT_COLOR
+    Write-Host "User: $($env:USERNAME) | PC: $($env:COMPUTERNAME) | OS: $($os.Caption)" -ForegroundColor $TEXT_COLOR
+    Write-Host "CPU: $($cpu.Name.Split('@')[0].Trim()) | RAM: $ram GB" -ForegroundColor $TEXT_COLOR
+    Write-Host "==================================================================================" -ForegroundColor $BORDER_COLOR
     Write-Host ""
 }
 
-# Logo đơn giản
+# Logo
 $logo = @"
-   ██████╗ ███╗   ███╗██╗  ██╗      ████████╗ ██████╗  ██████╗ ██╗     
-   ██╔══██╗████╗ ████║██║ ██╔╝      ╚══██╔══╝██╔═══██╗██╔═══██╗██║     
-   ██████╔╝██╔████╔██║█████╔╝          ██║   ██║   ██║██║   ██║██║     
-   ██╔═══╝ ██║╚██╔╝██║██╔═██╗          ██║   ██║   ██║██║   ██║██║     
-   ██║     ██║ ╚═╝ ██║██║  ██╗         ██║   ╚██████╔╝╚██████╔╝███████╗
-   ╚═╝     ╚═╝     ╚═╝╚═╝  ╚═╝         ╚═╝    ╚═════╝  ╚═════╝ ╚══════╝
-                     Tối Ưu Hóa Windows Toàn Diện
+   _____  __  __ _     _     _____          _       ____  
+  |  __ \|  \/  | |   | |   / ____|        | |     / __ \ 
+  | |__) | \  / | |   | |  | |     ___   __| | ___| |  | |
+  |  ___/| |\/| | |   | |  | |    / _ \ / _` |/ _ \ |  | |
+  | |    | |  | | |___| |__| |___| (_) | (_| |  __/ |__| |
+  |_|    |_|  |_|______\_____\_____\___/ \__,_|\___|\____/ 
+                     Toi Uu Windows Toan Dien
 "@
 
-# Danh sách app với categories
+# App categories
 $AppCategories = @{
-    "🌐 TRÌNH DUYỆT" = @(
+    "TRINH DUYET" = @(
         @{STT=1; Name="Brave"; ID="Brave.Brave"},
         @{STT=2; Name="Google Chrome"; ID="Google.Chrome"},
         @{STT=3; Name="Mozilla Firefox"; ID="Mozilla.Firefox"},
@@ -93,7 +70,7 @@ $AppCategories = @{
         @{STT=10; Name="Zen Browser"; ID="Zen-Team.Zen-Browser"}
     )
     
-    "🛠️ TIỆN ÍCH" = @(
+    "TIEN ICH" = @(
         @{STT=11; Name="7-Zip"; ID="7zip.7zip"},
         @{STT=12; Name="WinRAR"; ID="RARLab.WinRAR"},
         @{STT=13; Name="PowerToys"; ID="Microsoft.PowerToys"},
@@ -116,7 +93,7 @@ $AppCategories = @{
         @{STT=30; Name="NanaZip"; ID="M2Team.NanaZip"}
     )
     
-    "💻 PHÁT TRIỂN" = @(
+    "PHAT TRIEN" = @(
         @{STT=31; Name="Visual Studio Code"; ID="Microsoft.VisualStudioCode"},
         @{STT=32; Name="VSCodium"; ID="VSCodium.VSCodium"},
         @{STT=33; Name="Git"; ID="Git.Git"},
@@ -129,7 +106,7 @@ $AppCategories = @{
         @{STT=40; Name="Postman"; ID="Postman.Postman"}
     )
     
-    "🎬 ĐA PHƯƠNG TIỆN" = @(
+    "DA PHUONG TIEN" = @(
         @{STT=41; Name="VLC Media Player"; ID="VideoLAN.VLC"},
         @{STT=42; Name="MPC-HC"; ID="clsid2.mpc-hc"},
         @{STT=43; Name="K-Lite Codec Pack"; ID="CodecGuide.K-LiteCodecPack.Standard"},
@@ -142,7 +119,7 @@ $AppCategories = @{
         @{STT=50; Name="Inkscape"; ID="Inkscape.Inkscape"}
     )
     
-    "📁 VĂN PHÒNG & PDF" = @(
+    "VAN PHONG & PDF" = @(
         @{STT=51; Name="LibreOffice"; ID="TheDocumentFoundation.LibreOffice"},
         @{STT=52; Name="ONLYOffice Desktop"; ID="ONLYOFFICE.DesktopEditors"},
         @{STT=53; Name="SumatraPDF"; ID="SumatraPDF.SumatraPDF"},
@@ -153,7 +130,7 @@ $AppCategories = @{
         @{STT=58; Name="Calibre"; ID="calibre.calibre"}
     )
     
-    "🔧 CÔNG CỤ HỆ THỐNG" = @(
+    "CONG CU HE THONG" = @(
         @{STT=59; Name="CrystalDiskInfo"; ID="CrystalDewWorld.CrystalDiskInfo"},
         @{STT=60; Name="CrystalDiskMark"; ID="CrystalDewWorld.CrystalDiskMark"},
         @{STT=61; Name="CPU-Z"; ID="CPUID.CPU-Z"},
@@ -165,7 +142,7 @@ $AppCategories = @{
         @{STT=67; Name="Sandboxie Plus"; ID="Sandboxie.Plus"}
     )
     
-    "📞 LIÊN LẠC" = @(
+    "LIEN LAC" = @(
         @{STT=68; Name="Discord"; ID="Discord.Discord"},
         @{STT=69; Name="Telegram"; ID="Telegram.TelegramDesktop"},
         @{STT=70; Name="Signal"; ID="OpenWhisperSystems.Signal"},
@@ -174,108 +151,68 @@ $AppCategories = @{
     )
 }
 
-# Hàm hiển thị danh sách app theo category
+# Show app list
 function Show-AppList {
     Reset-ConsoleStyle
     Show-SystemHeader
     
-    # Logo centered
-    $logoLines = $logo -split "`n"
-    foreach ($line in $logoLines) {
-        Write-Host $line -ForegroundColor $PRIMARY_COLOR
+    Write-Host $logo -ForegroundColor $ACCENT_COLOR
+    Write-Host ""
+    Write-Host "DANH SACH UNG DUNG CO THE CAI NHANH" -ForegroundColor $ACCENT_COLOR
+    Write-Host "====================================" -ForegroundColor $BORDER_COLOR
+    Write-Host ""
+    
+    # Display all categories in one page
+    foreach ($category in $AppCategories.Keys) {
+        $apps = $AppCategories[$category]
+        
+        # Category header with spacing
+        Write-Host $category -ForegroundColor $ACCENT_COLOR
+        Write-Host "------------------------------------" -ForegroundColor $BORDER_COLOR
+        
+        # Apps in 2 columns
+        $half = [Math]::Ceiling($apps.Count / 2)
+        
+        for ($j = 0; $j -lt $half; $j++) {
+            $app1 = $apps[$j]
+            $app2 = if ($j + $half -lt $apps.Count) { $apps[$j + $half] } else { $null }
+            
+            $line1 = " [$($app1.STT.ToString().PadLeft(2))] $($app1.Name.PadRight(25))"
+            $line2 = if ($app2) { " [$($app2.STT.ToString().PadLeft(2))] $($app2.Name.PadRight(25))" } else { "" }
+            
+            Write-Host $line1 -NoNewline -ForegroundColor $TEXT_COLOR
+            if ($app2) {
+                Write-Host "    " -NoNewline
+                Write-Host $line2 -ForegroundColor $TEXT_COLOR
+            } else {
+                Write-Host ""
+            }
+        }
+        
+        # Big spacing between categories
+        Write-Host ""
+        Write-Host ""
+        Write-Host ""
     }
     
+    Write-Host "====================================" -ForegroundColor $BORDER_COLOR
     Write-Host ""
-    Write-Host "╔════════════════════════════════════════════════════════════════════════════════════════╗" -ForegroundColor $ACCENT_COLOR
-    Write-Host "║" -NoNewline -ForegroundColor $ACCENT_COLOR
-    Write-Host "                          DANH SÁCH ỨNG DỤNG CÓ THỂ CÀI NHANH                          " -ForegroundColor $WARNING_COLOR
-    Write-Host "║" -ForegroundColor $ACCENT_COLOR
-    Write-Host "╚════════════════════════════════════════════════════════════════════════════════════════╝" -ForegroundColor $ACCENT_COLOR
-    
+    Write-Host "Huong dan:" -ForegroundColor $TEXT_COLOR
+    Write-Host "  - Nhap STT (vi du: 1,4,7) de cai nhieu app cung luc" -ForegroundColor $TEXT_COLOR
+    Write-Host "  - Nhap Winget ID truc tiep (vi du: Google.Chrome)" -ForegroundColor $TEXT_COLOR
+    Write-Host "  - ESC: Thoat ve menu chinh" -ForegroundColor $TEXT_COLOR
     Write-Host ""
+    Write-Host "Nhap lua chon cua ban: " -NoNewline -ForegroundColor $ACCENT_COLOR
     
-    $currentPage = 0
-    $categoriesPerPage = 3
-    $categoryKeys = @($AppCategories.Keys)
-    $totalPages = [Math]::Ceiling($categoryKeys.Count / $categoriesPerPage)
+    $input = Read-Host
+    if ($input -eq "ESC" -or $input -eq "esc") {
+        return $null
+    }
     
-    do {
-        Reset-ConsoleStyle
-        Show-SystemHeader
-        
-        Write-Host "Trang $($currentPage + 1)/$totalPages" -ForegroundColor $INFO_COLOR
-        Write-Host "─────────────────────────────────────────────────────────────────────────────────────" -ForegroundColor $BORDER_COLOR
-        Write-Host ""
-        
-        # Hiển thị các category trong trang hiện tại
-        $startIdx = $currentPage * $categoriesPerPage
-        $endIdx = [Math]::Min($startIdx + $categoriesPerPage - 1, $categoryKeys.Count - 1)
-        
-        for ($i = $startIdx; $i -le $endIdx; $i++) {
-            $category = $categoryKeys[$i]
-            $apps = $AppCategories[$category]
-            
-            # Category header
-            Write-Host " " -NoNewline
-            Write-Host $category -ForegroundColor $CATEGORY_COLOR
-            Write-Host " ──────────────────────────────────────────────────────" -ForegroundColor $BORDER_COLOR
-            
-            # Apps in 2 columns
-            $half = [Math]::Ceiling($apps.Count / 2)
-            
-            for ($j = 0; $j -lt $half; $j++) {
-                $app1 = $apps[$j]
-                $app2 = if ($j + $half -lt $apps.Count) { $apps[$j + $half] } else { $null }
-                
-                $line1 = "  [$($app1.STT.ToString().PadLeft(2))] $($app1.Name.PadRight(25))"
-                $line2 = if ($app2) { "  [$($app2.STT.ToString().PadLeft(2))] $($app2.Name.PadRight(25))" } else { "" }
-                
-                Write-Host $line1 -NoNewline -ForegroundColor $TEXT_COLOR
-                if ($app2) {
-                    Write-Host "│" -NoNewline -ForegroundColor $BORDER_COLOR
-                    Write-Host $line2 -ForegroundColor $TEXT_COLOR
-                } else {
-                    Write-Host ""
-                }
-            }
-            
-            Write-Host ""
-            Write-Host ""
-        }
-        
-        Write-Host "═══════════════════════════════════════════════════════════════════════════════════════" -ForegroundColor $BORDER_COLOR
-        Write-Host ""
-        Write-Host "Hướng dẫn:" -ForegroundColor $INFO_COLOR
-        Write-Host "  • Nhập STT (ví dụ: 1,4,7) để cài nhiều app cùng lúc" -ForegroundColor $TEXT_COLOR
-        Write-Host "  • Nhập Winget ID trực tiếp (ví dụ: Google.Chrome)" -ForegroundColor $TEXT_COLOR
-        Write-Host "  • N: Trang tiếp | P: Trang trước | ESC: Thoát" -ForegroundColor $TEXT_COLOR
-        Write-Host ""
-        Write-Host "Nhập lựa chọn của bạn: " -NoNewline -ForegroundColor $PRIMARY_COLOR
-        
-        $key = [Console]::ReadKey($true)
-        
-        if ($key.Key -eq "Escape") {
-            return $null
-        }
-        elseif ($key.Key -eq "N" -or $key.Key -eq "RightArrow") {
-            if ($currentPage -lt $totalPages - 1) {
-                $currentPage++
-            }
-        }
-        elseif ($key.Key -eq "P" -or $key.Key -eq "LeftArrow") {
-            if ($currentPage -gt 0) {
-                $currentPage--
-            }
-        }
-        elseif ($key.Key -eq "Enter") {
-            $input = Read-Host "`nNhập STT hoặc Winget ID"
-            return $input
-        }
-        
-    } while ($true)
+    return $input
 }
 
-# Hàm cài app
+# Install apps
 function Install-AppQuick {
     $input = Show-AppList
     if (-not $input) { return }
@@ -283,11 +220,8 @@ function Install-AppQuick {
     Reset-ConsoleStyle
     Show-SystemHeader
     
-    Write-Host "╔════════════════════════════════════════════════════════════════════════════════════════╗" -ForegroundColor $ACCENT_COLOR
-    Write-Host "║" -NoNewline -ForegroundColor $ACCENT_COLOR
-    Write-Host "                              ĐANG CÀI ĐẶT ỨNG DỤNG                              " -ForegroundColor $WARNING_COLOR
-    Write-Host "║" -ForegroundColor $ACCENT_COLOR
-    Write-Host "╚════════════════════════════════════════════════════════════════════════════════════════╝" -ForegroundColor $ACCENT_COLOR
+    Write-Host "DANG CAI DAT UNG DUNG" -ForegroundColor $ACCENT_COLOR
+    Write-Host "=====================" -ForegroundColor $BORDER_COLOR
     Write-Host ""
     
     $items = $input.Split(',').Trim()
@@ -297,7 +231,7 @@ function Install-AppQuick {
     foreach ($item in $items) {
         $app = $null
         
-        # Tìm app theo STT
+        # Find app by STT
         if ($item -match '^\d+$') {
             foreach ($category in $AppCategories.Values) {
                 $app = $category | Where-Object { $_.STT -eq [int]$item }
@@ -306,73 +240,63 @@ function Install-AppQuick {
         }
         
         if ($app) {
-            Write-Host "┌─" -ForegroundColor $BORDER_COLOR
-            Write-Host "│ Đang cài đặt: " -NoNewline -ForegroundColor $TEXT_COLOR
-            Write-Host $app.Name -ForegroundColor $PRIMARY_COLOR
-            Write-Host "│ Winget ID: " -NoNewline -ForegroundColor $TEXT_COLOR
-            Write-Host $app.ID -ForegroundColor $INFO_COLOR
-            Write-Host "└─" -ForegroundColor $BORDER_COLOR
+            Write-Host "Cai dat: " -NoNewline -ForegroundColor $TEXT_COLOR
+            Write-Host $app.Name -ForegroundColor $ACCENT_COLOR
+            Write-Host "Winget ID: " -NoNewline -ForegroundColor $TEXT_COLOR
+            Write-Host $app.ID -ForegroundColor $TEXT_COLOR
             
             try {
                 winget install --id $app.ID --silent --accept-package-agreements --accept-source-agreements --disable-interactivity
-                Write-Host "   ✅ Đã cài thành công!" -ForegroundColor $SUCCESS_COLOR
+                Write-Host "  Da cai thanh cong!" -ForegroundColor $SUCCESS_COLOR
                 $successCount++
             }
             catch {
-                Write-Host "   ❌ Lỗi khi cài đặt: $_" -ForegroundColor $ERROR_COLOR
+                Write-Host "  Loi khi cai dat!" -ForegroundColor $ERROR_COLOR
                 $failCount++
             }
         }
         else {
-            # Cài bằng Winget ID trực tiếp
-            Write-Host "┌─" -ForegroundColor $BORDER_COLOR
-            Write-Host "│ Đang cài đặt: " -NoNewline -ForegroundColor $TEXT_COLOR
-            Write-Host $item -ForegroundColor $PRIMARY_COLOR
-            Write-Host "└─" -ForegroundColor $BORDER_COLOR
+            # Install by Winget ID directly
+            Write-Host "Cai dat: " -NoNewline -ForegroundColor $TEXT_COLOR
+            Write-Host $item -ForegroundColor $ACCENT_COLOR
             
             try {
                 winget install --id $item --silent --accept-package-agreements --accept-source-agreements --disable-interactivity
-                Write-Host "   ✅ Đã cài thành công!" -ForegroundColor $SUCCESS_COLOR
+                Write-Host "  Da cai thanh cong!" -ForegroundColor $SUCCESS_COLOR
                 $successCount++
             }
             catch {
-                Write-Host "   ❌ Lỗi khi cài đặt: $_" -ForegroundColor $ERROR_COLOR
+                Write-Host "  Loi khi cai dat!" -ForegroundColor $ERROR_COLOR
                 $failCount++
             }
         }
         Write-Host ""
     }
     
-    Write-Host "═══════════════════════════════════════════════════════════════════════════════════════" -ForegroundColor $BORDER_COLOR
-    Write-Host "Kết quả: " -NoNewline -ForegroundColor $TEXT_COLOR
-    Write-Host "$successCount thành công, $failCount thất bại" -ForegroundColor $(if ($failCount -eq 0) { $SUCCESS_COLOR } else { $WARNING_COLOR })
+    Write-Host "=====================" -ForegroundColor $BORDER_COLOR
+    Write-Host "Ket qua: " -NoNewline -ForegroundColor $TEXT_COLOR
+    Write-Host "$successCount thanh cong, $failCount that bai" -ForegroundColor $(if ($failCount -eq 0) { $SUCCESS_COLOR } else { $ACCENT_COLOR })
     Write-Host ""
     
-    Write-Host "Nhấn phím bất kỳ để tiếp tục..." -ForegroundColor $INFO_COLOR
+    Write-Host "Nhan phim bat ky de tiep tuc..." -ForegroundColor $TEXT_COLOR
     $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
 }
 
-# Các hàm tối ưu hệ thống
+# Disable telemetry
 function Disable-TelemetryQuick {
     Reset-ConsoleStyle
     Show-SystemHeader
     
-    Write-Host "╔════════════════════════════════════════════════════════════════════════════════════════╗" -ForegroundColor $ACCENT_COLOR
-    Write-Host "║" -NoNewline -ForegroundColor $ACCENT_COLOR
-    Write-Host "                              VÔ HIỆU HÓA TELEMETRY                              " -ForegroundColor $WARNING_COLOR
-    Write-Host "║" -ForegroundColor $ACCENT_COLOR
-    Write-Host "╚════════════════════════════════════════════════════════════════════════════════════════╝" -ForegroundColor $ACCENT_COLOR
+    Write-Host "VO HIEU HOA TELEMETRY" -ForegroundColor $ACCENT_COLOR
+    Write-Host "======================" -ForegroundColor $BORDER_COLOR
     Write-Host ""
     
     $telemetryPaths = @(
         "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection",
-        "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection",
-        "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection",
-        "HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Policies\DataCollection"
+        "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection"
     )
     
     $success = 0
-    $total = $telemetryPaths.Count
     
     foreach ($path in $telemetryPaths) {
         try {
@@ -380,41 +304,37 @@ function Disable-TelemetryQuick {
                 New-Item -Path $path -Force | Out-Null
             }
             Set-ItemProperty -Path $path -Name "AllowTelemetry" -Value 0 -Type DWord -Force
-            Write-Host "  ✅ $($path.Split('\')[-1])" -ForegroundColor $SUCCESS_COLOR
+            Write-Host "  Da vo hieu hoa: $($path.Split('\')[-1])" -ForegroundColor $SUCCESS_COLOR
             $success++
         }
         catch {
-            Write-Host "  ❌ $($path.Split('\')[-1]): $_" -ForegroundColor $ERROR_COLOR
+            Write-Host "  Loi: $($path.Split('\')[-1])" -ForegroundColor $ERROR_COLOR
         }
     }
     
     Write-Host ""
-    Write-Host "═" * 80 -ForegroundColor $BORDER_COLOR
-    Write-Host "Kết quả: " -NoNewline -ForegroundColor $TEXT_COLOR
-    Write-Host "$success/$total thành công" -ForegroundColor $(if ($success -eq $total) { $SUCCESS_COLOR } else { $WARNING_COLOR })
+    Write-Host "Ket qua: " -NoNewline -ForegroundColor $TEXT_COLOR
+    Write-Host "$success/$($telemetryPaths.Count) thanh cong" -ForegroundColor $(if ($success -eq $telemetryPaths.Count) { $SUCCESS_COLOR } else { $ACCENT_COLOR })
     Write-Host ""
-    Write-Host "Lưu ý: Cần khởi động lại để áp dụng đầy đủ" -ForegroundColor $INFO_COLOR
+    Write-Host "Can khoi dong lai de ap dung day du" -ForegroundColor $TEXT_COLOR
     Write-Host ""
     
-    Write-Host "Nhấn phím bất kỳ để tiếp tục..." -ForegroundColor $INFO_COLOR
+    Write-Host "Nhan phim bat ky de tiep tuc..." -ForegroundColor $TEXT_COLOR
     $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
 }
 
+# Clean temp files
 function Clean-TempFiles {
     Reset-ConsoleStyle
     Show-SystemHeader
     
-    Write-Host "╔════════════════════════════════════════════════════════════════════════════════════════╗" -ForegroundColor $ACCENT_COLOR
-    Write-Host "║" -NoNewline -ForegroundColor $ACCENT_COLOR
-    Write-Host "                               DỌN DẸP FILE TẠM                                " -ForegroundColor $WARNING_COLOR
-    Write-Host "║" -ForegroundColor $ACCENT_COLOR
-    Write-Host "╚════════════════════════════════════════════════════════════════════════════════════════╝" -ForegroundColor $ACCENT_COLOR
+    Write-Host "DON DEP FILE TAM" -ForegroundColor $ACCENT_COLOR
+    Write-Host "=================" -ForegroundColor $BORDER_COLOR
     Write-Host ""
     
     $tempPaths = @(
         "$env:TEMP\*",
         "$env:SystemRoot\Temp\*",
-        "$env:SystemRoot\Prefetch\*",
         "$env:USERPROFILE\AppData\Local\Temp\*"
     )
     
@@ -428,37 +348,33 @@ function Clean-TempFiles {
                 
                 Remove-Item -Path $path -Recurse -Force -ErrorAction SilentlyContinue
                 
-                Write-Host "  🗑️  Đã dọn: " -NoNewline -ForegroundColor $TEXT_COLOR
-                Write-Host "$([math]::Round($size, 2)) MB" -ForegroundColor $PRIMARY_COLOR
-                Write-Host "     Từ: $($path.Split('\')[-2..-1] -join '\')" -ForegroundColor $INFO_COLOR
+                Write-Host "  Da don: " -NoNewline -ForegroundColor $TEXT_COLOR
+                Write-Host "$([math]::Round($size, 2)) MB" -ForegroundColor $SUCCESS_COLOR
                 
                 $totalFreed += $size
             }
             catch {
-                Write-Host "  ⚠️  Không thể dọn: $($path.Split('\')[-1])" -ForegroundColor $WARNING_COLOR
+                Write-Host "  Khong the don: $($path.Split('\')[-1])" -ForegroundColor $ERROR_COLOR
             }
         }
     }
     
     Write-Host ""
-    Write-Host "═" * 80 -ForegroundColor $BORDER_COLOR
-    Write-Host "Tổng dung lượng đã giải phóng: " -NoNewline -ForegroundColor $TEXT_COLOR
+    Write-Host "Tong dung luong da giai phong: " -NoNewline -ForegroundColor $TEXT_COLOR
     Write-Host "$([math]::Round($totalFreed, 2)) MB" -ForegroundColor $SUCCESS_COLOR
     Write-Host ""
     
-    Write-Host "Nhấn phím bất kỳ để tiếp tục..." -ForegroundColor $INFO_COLOR
+    Write-Host "Nhan phim bat ky de tiep tuc..." -ForegroundColor $TEXT_COLOR
     $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
 }
 
+# Disable unneeded services
 function Disable-UnneededServices {
     Reset-ConsoleStyle
     Show-SystemHeader
     
-    Write-Host "╔════════════════════════════════════════════════════════════════════════════════════════╗" -ForegroundColor $ACCENT_COLOR
-    Write-Host "║" -NoNewline -ForegroundColor $ACCENT_COLOR
-    Write-Host "                            TẮT DỊCH VỤ KHÔNG CẦN THIẾT                           " -ForegroundColor $WARNING_COLOR
-    Write-Host "║" -ForegroundColor $ACCENT_COLOR
-    Write-Host "╚════════════════════════════════════════════════════════════════════════════════════════╝" -ForegroundColor $ACCENT_COLOR
+    Write-Host "TAT DICH VU KHONG CAN THIET" -ForegroundColor $ACCENT_COLOR
+    Write-Host "===========================" -ForegroundColor $BORDER_COLOR
     Write-Host ""
     
     $services = @(
@@ -468,9 +384,7 @@ function Disable-UnneededServices {
         @{Name="RemoteRegistry"; Description="Remote Registry Access"},
         @{Name="XblAuthManager"; Description="Xbox Live Auth Manager"},
         @{Name="XblGameSave"; Description="Xbox Live Game Save"},
-        @{Name="XboxNetApiSvc"; Description="Xbox Live Networking"},
-        @{Name="MapsBroker"; Description="Downloaded Maps Manager"},
-        @{Name="lfsvc"; Description="Geo Location Service"}
+        @{Name="XboxNetApiSvc"; Description="Xbox Live Networking"}
     )
     
     $success = 0
@@ -480,119 +394,82 @@ function Disable-UnneededServices {
             if (Get-Service $svc.Name -ErrorAction SilentlyContinue) {
                 Set-Service -Name $svc.Name -StartupType Disabled -ErrorAction SilentlyContinue
                 Stop-Service -Name $svc.Name -Force -ErrorAction SilentlyContinue
-                Write-Host "  ✅ Đã tắt: " -NoNewline -ForegroundColor $SUCCESS_COLOR
-                Write-Host $svc.Description -ForegroundColor $TEXT_COLOR
+                Write-Host "  Da tat: " -NoNewline -ForegroundColor $TEXT_COLOR
+                Write-Host $svc.Description -ForegroundColor $SUCCESS_COLOR
                 $success++
             }
         }
         catch {
-            Write-Host "  ❌ Không thể tắt: " -NoNewline -ForegroundColor $ERROR_COLOR
-            Write-Host $svc.Description -ForegroundColor $TEXT_COLOR
+            Write-Host "  Khong the tat: " -NoNewline -ForegroundColor $TEXT_COLOR
+            Write-Host $svc.Description -ForegroundColor $ERROR_COLOR
         }
     }
     
     Write-Host ""
-    Write-Host "═" * 80 -ForegroundColor $BORDER_COLOR
-    Write-Host "Đã tắt thành công: " -NoNewline -ForegroundColor $TEXT_COLOR
-    Write-Host "$success/$($services.Count) dịch vụ" -ForegroundColor $(if ($success -eq $services.Count) { $SUCCESS_COLOR } else { $WARNING_COLOR })
+    Write-Host "Da tat thanh cong: " -NoNewline -ForegroundColor $TEXT_COLOR
+    Write-Host "$success/$($services.Count) dich vu" -ForegroundColor $(if ($success -eq $services.Count) { $SUCCESS_COLOR } else { $ACCENT_COLOR })
     Write-Host ""
     
-    Write-Host "Nhấn phím bất kỳ để tiếp tục..." -ForegroundColor $INFO_COLOR
+    Write-Host "Nhan phim bat ky de tiep tuc..." -ForegroundColor $TEXT_COLOR
     $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
 }
 
+# Create restore point
 function Create-RestorePoint {
     Reset-ConsoleStyle
     Show-SystemHeader
     
-    Write-Host "╔════════════════════════════════════════════════════════════════════════════════════════╗" -ForegroundColor $ACCENT_COLOR
-    Write-Host "║" -NoNewline -ForegroundColor $ACCENT_COLOR
-    Write-Host "                           TẠO ĐIỂM KHÔI PHỤC HỆ THỐNG                            " -ForegroundColor $WARNING_COLOR
-    Write-Host "║" -ForegroundColor $ACCENT_COLOR
-    Write-Host "╚════════════════════════════════════════════════════════════════════════════════════════╝" -ForegroundColor $ACCENT_COLOR
+    Write-Host "TAO DIEM KHOI PHUC HE THONG" -ForegroundColor $ACCENT_COLOR
+    Write-Host "===========================" -ForegroundColor $BORDER_COLOR
     Write-Host ""
     
     try {
         $description = "PMK Toolbox - $(Get-Date -Format 'dd/MM/yyyy HH:mm:ss')"
         
-        Write-Host "  ⏳ Đang tạo điểm khôi phục..." -ForegroundColor $TEXT_COLOR
-        Write-Host "  📝 Mô tả: $description" -ForegroundColor $INFO_COLOR
+        Write-Host "  Dang tao diem khoi phuc..." -ForegroundColor $TEXT_COLOR
+        Write-Host "  Mo ta: $description" -ForegroundColor $TEXT_COLOR
         
         Checkpoint-Computer -Description $description -RestorePointType MODIFY_SETTINGS
         
         Write-Host ""
-        Write-Host "  ✅ Đã tạo điểm khôi phục thành công!" -ForegroundColor $SUCCESS_COLOR
-        Write-Host ""
-        Write-Host "  💡 Lưu ý: Điểm khôi phục sẽ tự động xóa khi đầy dung lượng" -ForegroundColor $INFO_COLOR
+        Write-Host "  Da tao diem khoi phuc thanh cong!" -ForegroundColor $SUCCESS_COLOR
     }
     catch {
         Write-Host ""
-        Write-Host "  ❌ Lỗi khi tạo điểm khôi phục: $_" -ForegroundColor $ERROR_COLOR
-        Write-Host ""
-        Write-Host "  🔧 Khắc phục: Bật System Restore trong Control Panel > System > System Protection" -ForegroundColor $WARNING_COLOR
+        Write-Host "  Loi khi tao diem khoi phuc!" -ForegroundColor $ERROR_COLOR
+        Write-Host "  Kich hoat System Restore trong Control Panel" -ForegroundColor $TEXT_COLOR
     }
     
     Write-Host ""
-    Write-Host "═" * 80 -ForegroundColor $BORDER_COLOR
-    Write-Host ""
     
-    Write-Host "Nhấn phím bất kỳ để tiếp tục..." -ForegroundColor $INFO_COLOR
+    Write-Host "Nhan phim bat ky de tiep tuc..." -ForegroundColor $TEXT_COLOR
     $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
 }
 
-# Menu chính
+# Main menu
 function Show-MainMenu {
     do {
         Reset-ConsoleStyle
         Show-SystemHeader
         
-        # Logo
-        $logoLines = $logo -split "`n"
-        foreach ($line in $logoLines) {
-            Write-Host $line -ForegroundColor $PRIMARY_COLOR
-        }
-        
+        Write-Host $logo -ForegroundColor $ACCENT_COLOR
         Write-Host ""
-        Write-Host "╔════════════════════════════════════════════════════════════════════════════════════════╗" -ForegroundColor $ACCENT_COLOR
-        Write-Host "║" -NoNewline -ForegroundColor $ACCENT_COLOR
-        Write-Host "                               MENU CHÍNH - PMK TOOLBOX                               " -ForegroundColor $WARNING_COLOR
-        Write-Host "║" -ForegroundColor $ACCENT_COLOR
-        Write-Host "╚════════════════════════════════════════════════════════════════════════════════════════╝" -ForegroundColor $ACCENT_COLOR
+        Write-Host "MENU CHINH - PMK TOOLBOX" -ForegroundColor $ACCENT_COLOR
+        Write-Host "=========================" -ForegroundColor $BORDER_COLOR
         Write-Host ""
         
-        $menuItems = @(
-            @{Number=1; Title="📦 Cài đặt ứng dụng nhanh"; Description="Cài nhiều app từ danh sách Winget"},
-            @{Number=2; Title="🚫 Vô hiệu hóa Telemetry"; Description="Tắt thu thập dữ liệu Windows"},
-            @{Number=3; Title="🧹 Dọn dẹp file tạm"; Description="Xóa file rác, giải phóng dung lượng"},
-            @{Number=4; Title="⚙️ Tắt dịch vụ không cần thiết"; Description="Tối ưu hiệu năng hệ thống"},
-            @{Number=5; Title="💾 Tạo điểm khôi phục"; Description="Backup hệ thống trước khi thay đổi"},
-            @{Number=6; Title="ℹ️ Thông tin hệ thống"; Description="Xem chi tiết cấu hình PC"},
-            @{Number=7; Title="🚪 Thoát"; Description="Đóng PMK Toolbox"}
-        )
-        
-        # Hiển thị menu items
-        foreach ($item in $menuItems) {
-            Write-Host "  [" -NoNewline -ForegroundColor $ACCENT_COLOR
-            Write-Host "$($item.Number)" -NoNewline -ForegroundColor $WARNING_COLOR
-            Write-Host "] " -NoNewline -ForegroundColor $ACCENT_COLOR
-            Write-Host "$($item.Title.PadRight(30))" -NoNewline -ForegroundColor $TEXT_COLOR
-            Write-Host "│ " -NoNewline -ForegroundColor $BORDER_COLOR
-            Write-Host $item.Description -ForegroundColor $INFO_COLOR
-        }
-        
+        Write-Host " [1] Cai dat ung dung nhanh" -ForegroundColor $ACCENT_COLOR
+        Write-Host " [2] Vo hieu hoa Telemetry" -ForegroundColor $ACCENT_COLOR
+        Write-Host " [3] Don dep file tam" -ForegroundColor $ACCENT_COLOR
+        Write-Host " [4] Tat dich vu khong can thiet" -ForegroundColor $ACCENT_COLOR
+        Write-Host " [5] Tao diem khoi phuc" -ForegroundColor $ACCENT_COLOR
+        Write-Host " [6] Thoat" -ForegroundColor $ACCENT_COLOR
         Write-Host ""
-        Write-Host "─" * 80 -ForegroundColor $BORDER_COLOR
-        Write-Host "Nhập số lựa chọn (1-7) hoặc ESC để thoát: " -NoNewline -ForegroundColor $PRIMARY_COLOR
+        Write-Host "=========================" -ForegroundColor $BORDER_COLOR
+        Write-Host ""
+        Write-Host "Nhap so lua chon (1-6): " -NoNewline -ForegroundColor $ACCENT_COLOR
         
-        $key = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
-        
-        if ($key.VirtualKeyCode -eq 27) { # ESC
-            Write-Host "`n`n👋 Tạm biệt! Cảm ơn đã sử dụng PMK Toolbox!" -ForegroundColor $PRIMARY_COLOR
-            Start-Sleep 2
-            exit
-        }
-        
-        $choice = [char]$key.Character
+        $choice = Read-Host
         
         switch ($choice) {
             "1" { Install-AppQuick }
@@ -601,18 +478,14 @@ function Show-MainMenu {
             "4" { Disable-UnneededServices }
             "5" { Create-RestorePoint }
             "6" { 
-                Reset-ConsoleStyle
-                Show-SystemHeader
-                Write-Host "Nhấn phím bất kỳ để tiếp tục..." -ForegroundColor $INFO_COLOR
-                $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
-            }
-            "7" { 
-                Write-Host "`n`n👋 Tạm biệt! Cảm ơn đã sử dụng PMK Toolbox!" -ForegroundColor $PRIMARY_COLOR
+                Write-Host ""
+                Write-Host "Tam biet! Cam on da su dung PMK Toolbox!" -ForegroundColor $ACCENT_COLOR
                 Start-Sleep 2
                 exit 
             }
             default {
-                Write-Host "`n❌ Lựa chọn không hợp lệ! Vui lòng chọn 1-7" -ForegroundColor $ERROR_COLOR
+                Write-Host ""
+                Write-Host "Lua chon khong hop le! Vui long chon 1-6" -ForegroundColor $ERROR_COLOR
                 Start-Sleep 1
             }
         }
@@ -620,12 +493,14 @@ function Show-MainMenu {
     } while ($true)
 }
 
-# Chạy chương trình
+# Run program
 try {
     Show-MainMenu
 }
 catch {
-    Write-Host "`n❌ Đã xảy ra lỗi: $_" -ForegroundColor $ERROR_COLOR
-    Write-Host "`nNhấn phím bất kỳ để thoát..." -ForegroundColor $INFO_COLOR
+    Write-Host ""
+    Write-Host "Da xay ra loi!" -ForegroundColor $ERROR_COLOR
+    Write-Host ""
+    Write-Host "Nhan phim bat ky de thoat..." -ForegroundColor $TEXT_COLOR
     $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
 }
