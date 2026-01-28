@@ -39,7 +39,12 @@ Write-Host "Chạy online: Console menu đầy đủ" -ForegroundColor Yellow
 
 # Hàm cơ bản hardcode
 function Test-Winget {
-    try { winget --version | Out-Null; return $true } catch { return $false }
+    try {
+        winget --version | Out-Null
+        return $true
+    } catch {
+        return $false
+    }
 }
 
 function Install-AppQuick {
