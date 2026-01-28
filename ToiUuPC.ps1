@@ -2,30 +2,31 @@
 # Run: irm https://raw.githubusercontent.com/mkhai2589/toiuupc/main/ToiUuPC.ps1 | iex
 # Author: Thuthuatwiki (PMK)
 
-# Hiển thị logo PMK với padding đẹp
-function Show-PMKLogo {
-    $logo = @"
+# Giữ console mở logo trước khi load GUI
+Clear-Host  # Clear màn hình đầu tiên để logo sạch sẽ
 
-    ╔════════════════════════════════════════════╗
-    ║                                            ║
-    ║   ██████╗ ███╗   ███╗██╗  ██╗             ║
-    ║   ██╔══██╗████╗ ████║██║ ██╔╝             ║
-    ║   ██████╔╝██╔████╔██║█████╔╝              ║
-    ║   ██╔═══╝ ██║╚██╔╝██║██╔═██╗              ║
-    ║   ██║     ██║ ╚═╝ ██║██║  ██╗             ║
-    ║   ╚═╝     ╚═╝     ╚═╝╚═╝  ╚═╝             ║
-    ║                                            ║
-    ║               PMK - MINHKHAI               ║
-    ║     Tối ưu Windows - PMK Toolbox           ║
-    ╚════════════════════════════════════════════╝
+# Logo PMK kiểu figlet to, rộng, padding đẹp
+$logo = @"
+
+    ╔════════════════════════════════════════════════════════════╗
+    ║                                                            ║
+    ║   ██████╗ ███╗   ███╗██╗  ██╗                             ║
+    ║   ██╔══██╗████╗ ████║██║ ██╔╝                             ║
+    ║   ██████╔╝██╔████╔██║█████╔╝                              ║
+    ║   ██╔═══╝ ██║╚██╔╝██║██╔═██╗                              ║
+    ║   ██║     ██║ ╚═╝ ██║██║  ██╗                             ║
+    ║   ╚═╝     ╚═╝     ╚═╝╚═╝  ╚═╝                             ║
+    ║                                                            ║
+    ║     PMK - MinhKhai                                         ║
+    ║     Tối ưu Windows - PMK Toolbox                           ║
+    ╚════════════════════════════════════════════════════════════╝
 
 "@
 
-    Write-Host $logo -ForegroundColor Cyan
-}
-
-# Hiển thị logo ngay đầu
-Show-PMKLogo
+Write-Host $logo -ForegroundColor Cyan
+Write-Host "===== PMK Toolbox - Tối ưu Windows =====" -ForegroundColor Green
+Write-Host "Tổng hợp từ WinUtil + Win11Debloat + Sophia" -ForegroundColor Cyan
+Write-Host ""
 
 # Yêu cầu quyền Admin
 if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
@@ -38,7 +39,7 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
 [void][System.Reflection.Assembly]::LoadWithPartialName('PresentationCore')
 [void][System.Reflection.Assembly]::LoadWithPartialName('WindowsBase')
 
-# Danh sách ứng dụng
+# Danh sách ứng dụng (giữ nguyên)
 $Apps = @{
     "Browsers" = @(
         @{Name="Brave";          Winget="Brave.Brave"}
@@ -63,12 +64,12 @@ $Apps = @{
     )
 }
 
-# Tweaks với log chi tiết
+# Tweaks mở rộng từ WinUtil (Essential + Advanced + Privacy + UI + Services)
 $Tweaks = @{
     "Essential Tweaks" = @(
         @{Name="Create Restore Point"; Action={
             Write-Host "Creating System Restore Point..." -ForegroundColor Yellow
-            Checkpoint-Computer -Description "ToiUuPC Backup - $(Get-Date -Format yyyyMMdd)" -RestorePointType MODIFY_SETTINGS -ErrorAction SilentlyContinue
+            Checkpoint-Computer -Description "PMK Backup - $(Get-Date -Format yyyyMMdd)" -RestorePointType MODIFY_SETTINGS -ErrorAction SilentlyContinue
             Write-Host "Restore Point created!" -ForegroundColor Green
         }}
         @{Name="Delete Temporary Files"; Action={
@@ -82,10 +83,45 @@ $Tweaks = @{
             Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection" -Name "AllowTelemetry" -Value 0 -Type DWord -Force
             Write-Host "Telemetry disabled!" -ForegroundColor Green
         }}
+        @{Name="Disable Consumer Features"; Action={
+            Write-Host "Disabling Consumer Features..." -ForegroundColor Yellow
+            Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\CloudContent" -Name "DisableWindowsConsumerFeatures" -Value 1 -Type DWord -Force
+            Write-Host "Done!" -ForegroundColor Green
+        }}
+        @{Name="Disable Bing Search in Start Menu"; Action={
+            Write-Host "Disabling Bing Search..." -ForegroundColor Yellow
+            Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" -Name "BingSearchEnabled" -Value 0 -Type DWord -Force
+            Write-Host "Done!" -ForegroundColor Green
+        }}
+        @{Name="Disable Activity History"; Action={
+            Write-Host "Disabling Activity History..." -ForegroundColor Yellow
+            Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System" -Name "EnableActivityFeed" -Value 0 -Type DWord -Force
+            Write-Host "Done!" -ForegroundColor Green
+        }}
         @{Name="Disable Hibernation"; Action={
             Write-Host "Disabling Hibernation..." -ForegroundColor Yellow
             powercfg -h off
             Write-Host "Hibernation disabled! Restart to delete hiberfil.sys" -ForegroundColor Green
+        }}
+        @{Name="Disable Location Tracking"; Action={
+            Write-Host "Disabling Location Tracking..." -ForegroundColor Yellow
+            Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\location" -Name "Value" -Value "Deny" -Force
+            Write-Host "Done!" -ForegroundColor Green
+        }}
+        @{Name="Disable GameDVR"; Action={
+            Write-Host "Disabling GameDVR..." -ForegroundColor Yellow
+            Set-ItemProperty -Path "HKCU:\System\GameConfigStore" -Name "GameDVR_Enabled" -Value 0 -Type DWord -Force
+            Write-Host "Done!" -ForegroundColor Green
+        }}
+        @{Name="Disable Cortana"; Action={
+            Write-Host "Disabling Cortana..." -ForegroundColor Yellow
+            Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search" -Name "AllowCortana" -Value 0 -Type DWord -Force
+            Write-Host "Cortana disabled!" -ForegroundColor Green
+        }}
+        @{Name="Disable Advertising ID"; Action={
+            Write-Host "Disabling Advertising ID..." -ForegroundColor Yellow
+            Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\AdvertisingInfo" -Name "Enabled" -Value 0 -Type DWord -Force
+            Write-Host "Done!" -ForegroundColor Green
         }}
     )
     "Advanced Tweaks - CAUTION" = @(
@@ -95,6 +131,47 @@ $Tweaks = @{
             Get-AppxProvisionedPackage -Online | Where-Object DisplayName -like *edge* | Remove-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue
             Write-Host "Edge debloated!" -ForegroundColor Green
         }}
+        @{Name="Disable Background Apps"; Action={
+            Write-Host "Disabling Background Apps..." -ForegroundColor Yellow
+            Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications" -Name "GlobalUserDisabled" -Value 1 -Type DWord -Force
+            Write-Host "Done!" -ForegroundColor Green
+        }}
+        @{Name="Disable IPv6"; Action={
+            Write-Host "Disabling IPv6..." -ForegroundColor Yellow
+            Disable-NetAdapterBinding -Name "*" -ComponentID ms_tcpip6 -ErrorAction SilentlyContinue
+            Write-Host "IPv6 disabled!" -ForegroundColor Green
+        }}
+        @{Name="Disable Microsoft Copilot"; Action={
+            Write-Host "Disabling Copilot..." -ForegroundColor Yellow
+            Set-ItemProperty -Path "HKCU:\Software\Policies\Microsoft\Windows\WindowsCopilot" -Name "TurnOffWindowsCopilot" -Value 1 -Type DWord -Force
+            Write-Host "Done!" -ForegroundColor Green
+        }}
+        @{Name="Disable Fullscreen Optimizations"; Action={
+            Write-Host "Disabling Fullscreen Optimizations..." -ForegroundColor Yellow
+            Set-ItemProperty -Path "HKCU:\System\GameConfigStore" -Name "GameDVR_FSEBehaviorMode" -Value 2 -Type DWord -Force
+            Write-Host "Done!" -ForegroundColor Green
+        }}
+        @{Name="Disable Teredo"; Action={
+            Write-Host "Disabling Teredo..." -ForegroundColor Yellow
+            netsh interface teredo set state disabled
+            Write-Host "Teredo disabled!" -ForegroundColor Green
+        }}
+        @{Name="Disable Storage Sense"; Action={
+            Write-Host "Disabling Storage Sense..." -ForegroundColor Yellow
+            Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\StorageSense\Parameters\StoragePolicy" -Name "01" -Value 0 -Type DWord -Force
+            Write-Host "Done!" -ForegroundColor Green
+        }}
+        @{Name="Remove OneDrive"; Action={
+            Write-Host "Removing OneDrive..." -ForegroundColor Yellow
+            taskkill /f /im OneDrive.exe -ErrorAction SilentlyContinue
+            & "$env:SystemRoot\SysWOW64\OneDriveSetup.exe" /uninstall
+            Write-Host "OneDrive removed!" -ForegroundColor Green
+        }}
+        @{Name="Disable Windows Update Delivery Optimization"; Action={
+            Write-Host "Disabling Delivery Optimization..." -ForegroundColor Yellow
+            Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DeliveryOptimization" -Name "DODownloadMode" -Value 0 -Type DWord -Force
+            Write-Host "Done!" -ForegroundColor Green
+        }}
     )
     "Customize Preferences" = @(
         @{Name="Dark Theme for Windows"; Action={
@@ -102,12 +179,37 @@ $Tweaks = @{
             Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "AppsUseLightTheme" -Value 0 -Type DWord -Force
             Write-Host "Dark Theme enabled!" -ForegroundColor Green
         }}
+        @{Name="Show Hidden Files"; Action={
+            Write-Host "Showing Hidden Files..." -ForegroundColor Yellow
+            Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "Hidden" -Value 1 -Type DWord -Force
+            Write-Host "Done!" -ForegroundColor Green
+        }}
+        @{Name="Show File Extensions"; Action={
+            Write-Host "Showing File Extensions..." -ForegroundColor Yellow
+            Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "HideFileExt" -Value 0 -Type DWord -Force
+            Write-Host "Done!" -ForegroundColor Green
+        }}
+        @{Name="Center Taskbar Items"; Action={
+            Write-Host "Centering Taskbar Items..." -ForegroundColor Yellow
+            Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "TaskbarAl" -Value 1 -Type DWord -Force
+            Write-Host "Done!" -ForegroundColor Green
+        }}
+        @{Name="Disable Snap Assist Flyout"; Action={
+            Write-Host "Disabling Snap Assist Flyout..." -ForegroundColor Yellow
+            Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "EnableSnapAssistFlyout" -Value 0 -Type DWord -Force
+            Write-Host "Done!" -ForegroundColor Green
+        }}
+        @{Name="Disable Snap Suggestions"; Action={
+            Write-Host "Disabling Snap Suggestions..." -ForegroundColor Yellow
+            Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "SnapAssist" -Value 0 -Type DWord -Force
+            Write-Host "Done!" -ForegroundColor Green
+        }}
     )
 }
 
-# WPF GUI - Fix output thừa
+# WPF GUI (fix output thừa)
 $Window = New-Object Windows.Window
-$Window.Title = "ToiUuPC - PMK Toolbox"
+$Window.Title = "PMK Toolbox - ToiUuPC"
 $Window.Width = 1200
 $Window.Height = 800
 $Window.WindowStartupLocation = "CenterScreen"
