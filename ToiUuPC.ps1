@@ -3,7 +3,7 @@
 # Author: Thuthuatwiki (PMK)
 
 # Giữ console mở logo trước khi load GUI
-Clear-Host  # Clear màn hình đầu tiên để logo sạch sẽ
+Clear-Host
 
 # Logo PMK kiểu figlet to, rộng, padding đẹp
 $logo = @"
@@ -64,7 +64,7 @@ $Apps = @{
     )
 }
 
-# Tweaks mở rộng từ WinUtil (Essential + Advanced + Privacy + UI + Services)
+# Tweaks với fix lỗi path không tồn tại + log chi tiết
 $Tweaks = @{
     "Essential Tweaks" = @(
         @{Name="Create Restore Point"; Action={
@@ -80,22 +80,30 @@ $Tweaks = @{
         }}
         @{Name="Disable Telemetry"; Action={
             Write-Host "Disabling Telemetry..." -ForegroundColor Yellow
-            Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection" -Name "AllowTelemetry" -Value 0 -Type DWord -Force
+            $path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection"
+            if (-not (Test-Path $path)) { New-Item -Path $path -Force | Out-Null }
+            Set-ItemProperty -Path $path -Name "AllowTelemetry" -Value 0 -Type DWord -Force
             Write-Host "Telemetry disabled!" -ForegroundColor Green
         }}
         @{Name="Disable Consumer Features"; Action={
             Write-Host "Disabling Consumer Features..." -ForegroundColor Yellow
-            Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\CloudContent" -Name "DisableWindowsConsumerFeatures" -Value 1 -Type DWord -Force
+            $path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\CloudContent"
+            if (-not (Test-Path $path)) { New-Item -Path $path -Force | Out-Null }
+            Set-ItemProperty -Path $path -Name "DisableWindowsConsumerFeatures" -Value 1 -Type DWord -Force
             Write-Host "Done!" -ForegroundColor Green
         }}
         @{Name="Disable Bing Search in Start Menu"; Action={
             Write-Host "Disabling Bing Search..." -ForegroundColor Yellow
-            Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" -Name "BingSearchEnabled" -Value 0 -Type DWord -Force
+            $path = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search"
+            if (-not (Test-Path $path)) { New-Item -Path $path -Force | Out-Null }
+            Set-ItemProperty -Path $path -Name "BingSearchEnabled" -Value 0 -Type DWord -Force
             Write-Host "Done!" -ForegroundColor Green
         }}
         @{Name="Disable Activity History"; Action={
             Write-Host "Disabling Activity History..." -ForegroundColor Yellow
-            Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System" -Name "EnableActivityFeed" -Value 0 -Type DWord -Force
+            $path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System"
+            if (-not (Test-Path $path)) { New-Item -Path $path -Force | Out-Null }
+            Set-ItemProperty -Path $path -Name "EnableActivityFeed" -Value 0 -Type DWord -Force
             Write-Host "Done!" -ForegroundColor Green
         }}
         @{Name="Disable Hibernation"; Action={
@@ -105,22 +113,30 @@ $Tweaks = @{
         }}
         @{Name="Disable Location Tracking"; Action={
             Write-Host "Disabling Location Tracking..." -ForegroundColor Yellow
-            Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\location" -Name "Value" -Value "Deny" -Force
+            $path = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\location"
+            if (-not (Test-Path $path)) { New-Item -Path $path -Force | Out-Null }
+            Set-ItemProperty -Path $path -Name "Value" -Value "Deny" -Force
             Write-Host "Done!" -ForegroundColor Green
         }}
         @{Name="Disable GameDVR"; Action={
             Write-Host "Disabling GameDVR..." -ForegroundColor Yellow
-            Set-ItemProperty -Path "HKCU:\System\GameConfigStore" -Name "GameDVR_Enabled" -Value 0 -Type DWord -Force
+            $path = "HKCU:\System\GameConfigStore"
+            if (-not (Test-Path $path)) { New-Item -Path $path -Force | Out-Null }
+            Set-ItemProperty -Path $path -Name "GameDVR_Enabled" -Value 0 -Type DWord -Force
             Write-Host "Done!" -ForegroundColor Green
         }}
         @{Name="Disable Cortana"; Action={
             Write-Host "Disabling Cortana..." -ForegroundColor Yellow
-            Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search" -Name "AllowCortana" -Value 0 -Type DWord -Force
+            $path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search"
+            if (-not (Test-Path $path)) { New-Item -Path $path -Force | Out-Null }
+            Set-ItemProperty -Path $path -Name "AllowCortana" -Value 0 -Type DWord -Force
             Write-Host "Cortana disabled!" -ForegroundColor Green
         }}
         @{Name="Disable Advertising ID"; Action={
             Write-Host "Disabling Advertising ID..." -ForegroundColor Yellow
-            Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\AdvertisingInfo" -Name "Enabled" -Value 0 -Type DWord -Force
+            $path = "HKCU:\Software\Microsoft\Windows\CurrentVersion\AdvertisingInfo"
+            if (-not (Test-Path $path)) { New-Item -Path $path -Force | Out-Null }
+            Set-ItemProperty -Path $path -Name "Enabled" -Value 0 -Type DWord -Force
             Write-Host "Done!" -ForegroundColor Green
         }}
     )
@@ -133,7 +149,9 @@ $Tweaks = @{
         }}
         @{Name="Disable Background Apps"; Action={
             Write-Host "Disabling Background Apps..." -ForegroundColor Yellow
-            Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications" -Name "GlobalUserDisabled" -Value 1 -Type DWord -Force
+            $path = "HKCU:\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications"
+            if (-not (Test-Path $path)) { New-Item -Path $path -Force | Out-Null }
+            Set-ItemProperty -Path $path -Name "GlobalUserDisabled" -Value 1 -Type DWord -Force
             Write-Host "Done!" -ForegroundColor Green
         }}
         @{Name="Disable IPv6"; Action={
@@ -143,13 +161,16 @@ $Tweaks = @{
         }}
         @{Name="Disable Microsoft Copilot"; Action={
             Write-Host "Disabling Copilot..." -ForegroundColor Yellow
-            New-Item -Path "HKCU:\Software\Policies\Microsoft\Windows\WindowsCopilot" -Force | Out-Null
-            Set-ItemProperty -Path "HKCU:\Software\Policies\Microsoft\Windows\WindowsCopilot" -Name "TurnOffWindowsCopilot" -Value 1 -Type DWord -Force
+            $path = "HKCU:\Software\Policies\Microsoft\Windows\WindowsCopilot"
+            if (-not (Test-Path $path)) { New-Item -Path $path -Force | Out-Null }
+            Set-ItemProperty -Path $path -Name "TurnOffWindowsCopilot" -Value 1 -Type DWord -Force
             Write-Host "Done!" -ForegroundColor Green
         }}
         @{Name="Disable Fullscreen Optimizations"; Action={
             Write-Host "Disabling Fullscreen Optimizations..." -ForegroundColor Yellow
-            Set-ItemProperty -Path "HKCU:\System\GameConfigStore" -Name "GameDVR_FSEBehaviorMode" -Value 2 -Type DWord -Force
+            $path = "HKCU:\System\GameConfigStore"
+            if (-not (Test-Path $path)) { New-Item -Path $path -Force | Out-Null }
+            Set-ItemProperty -Path $path -Name "GameDVR_FSEBehaviorMode" -Value 2 -Type DWord -Force
             Write-Host "Done!" -ForegroundColor Green
         }}
         @{Name="Disable Teredo"; Action={
@@ -159,65 +180,66 @@ $Tweaks = @{
         }}
         @{Name="Disable Storage Sense"; Action={
             Write-Host "Disabling Storage Sense..." -ForegroundColor Yellow
-            Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\StorageSense\Parameters\StoragePolicy" -Name "01" -Value 0 -Type DWord -Force
+            $path = "HKCU:\Software\Microsoft\Windows\CurrentVersion\StorageSense\Parameters\StoragePolicy"
+            if (-not (Test-Path $path)) { New-Item -Path $path -Force | Out-Null }
+            Set-ItemProperty -Path $path -Name "01" -Value 0 -Type DWord -Force
             Write-Host "Done!" -ForegroundColor Green
         }}
         @{Name="Remove OneDrive"; Action={
             Write-Host "Removing OneDrive..." -ForegroundColor Yellow
-            taskkill /f /im OneDrive.exe -ErrorAction SilentlyContinue
+            Stop-Process -Name OneDrive -Force -ErrorAction SilentlyContinue
             & "$env:SystemRoot\SysWOW64\OneDriveSetup.exe" /uninstall -ErrorAction SilentlyContinue
             Write-Host "OneDrive removed!" -ForegroundColor Green
         }}
         @{Name="Disable Windows Update Delivery Optimization"; Action={
             Write-Host "Disabling Delivery Optimization..." -ForegroundColor Yellow
-            Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DeliveryOptimization" -Name "DODownloadMode" -Value 0 -Type DWord -Force
+            $path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DeliveryOptimization"
+            if (-not (Test-Path $path)) { New-Item -Path $path -Force | Out-Null }
+            Set-ItemProperty -Path $path -Name "DODownloadMode" -Value 0 -Type DWord -Force
             Write-Host "Done!" -ForegroundColor Green
-        }}
-        @{Name="Disable Windows Defender Real-time Protection (Caution)"; Action={
-            Write-Host "Disabling Defender Real-time (Caution)..." -ForegroundColor Red
-            Set-MpPreference -DisableRealtimeMonitoring $true -ErrorAction SilentlyContinue
-            Write-Host "Done! (Restart required)" -ForegroundColor Red
         }}
     )
     "Customize Preferences" = @(
         @{Name="Dark Theme for Windows"; Action={
             Write-Host "Enabling Dark Theme..." -ForegroundColor Yellow
-            Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "AppsUseLightTheme" -Value 0 -Type DWord -Force
+            $path = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"
+            if (-not (Test-Path $path)) { New-Item -Path $path -Force | Out-Null }
+            Set-ItemProperty -Path $path -Name "AppsUseLightTheme" -Value 0 -Type DWord -Force
             Write-Host "Dark Theme enabled!" -ForegroundColor Green
         }}
         @{Name="Show Hidden Files"; Action={
             Write-Host "Showing Hidden Files..." -ForegroundColor Yellow
-            Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "Hidden" -Value 1 -Type DWord -Force
+            $path = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
+            if (-not (Test-Path $path)) { New-Item -Path $path -Force | Out-Null }
+            Set-ItemProperty -Path $path -Name "Hidden" -Value 1 -Type DWord -Force
             Write-Host "Done!" -ForegroundColor Green
         }}
         @{Name="Show File Extensions"; Action={
             Write-Host "Showing File Extensions..." -ForegroundColor Yellow
-            Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "HideFileExt" -Value 0 -Type DWord -Force
+            $path = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
+            if (-not (Test-Path $path)) { New-Item -Path $path -Force | Out-Null }
+            Set-ItemProperty -Path $path -Name "HideFileExt" -Value 0 -Type DWord -Force
             Write-Host "Done!" -ForegroundColor Green
         }}
         @{Name="Center Taskbar Items"; Action={
             Write-Host "Centering Taskbar Items..." -ForegroundColor Yellow
-            Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "TaskbarAl" -Value 1 -Type DWord -Force
+            $path = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
+            if (-not (Test-Path $path)) { New-Item -Path $path -Force | Out-Null }
+            Set-ItemProperty -Path $path -Name "TaskbarAl" -Value 1 -Type DWord -Force
             Write-Host "Done!" -ForegroundColor Green
         }}
         @{Name="Disable Snap Assist Flyout"; Action={
             Write-Host "Disabling Snap Assist Flyout..." -ForegroundColor Yellow
-            Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "EnableSnapAssistFlyout" -Value 0 -Type DWord -Force
+            $path = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
+            if (-not (Test-Path $path)) { New-Item -Path $path -Force | Out-Null }
+            Set-ItemProperty -Path $path -Name "EnableSnapAssistFlyout" -Value 0 -Type DWord -Force
             Write-Host "Done!" -ForegroundColor Green
         }}
         @{Name="Disable Snap Suggestions"; Action={
             Write-Host "Disabling Snap Suggestions..." -ForegroundColor Yellow
-            Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "SnapAssist" -Value 0 -Type DWord -Force
-            Write-Host "Done!" -ForegroundColor Green
-        }}
-        @{Name="Disable Task View Button"; Action={
-            Write-Host "Disabling Task View Button..." -ForegroundColor Yellow
-            Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "ShowTaskViewButton" -Value 0 -Type DWord -Force
-            Write-Host "Done!" -ForegroundColor Green
-        }}
-        @{Name="Disable Search Button in Taskbar"; Action={
-            Write-Host "Disabling Search Button..." -ForegroundColor Yellow
-            Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" -Name "SearchboxTaskbarMode" -Value 0 -Type DWord -Force
+            $path = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
+            if (-not (Test-Path $path)) { New-Item -Path $path -Force | Out-Null }
+            Set-ItemProperty -Path $path -Name "SnapAssist" -Value 0 -Type DWord -Force
             Write-Host "Done!" -ForegroundColor Green
         }}
     )
