@@ -35,16 +35,11 @@ $logo = @"
 Write-Host $logo -ForegroundColor Cyan
 
 Write-Host "`nPMK Toolbox v3.0 - Online/Remote Mode" -ForegroundColor Cyan
-Write-Host "Chạy online: Console menu đầy đủ (không GUI WPF khi remote)" -ForegroundColor Yellow
+Write-Host "Chạy online: Console menu đầy đủ" -ForegroundColor Yellow
 
-# Hàm cơ bản hardcode cho remote/online
+# Hàm cơ bản hardcode
 function Test-Winget {
-    try {
-        winget --version | Out-Null
-        return $true
-    } catch {
-        return $false
-    }
+    try { winget --version | Out-Null; return $true } catch { return $false }
 }
 
 function Install-AppQuick {
@@ -59,7 +54,7 @@ function Install-AppQuick {
                     winget install --id $id --silent --accept-package-agreements --accept-source-agreements
                     Write-Host "✅ Cài xong: $id" -ForegroundColor Green
                 } catch {
-                    Write-Host "❌ Lỗi cài $id: $_" -ForegroundColor Red
+                    Write-Host "❌ Lỗi cài ${id}: $_" -ForegroundColor Red
                 }
             }
         }
@@ -115,7 +110,7 @@ function Create-RestorePoint {
     }
 }
 
-# Menu console đầy đủ cho online/remote
+# Menu console đầy đủ
 do {
     Clear-Host
     Write-Host $logo -ForegroundColor Cyan
