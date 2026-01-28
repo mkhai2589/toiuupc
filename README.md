@@ -1,13 +1,6 @@
-# ToiUuPC
+## Cách chạy nhanh (one-liner - bundled version, không lỗi path)
+irm https://raw.githubusercontent.com/mkhai2589/toiuupc/main/ToiUuPC-Bundled.ps1 | iex
 
-Công cụ tối ưu Windows – tổng hợp từ WinUtil, Win11Debloat, Sophia Script.
-
-## Cách chạy nhanh (one-liner)
-Mở PowerShell **với quyền Administrator** và chạy lệnh:
-```powershell
-irm https://raw.githubusercontent.com/mkhai2589/toiuupc/main/ToiUuPC.ps1 | iex
-
-
-Hoặc
-
-irm bit.ly/pmktool | iex
+## Cách chạy đầy đủ (GUI + tất cả tính năng)
+- Tải repo về máy: Code → Download ZIP
+- Giải nén → right-click ToiUuPC.ps1 → Run with PowerShell (Admin)
