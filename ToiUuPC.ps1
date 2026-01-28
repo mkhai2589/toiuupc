@@ -2,25 +2,30 @@
 # Run: irm https://raw.githubusercontent.com/mkhai2589/toiuupc/main/ToiUuPC.ps1 | iex
 # Author: Thuthuatwiki (PMK)
 
-# Hiển thị logo ASCII art kiểu figlet
-function Show-ToiUuPCLogo {
-    $asciiArt = @"
-  _______   _______   _    _   _   _   _____   _____   _____ 
- |__   __| |__   __| | |  | | | \ | | / ____| |_   _| / ____|
-    | |       | |    | |  | | |  \| || |  __    | |  | |  __ 
-    | |       | |    | |  | | | . ` || | |_ |   | |  | | |_ |
-    | |       | |    | |__| | | |\  || |__| |  _| |_ | |__| |
-    |_|       |_|     \____/  |_| \_| \_____| |_____| \_____|
+# Hiển thị logo PMK với padding đẹp
+function Show-PMKLogo {
+    $logo = @"
+
+    ╔════════════════════════════════════════════╗
+    ║                                            ║
+    ║   ██████╗ ███╗   ███╗██╗  ██╗             ║
+    ║   ██╔══██╗████╗ ████║██║ ██╔╝             ║
+    ║   ██████╔╝██╔████╔██║█████╔╝              ║
+    ║   ██╔═══╝ ██║╚██╔╝██║██╔═██╗              ║
+    ║   ██║     ██║ ╚═╝ ██║██║  ██╗             ║
+    ║   ╚═╝     ╚═╝     ╚═╝╚═╝  ╚═╝             ║
+    ║                                            ║
+    ║               PMK - Thuthuatwiki           ║
+    ║     Tối ưu Windows - PMK Toolbox           ║
+    ╚════════════════════════════════════════════╝
+
 "@
 
-    Write-Host $asciiArt -ForegroundColor Cyan
-    Write-Host "===== ToiUuPC - PMK Toolbox =====" -ForegroundColor Green
-    Write-Host "Tối ưu Windows - Tổng hợp WinUtil + Win11Debloat + Sophia" -ForegroundColor Cyan
-    Write-Host ""
+    Write-Host $logo -ForegroundColor Cyan
 }
 
-# Hiển thị logo ngay đầu khi chạy script
-Show-ToiUuPCLogo
+# Hiển thị logo ngay đầu
+Show-PMKLogo
 
 # Yêu cầu quyền Admin
 if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
@@ -28,10 +33,12 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
     exit
 }
 
-# Load WPF
-Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase
+# Load WPF (bỏ output thừa)
+[void][System.Reflection.Assembly]::LoadWithPartialName('PresentationFramework')
+[void][System.Reflection.Assembly]::LoadWithPartialName('PresentationCore')
+[void][System.Reflection.Assembly]::LoadWithPartialName('WindowsBase')
 
-# Danh sách ứng dụng (từ winutil + mở rộng)
+# Danh sách ứng dụng
 $Apps = @{
     "Browsers" = @(
         @{Name="Brave";          Winget="Brave.Brave"}
@@ -70,40 +77,15 @@ $Tweaks = @{
             Remove-Item -Path "C:\Windows\Temp\*" -Recurse -Force -ErrorAction SilentlyContinue
             Write-Host "TEMP files deleted!" -ForegroundColor Green
         }}
-        @{Name="Disable Consumer Features"; Action={
-            Write-Host "Disabling Consumer Features..." -ForegroundColor Yellow
-            Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\CloudContent" -Name "DisableWindowsConsumerFeatures" -Value 1 -Type DWord -Force
-            Write-Host "Done!" -ForegroundColor Green
-        }}
-        @{Name="Disable Bing Search in Start Menu"; Action={
-            Write-Host "Disabling Bing Search..." -ForegroundColor Yellow
-            Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" -Name "BingSearchEnabled" -Value 0 -Type DWord -Force
-            Write-Host "Done!" -ForegroundColor Green
-        }}
         @{Name="Disable Telemetry"; Action={
             Write-Host "Disabling Telemetry..." -ForegroundColor Yellow
             Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection" -Name "AllowTelemetry" -Value 0 -Type DWord -Force
             Write-Host "Telemetry disabled!" -ForegroundColor Green
         }}
-        @{Name="Disable Activity History"; Action={
-            Write-Host "Disabling Activity History..." -ForegroundColor Yellow
-            Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System" -Name "EnableActivityFeed" -Value 0 -Type DWord -Force
-            Write-Host "Done!" -ForegroundColor Green
-        }}
         @{Name="Disable Hibernation"; Action={
             Write-Host "Disabling Hibernation..." -ForegroundColor Yellow
             powercfg -h off
             Write-Host "Hibernation disabled! Restart to delete hiberfil.sys" -ForegroundColor Green
-        }}
-        @{Name="Disable Location Tracking"; Action={
-            Write-Host "Disabling Location Tracking..." -ForegroundColor Yellow
-            Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\location" -Name "Value" -Value "Deny" -Force
-            Write-Host "Done!" -ForegroundColor Green
-        }}
-        @{Name="Disable GameDVR"; Action={
-            Write-Host "Disabling GameDVR..." -ForegroundColor Yellow
-            Set-ItemProperty -Path "HKCU:\System\GameConfigStore" -Name "GameDVR_Enabled" -Value 0 -Type DWord -Force
-            Write-Host "Done!" -ForegroundColor Green
         }}
     )
     "Advanced Tweaks - CAUTION" = @(
@@ -113,21 +95,6 @@ $Tweaks = @{
             Get-AppxProvisionedPackage -Online | Where-Object DisplayName -like *edge* | Remove-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue
             Write-Host "Edge debloated!" -ForegroundColor Green
         }}
-        @{Name="Disable Background Apps"; Action={
-            Write-Host "Disabling Background Apps..." -ForegroundColor Yellow
-            Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications" -Name "GlobalUserDisabled" -Value 1 -Type DWord -Force
-            Write-Host "Done!" -ForegroundColor Green
-        }}
-        @{Name="Disable IPv6"; Action={
-            Write-Host "Disabling IPv6..." -ForegroundColor Yellow
-            Disable-NetAdapterBinding -Name "*" -ComponentID ms_tcpip6 -ErrorAction SilentlyContinue
-            Write-Host "IPv6 disabled!" -ForegroundColor Green
-        }}
-        @{Name="Disable Microsoft Copilot"; Action={
-            Write-Host "Disabling Copilot..." -ForegroundColor Yellow
-            Set-ItemProperty -Path "HKCU:\Software\Policies\Microsoft\Windows\WindowsCopilot" -Name "TurnOffWindowsCopilot" -Value 1 -Type DWord -Force
-            Write-Host "Done!" -ForegroundColor Green
-        }}
     )
     "Customize Preferences" = @(
         @{Name="Dark Theme for Windows"; Action={
@@ -135,25 +102,10 @@ $Tweaks = @{
             Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "AppsUseLightTheme" -Value 0 -Type DWord -Force
             Write-Host "Dark Theme enabled!" -ForegroundColor Green
         }}
-        @{Name="Show Hidden Files"; Action={
-            Write-Host "Showing Hidden Files..." -ForegroundColor Yellow
-            Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "Hidden" -Value 1 -Type DWord -Force
-            Write-Host "Done!" -ForegroundColor Green
-        }}
-        @{Name="Show File Extensions"; Action={
-            Write-Host "Showing File Extensions..." -ForegroundColor Yellow
-            Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "HideFileExt" -Value 0 -Type DWord -Force
-            Write-Host "Done!" -ForegroundColor Green
-        }}
-        @{Name="Center Taskbar Items"; Action={
-            Write-Host "Centering Taskbar Items..." -ForegroundColor Yellow
-            Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "TaskbarAl" -Value 1 -Type DWord -Force
-            Write-Host "Done!" -ForegroundColor Green
-        }}
     )
 }
 
-# WPF GUI
+# WPF GUI - Fix output thừa
 $Window = New-Object Windows.Window
 $Window.Title = "ToiUuPC - PMK Toolbox"
 $Window.Width = 1200
@@ -173,13 +125,13 @@ foreach ($cat in $Apps.Keys) {
     $Label.Content = $cat
     $Label.FontSize = 16
     $Label.FontWeight = "Bold"
-    $InstallPanel.Children.Add($Label)
+    [void]$InstallPanel.Children.Add($Label)
 
     foreach ($app in $Apps[$cat]) {
         $Check = New-Object Windows.Controls.CheckBox
         $Check.Content = $app.Name
         $Check.Tag = $app.Winget
-        $InstallPanel.Children.Add($Check)
+        [void]$InstallPanel.Children.Add($Check)
     }
 }
 
@@ -194,11 +146,11 @@ $InstallBtn.Add_Click({
     }
     [Windows.MessageBox]::Show("Install hoàn tất!")
 })
-$InstallPanel.Children.Add($InstallBtn)
+[void]$InstallPanel.Children.Add($InstallBtn)
 
 $InstallScroll.Content = $InstallPanel
 $InstallTab.Content = $InstallScroll
-$TabControl.Items.Add($InstallTab)
+[void]$TabControl.Items.Add($InstallTab)
 
 # Tab Tweaks
 $TweaksTab = New-Object Windows.Controls.TabItem
@@ -208,39 +160,37 @@ $TweaksGrid = New-Object Windows.Controls.Grid
 $TweaksGrid.ColumnDefinitions.Add((New-Object Windows.Controls.ColumnDefinition))
 $TweaksGrid.ColumnDefinitions.Add((New-Object Windows.Controls.ColumnDefinition))
 
-# Cột trái: Essential & Advanced
 $LeftPanel = New-Object Windows.Controls.StackPanel
 foreach ($cat in @("Essential Tweaks", "Advanced Tweaks - CAUTION")) {
     $Label = New-Object Windows.Controls.Label
     $Label.Content = $cat
     $Label.FontSize = 16
     $Label.FontWeight = "Bold"
-    $LeftPanel.Children.Add($Label)
+    [void]$LeftPanel.Children.Add($Label)
 
     foreach ($tweak in $Tweaks[$cat]) {
         $Check = New-Object Windows.Controls.CheckBox
         $Check.Content = $tweak.Name
         $Check.Tag = $tweak.Action
-        $LeftPanel.Children.Add($Check)
+        [void]$LeftPanel.Children.Add($Check)
     }
 }
 [Windows.Controls.Grid]::SetColumn($LeftPanel, 0)
-$TweaksGrid.Children.Add($LeftPanel)
+[void]$TweaksGrid.Children.Add($LeftPanel)
 
-# Cột phải: Customize Preferences
 $RightPanel = New-Object Windows.Controls.StackPanel
 foreach ($cat in @("Customize Preferences")) {
     $Label = New-Object Windows.Controls.Label
     $Label.Content = $cat
     $Label.FontSize = 16
     $Label.FontWeight = "Bold"
-    $RightPanel.Children.Add($Label)
+    [void]$RightPanel.Children.Add($Label)
 
     foreach ($tweak in $Tweaks[$cat]) {
         $Check = New-Object Windows.Controls.CheckBox
         $Check.Content = $tweak.Name
         $Check.Tag = $tweak.Action
-        $RightPanel.Children.Add($Check)
+        [void]$RightPanel.Children.Add($Check)
     }
 }
 
@@ -270,14 +220,14 @@ $RunBtn.Add_Click({
     Write-Host "`n=== ALL TWEAKS FINISHED! ===" -ForegroundColor Cyan
     [Windows.MessageBox]::Show("Tweaks applied!")
 })
-$RightPanel.Children.Add($RunBtn)
+[void]$RightPanel.Children.Add($RunBtn)
 
-$TweaksGrid.Children.Add($RightPanel)
+[void]$TweaksGrid.Children.Add($RightPanel)
 [Windows.Controls.Grid]::SetColumn($RightPanel, 1)
 
 $TweaksScroll.Content = $TweaksGrid
 $TweaksTab.Content = $TweaksScroll
-$TabControl.Items.Add($TweaksTab)
+[void]$TabControl.Items.Add($TweaksTab)
 
 $Window.Content = $TabControl
-$Window.ShowDialog() | Out-Null
+[void]$Window.ShowDialog()
