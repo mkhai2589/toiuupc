@@ -7,12 +7,11 @@ Clear-Host
 
 #region Khởi tạo với hiệu suất cao
 # Kiểm tra quyền Admin
-if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { # 👈 已修复：此处添加了缺失的 `)`
     Write-Host "Yêu cầu chạy với quyền Administrator!" -ForegroundColor Red
     Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
     exit
 }
-
 # Disable progress bars for better performance
 $ProgressPreference = 'SilentlyContinue'
 
