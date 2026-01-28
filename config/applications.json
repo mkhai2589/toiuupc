@@ -1,1 +1,10 @@
-
+{
+  "Web Browser": [
+    {"Name": "Brave", "Winget": "Brave.Brave"},
+    {"Name": "Google Chrome", "Winget": "Google.Chrome"}
+  ],
+  "Communication": [
+    {"Name": "Discord", "Winget": "Discord.Discord"}
+  ]
+  // Thêm tiếp các category khác
+}
