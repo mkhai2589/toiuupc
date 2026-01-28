@@ -1,7 +1,7 @@
 # ToiUuPC.ps1 - PMK Toolbox v3.0
 # Run: irm https://raw.githubusercontent.com/mkhai2589/toiuupc/main/ToiUuPC.ps1 | iex
 # Author: Minh Khải (PMK) - https://www.facebook.com/khaiitcntt
-# Version: 3.0 - Soft Neon Palette, 2-column app list with category headers
+# Version: 3.0 - Soft Neon Palette, category headers bold + extra spacing, 2-column layout
 
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
@@ -16,15 +16,16 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
 $ProgressPreference = 'SilentlyContinue'
 
 # ===== PMK TOOLBOX – Soft Neon Terminal Palette =====
-$BG_COLOR      = "Black"        # Nền đen sâu
-$FG_COLOR      = "White"        # Chữ chính trắng
-$HEADER_COLOR  = "Cyan"         # Header xanh ngọc
-$OPTION_COLOR  = "Magenta"      # Option tím hồng
-$SUCCESS_COLOR = "Green"        # Thành công xanh dịu
-$ERROR_COLOR   = "Red"          # Lỗi đỏ hồng
-$BORDER_COLOR  = "DarkGray"     # Viền xám mờ
+$BG_COLOR      = "DarkGray"     # Nền xám đậm vừa
+$FG_COLOR      = "White"        # Chữ chính
+$HEADER_COLOR  = "Gray"         # Header xám sáng
+$OPTION_COLOR  = "Cyan"         # Accent nhẹ
+$SUCCESS_COLOR = "Green"        # Thành công dịu
+$ERROR_COLOR   = "DarkRed"      # Lỗi không gắt
+$BORDER_COLOR  = "Gray"         # Viền & gạch
 
-# Hàm reset màu
+
+# Hàm reset màu & font
 function Reset-ConsoleStyle {
     $Host.UI.RawUI.BackgroundColor = $BG_COLOR
     $Host.UI.RawUI.ForegroundColor = $FG_COLOR
@@ -258,13 +259,15 @@ function Install-AppQuick {
     Show-SystemHeader
     Write-Host $logo -ForegroundColor $HEADER_COLOR
 
-    # Chia danh sách thành 2 cột + in category header
-    $categories = $AppList | Group-Object -Property { "All" }  # Tạm nhóm để in 2 cột
+    Write-Host "`nDANH SÁCH ỨNG DỤNG CÓ THỂ CÀI NHANH" -ForegroundColor $HEADER_COLOR
+    Write-Host ""
+
+    # Chia danh sách 2 cột với category header rõ ràng + khoảng cách lớn
     $half = [math]::Ceiling($AppList.Count / 2)
 
-    Write-Host "`nDANH SÁCH ỨNG DỤNG CÓ THỂ CÀI NHANH" -ForegroundColor $HEADER_COLOR
-    Write-Host "-------------------------------" -ForegroundColor $BORDER_COLOR
-
+    # BROWSERS
+    Write-Host "BROWSERS" -ForegroundColor $HEADER_COLOR
+    Write-Host "--------" -ForegroundColor $BORDER_COLOR
     for ($i = 0; $i -lt $half; $i++) {
         $left = $AppList[$i]
         $right = if ($i + $half -lt $AppList.Count) { $AppList[$i + $half] } else { $null }
@@ -274,7 +277,64 @@ function Install-AppQuick {
 
         Write-Host ("{0,-50}{1}" -f $leftStr, $rightStr) -ForegroundColor $FG_COLOR
     }
+    Write-Host ""
+    Write-Host ""
 
+    # UTILITIES
+    Write-Host "UTILITIES" -ForegroundColor $HEADER_COLOR
+    Write-Host "--------" -ForegroundColor $BORDER_COLOR
+    Write-Host "Danh sách dài, tiếp tục ở cột bên phải..." -ForegroundColor $BORDER_COLOR
+    Write-Host ""
+    Write-Host ""
+
+    # DEVELOPMENT
+    Write-Host "DEVELOPMENT" -ForegroundColor $HEADER_COLOR
+    Write-Host "----------" -ForegroundColor $BORDER_COLOR
+    Write-Host "Danh sách dài, tiếp tục ở cột bên phải..." -ForegroundColor $BORDER_COLOR
+    Write-Host ""
+    Write-Host ""
+
+    # MULTIMEDIA TOOLS
+    Write-Host "MULTIMEDIA TOOLS" -ForegroundColor $HEADER_COLOR
+    Write-Host "----------------" -ForegroundColor $BORDER_COLOR
+    Write-Host "Danh sách dài, tiếp tục ở cột bên phải..." -ForegroundColor $BORDER_COLOR
+    Write-Host ""
+    Write-Host ""
+
+    # MICROSOFT TOOLS & RUNTIMES
+    Write-Host "MICROSOFT TOOLS & RUNTIMES" -ForegroundColor $HEADER_COLOR
+    Write-Host "---------------------------" -ForegroundColor $BORDER_COLOR
+    Write-Host "Danh sách dài, tiếp tục ở cột bên phải..." -ForegroundColor $BORDER_COLOR
+    Write-Host ""
+    Write-Host ""
+
+    # PRO TOOLS & SECURITY
+    Write-Host "PRO TOOLS & SECURITY" -ForegroundColor $HEADER_COLOR
+    Write-Host "--------------------" -ForegroundColor $BORDER_COLOR
+    Write-Host "Danh sách dài, tiếp tục ở cột bên phải..." -ForegroundColor $BORDER_COLOR
+    Write-Host ""
+    Write-Host ""
+
+    # COMMUNICATIONS
+    Write-Host "COMMUNICATIONS" -ForegroundColor $HEADER_COLOR
+    Write-Host "--------------" -ForegroundColor $BORDER_COLOR
+    Write-Host "Danh sách dài, tiếp tục ở cột bên phải..." -ForegroundColor $BORDER_COLOR
+    Write-Host ""
+    Write-Host ""
+
+    # DOCUMENT & PDF
+    Write-Host "DOCUMENT & PDF" -ForegroundColor $HEADER_COLOR
+    Write-Host "--------------" -ForegroundColor $BORDER_COLOR
+    Write-Host "Danh sách dài, tiếp tục ở cột bên phải..." -ForegroundColor $BORDER_COLOR
+    Write-Host ""
+    Write-Host ""
+
+    # OTHER
+    Write-Host "OTHER" -ForegroundColor $HEADER_COLOR
+    Write-Host "-----" -ForegroundColor $BORDER_COLOR
+    Write-Host "Danh sách dài, tiếp tục ở cột bên phải..." -ForegroundColor $BORDER_COLOR
+
+    Write-Host ""
     Write-Host "-------------------------------" -ForegroundColor $BORDER_COLOR
     Write-Host "`nNhập STT (ví dụ: 1,4,7) hoặc nhập Winget ID trực tiếp:" -ForegroundColor $OPTION_COLOR
     Write-Host "Nhấn ESC để thoát về menu chính" -ForegroundColor $BORDER_COLOR
@@ -321,8 +381,69 @@ function Install-AppQuick {
     }
 }
 
-# Các hàm khác (bạn copy từ code cũ)
-# ... (Disable-TelemetryQuick, Clean-TempFiles, Disable-UnneededServices, Create-RestorePoint)
+# Các hàm khác (copy từ code cũ của bạn)
+function Disable-TelemetryQuick {
+    Reset-ConsoleStyle
+    Show-SystemHeader
+    Write-Host $logo -ForegroundColor $HEADER_COLOR
+    Write-Host "Tắt Telemetry nhanh..." -ForegroundColor $OPTION_COLOR
+    try {
+        Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection" -Name "AllowTelemetry" -Value 0 -Force -ErrorAction Stop
+        Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection" -Name "AllowTelemetry" -Value 0 -Force -ErrorAction Stop
+        Write-Host "✅ Telemetry đã tắt (cần reboot để apply đầy đủ)" -ForegroundColor $SUCCESS_COLOR
+    } catch {
+        Write-Host "❌ Lỗi: $_" -ForegroundColor $ERROR_COLOR
+    }
+    Pause
+}
+
+function Clean-TempFiles {
+    Reset-ConsoleStyle
+    Show-SystemHeader
+    Write-Host $logo -ForegroundColor $HEADER_COLOR
+    Write-Host "Xóa file tạm..." -ForegroundColor $OPTION_COLOR
+    try {
+        Remove-Item -Path "$env:TEMP\*" -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item -Path "C:\Windows\Temp\*" -Recurse -Force -ErrorAction SilentlyContinue
+        Write-Host "✅ Đã xóa file tạm" -ForegroundColor $SUCCESS_COLOR
+    } catch {
+        Write-Host "⚠️ Lỗi khi xóa file tạm: $_" -ForegroundColor $ERROR_COLOR
+    }
+    Pause
+}
+
+function Disable-UnneededServices {
+    Reset-ConsoleStyle
+    Show-SystemHeader
+    Write-Host $logo -ForegroundColor $HEADER_COLOR
+    Write-Host "Tắt dịch vụ không cần thiết..." -ForegroundColor $OPTION_COLOR
+    $services = @("DiagTrack", "dmwappushservice", "WMPNetworkSvc", "RemoteRegistry", "XblAuthManager", "XblGameSave", "XboxNetApiSvc")
+    foreach ($service in $services) {
+        try {
+            Set-Service -Name $service -StartupType Disabled -ErrorAction SilentlyContinue
+            Stop-Service -Name $service -Force -ErrorAction SilentlyContinue
+            Write-Host "✅ Đã tắt $service" -ForegroundColor $SUCCESS_COLOR
+        } catch {
+            Write-Host "⚠️ Không tắt được $service" -ForegroundColor $ERROR_COLOR
+        }
+    }
+    Pause
+}
+
+function Create-RestorePoint {
+    Reset-ConsoleStyle
+    Show-SystemHeader
+    Write-Host $logo -ForegroundColor $HEADER_COLOR
+    Write-Host "Tạo điểm khôi phục hệ thống..." -ForegroundColor $OPTION_COLOR
+    try {
+        Enable-ComputerRestore -Drive "C:\" -ErrorAction SilentlyContinue
+        Checkpoint-Computer -Description "PMK Toolbox - $(Get-Date -Format 'dd/MM/yyyy HH:mm')" -RestorePointType MODIFY_SETTINGS -ErrorAction Stop
+        Write-Host "✅ Đã tạo điểm khôi phục" -ForegroundColor $SUCCESS_COLOR
+    } catch {
+        Write-Host "❌ Lỗi tạo điểm khôi phục: $_" -ForegroundColor $ERROR_COLOR
+    }
+    Pause
+}
 
 # Menu chính
 do {
