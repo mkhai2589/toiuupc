@@ -593,37 +593,33 @@ function Set-DNSServer {
 
 #region Hàm lấy thông tin hệ thống (Optimized)
 function Get-SystemInfoText {
-    try {
-        # Sử dụng WMI thay vì CIM để nhanh hơn
-        $os = Get-WmiObject -Class Win32_OperatingSystem -ErrorAction SilentlyContinue
-        $cpu = Get-WmiObject -Class Win32_Processor -ErrorAction SilentlyContinue | Select-Object -First 1
-        $cs = Get-WmiObject -Class Win32_ComputerSystem -ErrorAction SilentlyContinue
-        $gpu = Get-WmiObject -Class Win32_VideoController -ErrorAction SilentlyContinue | Select-Object -First 1
-        $disks = Get-WmiObject -Class Win32_LogicalDisk -Filter "DriveType=3" -ErrorAction SilentlyContinue
-        
-        $osName = if ($os.Caption) { $os.Caption } else { "Không xác định" }
-        $osBuild = if ($os.BuildNumber) { $os.BuildNumber } else { "N/A" }
-        
-        $cpuName = if ($cpu.Name) { $cpu.Name.Trim() } else { "Không xác định" }
-        $cpuCores = if ($cpu.NumberOfCores) { $cpu.NumberOfCores } else { "N/A" }
-        $cpuSpeed = if ($cpu.MaxClockSpeed) { [math]::Round($cpu.MaxClockSpeed / 1000, 2) } else { "N/A" }
-        
-        $totalRAM = if ($cs.TotalPhysicalMemory) { [math]::Round($cs.TotalPhysicalMemory / 1GB, 2) } else { "N/A" }
-        
-        $gpuName = if ($gpu.Name) { $gpu.Name } else { "Không xác định" }
-        $gpuRAM = if ($gpu.AdapterRAM) { [math]::Round($gpu.AdapterRAM / 1GB, 2) } else { "N/A" }
-        
-        $diskInfo = @()
-        foreach ($disk in $disks) {
-            $drive = $disk.DeviceID
-            $size = if ($disk.Size) { [math]::Round($disk.Size / 1GB, 2) } else { "N/A" }
-            $free = if ($disk.FreeSpace) { [math]::Round($disk.FreeSpace / 1GB, 2) } else { "N/A" }
-            $used = if ($size -ne "N/A" -and $free -ne "N/A") { $size - $free } else { "N/A" }
-            $diskInfo += "   • $drive Tổng: $size GB | Đã dùng: $used GB | Trống: $free GB"
-        }
-        $diskText = if ($diskInfo.Count -gt 0) { $diskInfo -join "`n" } else { "   • Không có ổ đĩa nào được tìm thấy" }
-        
-        return @"
+
+$os = Get-CimInstance Win32_OperatingSystem
+$cpu = Get-CimInstance Win32_Processor
+$ram = Get-CimInstance Win32_PhysicalMemory
+$disks = Get-CimInstance Win32_LogicalDisk | Where-Object { $_.Size }
+
+$ramBus = ($ram | Select-Object -First 1).Speed
+
+$text = @"
+🖥 HỆ THỐNG
+• OS: $($os.Caption)
+• CPU: $($cpu.Name)
+• RAM: $([math]::Round($os.TotalVisibleMemorySize/1MB,2)) GB
+• RAM Bus: $ramBus MHz
+
+💽 Ổ ĐĨA
+"@
+
+foreach ($d in $disks) {
+    $size = [math]::Round($d.Size/1GB,2)
+    $free = [math]::Round($d.FreeSpace/1GB,2)
+    $text += "• $($d.DeviceID)  $free GB trống / $size GB tổng`n"
+}
+
+return $text
+}
+
 ══════════════════════════════════════════════════════════════════════
                   THÔNG TIN HỆ THỐNG
 
