@@ -14,7 +14,7 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
 
 $ProgressPreference = 'SilentlyContinue'
 
-# Hàm reset màu console về chuẩn Cyberpunk (gọi lại sau mỗi action)
+# Hàm reset màu console về chuẩn (gọi lại sau mỗi action)
 function Reset-ConsoleColor {
     $Host.UI.RawUI.BackgroundColor = "Black"
     $Host.UI.RawUI.ForegroundColor = "White"
@@ -109,6 +109,8 @@ function Install-AppQuick {
                     } catch {
                         Write-Host "❌ Lỗi cài $($app.Name): $_" -ForegroundColor Red
                     }
+                } else {
+                    Write-Host "STT $item không tồn tại" -ForegroundColor Red
                 }
             } else {
                 Write-Host "Đang cài $item..." -ForegroundColor Yellow
@@ -208,7 +210,7 @@ do {
 
     Write-Host "`nNhập số (1-7): " -ForegroundColor Green -NoNewline
 
-    # Bắt phím ESC thoát ngay
+    # Bắt phím ESC thoát ngay (dùng ReadKey)
     $key = [Console]::ReadKey($true)
     if ($key.Key -eq "Escape") { Write-Host "`nThoát bằng ESC..." -ForegroundColor DarkGray; exit }
 
