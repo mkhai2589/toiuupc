@@ -31,7 +31,7 @@ $logo = @"
 Write-Host $logo -ForegroundColor Cyan
 Write-Host "`nĐang tải PMK Toolbox..." -ForegroundColor Yellow
 
-# Kiểm tra và cài đặt các module cần thiết
+# Kiểm tra và cài đặt module cần thiết
 function Install-RequiredModules {
     try {
         if (-not (Get-Module -ListAvailable -Name "BurntToast")) {
@@ -559,7 +559,7 @@ function Create-MainWindow {
                     Start-Process -FilePath "winget" -ArgumentList "install --id $appId --accept-package-agreements --accept-source-agreements --silent" -Wait -NoNewWindow
                     Write-Host "✅ Đã cài đặt: $appId" -ForegroundColor Green
                 } catch {
-                    Write-Host "❌ Lỗi khi cài $appId: $_" -ForegroundColor Red
+                    Write-Host "❌ Lỗi khi cài $appId: $($_.Exception.Message)" -ForegroundColor Red
                 }
             }
             
@@ -702,8 +702,8 @@ function Create-MainWindow {
                     $results += "✅ $tweakName: $result"
                     Write-Host "   $result" -ForegroundColor Green
                 } catch {
-                    $results += "❌ $tweakName: Lỗi - $_"
-                    Write-Host "   ❌ Lỗi: $_" -ForegroundColor Red
+                    $results += "❌ $tweakName: Lỗi - $($_.Exception.Message)"
+                    Write-Host "   ❌ Lỗi: $($_.Exception.Message)" -ForegroundColor Red
                 }
             }
             
@@ -720,7 +720,6 @@ function Create-MainWindow {
             $resultTextBox.FontSize = 12
             $resultTextBox.IsReadOnly = $true
             $resultTextBox.VerticalScrollBarVisibility = "Auto"
-            $resultTextBox.HorizontalScrollBarVisibility = "Auto"
             $resultTextBox.TextWrapping = "Wrap"
             
             $resultWindow.Content = $resultTextBox
