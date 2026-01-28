@@ -14,7 +14,7 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
 
 $ProgressPreference = 'SilentlyContinue'
 
-# Hàm reset màu console về chuẩn (gọi lại sau mỗi action)
+# Hàm reset màu console về chuẩn Cyberpunk (gọi lại sau mỗi action)
 function Reset-ConsoleColor {
     $Host.UI.RawUI.BackgroundColor = "Black"
     $Host.UI.RawUI.ForegroundColor = "White"
@@ -118,7 +118,7 @@ function Install-AppQuick {
                     winget install --id $item --silent --accept-package-agreements --accept-source-agreements
                     Write-Host "✅ Cài xong: $item" -ForegroundColor Green
                 } catch {
-                    Write-Host "❌ Lỗi cài $item: $_" -ForegroundColor Red
+                    Write-Host "❌ Lỗi cài ${item}: $_" -ForegroundColor Red
                 }
             }
         }
