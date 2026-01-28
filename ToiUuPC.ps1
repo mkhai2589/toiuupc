@@ -39,7 +39,7 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
 [void][System.Reflection.Assembly]::LoadWithPartialName('PresentationCore')
 [void][System.Reflection.Assembly]::LoadWithPartialName('WindowsBase')
 
-# Danh sách ứng dụng
+# Danh sách ứng dụng (giữ nguyên)
 $Apps = @{
     "Browsers" = @(
         @{Name="Brave";          Winget="Brave.Brave"}
@@ -64,7 +64,7 @@ $Apps = @{
     )
 }
 
-# Tweaks với fix lỗi path không tồn tại + log chi tiết
+# Tweaks mở rộng đầy đủ từ WinUtil + yêu cầu của bạn
 $Tweaks = @{
     "Essential Tweaks" = @(
         @{Name="Create Restore Point"; Action={
@@ -198,6 +198,73 @@ $Tweaks = @{
             Set-ItemProperty -Path $path -Name "DODownloadMode" -Value 0 -Type DWord -Force
             Write-Host "Done!" -ForegroundColor Green
         }}
+        @{Name="Disable News and Interests"; Action={
+            Write-Host "Disabling News and Interests..." -ForegroundColor Yellow
+            $path = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Feeds\ShellFeedsTaskbarViewMode"
+            if (-not (Test-Path $path)) { New-Item -Path $path -Force | Out-Null }
+            Set-ItemProperty -Path $path -Name "ShellFeedsTaskbarViewMode" -Value 2 -Type DWord -Force
+            Write-Host "Done!" -ForegroundColor Green
+        }}
+        @{Name="Disable Widgets (Win11)"; Action={
+            Write-Host "Disabling Widgets (Win11)..." -ForegroundColor Yellow
+            $path = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
+            if (-not (Test-Path $path)) { New-Item -Path $path -Force | Out-Null }
+            Set-ItemProperty -Path $path -Name "TaskbarDa" -Value 0 -Type DWord -Force
+            Write-Host "Widgets disabled!" -ForegroundColor Green
+        }}
+        @{Name="Disable Clipboard History"; Action={
+            Write-Host "Disabling Clipboard History..." -ForegroundColor Yellow
+            $path = "HKCU:\Software\Microsoft\Clipboard"
+            if (-not (Test-Path $path)) { New-Item -Path $path -Force | Out-Null }
+            Set-ItemProperty -Path $path -Name "EnableClipboardHistory" -Value 0 -Type DWord -Force
+            Write-Host "Done!" -ForegroundColor Green
+        }}
+        @{Name="Disable Windows Ink Workspace"; Action={
+            Write-Host "Disabling Windows Ink..." -ForegroundColor Yellow
+            $path = "HKCU:\Software\Microsoft\Windows\CurrentVersion\PenWorkspace"
+            if (-not (Test-Path $path)) { New-Item -Path $path -Force | Out-Null }
+            Set-ItemProperty -Path $path -Name "PenWorkspaceButtonDesiredVisibility" -Value 0 -Type DWord -Force
+            Write-Host "Done!" -ForegroundColor Green
+        }}
+        @{Name="Set Verbose Messages During Logon"; Action={
+            Write-Host "Enabling Verbose Messages..." -ForegroundColor Yellow
+            Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" -Name "VerboseStatus" -Value 1 -Type DWord -Force
+            Write-Host "Done!" -ForegroundColor Green
+        }}
+        @{Name="Hide Recommended Section in Start"; Action={
+            Write-Host "Hiding Recommended Section..." -ForegroundColor Yellow
+            $path = "HKLM:\SOFTWARE\Microsoft\PolicyManager\current\device\Start"
+            if (-not (Test-Path $path)) { New-Item -Path $path -Force | Out-Null }
+            Set-ItemProperty -Path $path -Name "HideRecommendedSection" -Value 1 -Type DWord -Force
+            Write-Host "Done!" -ForegroundColor Green
+        }}
+        @{Name="Enable New Outlook Migration"; Action={
+            Write-Host "Enabling New Outlook..." -ForegroundColor Yellow
+            $path = "HKCU:\Software\Microsoft\Office\16.0\Outlook\Preferences"
+            if (-not (Test-Path $path)) { New-Item -Path $path -Force | Out-Null }
+            Set-ItemProperty -Path $path -Name "UseNewOutlook" -Value 1 -Type DWord -Force
+            Write-Host "Done!" -ForegroundColor Green
+        }}
+        @{Name="Detailed BSoD"; Action={
+            Write-Host "Enabling Detailed BSoD..." -ForegroundColor Yellow
+            $path = "HKLM:\SYSTEM\CurrentControlSet\Control\CrashControl"
+            if (-not (Test-Path $path)) { New-Item -Path $path -Force | Out-Null }
+            Set-ItemProperty -Path $path -Name "DisplayParameters" -Value 1 -Type DWord -Force
+            Write-Host "Done!" -ForegroundColor Green
+        }}
+        @{Name="S3 Sleep"; Action={
+            Write-Host "Enabling S3 Sleep..." -ForegroundColor Yellow
+            powercfg /setacvalueindex SCHEME_CURRENT SUB_SLEEP STANDBYIDLE 0
+            powercfg /setactive SCHEME_CURRENT
+            Write-Host "Done!" -ForegroundColor Green
+        }}
+        @{Name="Cross-Device Resume"; Action={
+            Write-Host "Enabling Cross-Device Resume..." -ForegroundColor Yellow
+            $path = "HKCU:\Software\Microsoft\Windows\CurrentVersion\CrossDeviceResume\Configuration"
+            if (-not (Test-Path $path)) { New-Item -Path $path -Force | Out-Null }
+            Set-ItemProperty -Path $path -Name "IsResumeAllowed" -Value 1 -Type DWord -Force
+            Write-Host "Done!" -ForegroundColor Green
+        }}
     )
     "Customize Preferences" = @(
         @{Name="Dark Theme for Windows"; Action={
@@ -205,6 +272,7 @@ $Tweaks = @{
             $path = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"
             if (-not (Test-Path $path)) { New-Item -Path $path -Force | Out-Null }
             Set-ItemProperty -Path $path -Name "AppsUseLightTheme" -Value 0 -Type DWord -Force
+            Set-ItemProperty -Path $path -Name "SystemUsesLightTheme" -Value 0 -Type DWord -Force
             Write-Host "Dark Theme enabled!" -ForegroundColor Green
         }}
         @{Name="Show Hidden Files"; Action={
@@ -240,6 +308,19 @@ $Tweaks = @{
             $path = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
             if (-not (Test-Path $path)) { New-Item -Path $path -Force | Out-Null }
             Set-ItemProperty -Path $path -Name "SnapAssist" -Value 0 -Type DWord -Force
+            Write-Host "Done!" -ForegroundColor Green
+        }}
+        @{Name="NumLock on Startup"; Action={
+            Write-Host "Enabling NumLock on Startup..." -ForegroundColor Yellow
+            Set-ItemProperty -Path "HKU:\.DEFAULT\Control Panel\Keyboard" -Name "InitialKeyboardIndicators" -Value 2 -Type DWord -Force
+            Set-ItemProperty -Path "HKCU:\Control Panel\Keyboard" -Name "InitialKeyboardIndicators" -Value 2 -Type DWord -Force
+            Write-Host "Done!" -ForegroundColor Green
+        }}
+        @{Name="Verbose Messages During Logon"; Action={
+            Write-Host "Enabling Verbose Messages..." -ForegroundColor Yellow
+            $path = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System"
+            if (-not (Test-Path $path)) { New-Item -Path $path -Force | Out-Null }
+            Set-ItemProperty -Path $path -Name "VerboseStatus" -Value 1 -Type DWord -Force
             Write-Host "Done!" -ForegroundColor Green
         }}
     )
