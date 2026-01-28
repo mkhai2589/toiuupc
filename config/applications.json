@@ -1,33 +1,56 @@
 {
-  "🌐 Trình duyệt": [
+  "Browsers": [
     {"Name": "Brave", "Winget": "Brave.Brave", "Icon": "🚀"},
     {"Name": "Google Chrome", "Winget": "Google.Chrome", "Icon": "🔍"},
     {"Name": "Firefox", "Winget": "Mozilla.Firefox", "Icon": "🦊"},
     {"Name": "Microsoft Edge", "Winget": "Microsoft.Edge", "Icon": "⚡"},
-    {"Name": "Opera", "Winget": "Opera.Opera", "Icon": "🎭"}
+    {"Name": "Opera", "Winget": "Opera.Opera", "Icon": "🎭"},
+    {"Name": "Tor Browser", "Winget": "TorProject.TorBrowser", "Icon": "🧅"},
+    {"Name": "Vivaldi", "Winget": "VivaldiTechnologies.Vivaldi", "Icon": "🎻"}
   ],
-  "💬 Giao tiếp": [
+  "Communications": [
     {"Name": "Discord", "Winget": "Discord.Discord", "Icon": "🎮"},
     {"Name": "Telegram", "Winget": "Telegram.TelegramDesktop", "Icon": "✈️"},
     {"Name": "Zoom", "Winget": "Zoom.Zoom", "Icon": "📹"},
-    {"Name": "Skype", "Winget": "Microsoft.Skype", "Icon": "💼"}
+    {"Name": "Skype", "Winget": "Microsoft.Skype", "Icon": "💼"},
+    {"Name": "Slack", "Winget": "SlackTechnologies.Slack", "Icon": "📧"},
+    {"Name": "Microsoft Teams", "Winget": "Microsoft.Teams", "Icon": "👥"},
+    {"Name": "Signal", "Winget": "OpenWhisperSystems.Signal", "Icon": "🔒"}
   ],
-  "🛠️ Công cụ phát triển": [
+  "Development": [
     {"Name": "Visual Studio Code", "Winget": "Microsoft.VisualStudioCode", "Icon": "📝"},
     {"Name": "Git", "Winget": "Git.Git", "Icon": "🌿"},
     {"Name": "Python 3", "Winget": "Python.Python.3.12", "Icon": "🐍"},
-    {"Name": "Node.js", "Winget": "OpenJS.NodeJS", "Icon": "⬢"}
+    {"Name": "Node.js", "Winget": "OpenJS.NodeJS", "Icon": "⬢"},
+    {"Name": "Visual Studio Community", "Winget": "Microsoft.VisualStudio.2022.Community", "Icon": "🛠️"},
+    {"Name": "Notepad++", "Winget": "Notepad++.Notepad++", "Icon": "📄"},
+    {"Name": "Postman", "Winget": "Postman.Postman", "Icon": "📬"}
   ],
-  "🎨 Đa phương tiện": [
-    {"Name": "VLC", "Winget": "VideoLAN.VLC", "Icon": "🎬"},
-    {"Name": "Spotify", "Winget": "Spotify.Spotify", "Icon": "🎵"},
-    {"Name": "GIMP", "Winget": "GIMP.GIMP", "Icon": "🖼️"},
-    {"Name": "OBS Studio", "Winget": "OBSProject.OBSStudio", "Icon": "🎥"}
+  "Document": [
+    {"Name": "LibreOffice", "Winget": "TheDocumentFoundation.LibreOffice", "Icon": "📑"},
+    {"Name": "Microsoft Office (via winget, if available)", "Winget": "Microsoft.Office", "Icon": "📊"},
+    {"Name": "Adobe Acrobat Reader", "Winget": "Adobe.Acrobat.Reader.64-bit", "Icon": "📖"},
+    {"Name": "Foxit PDF Reader", "Winget": "Foxit.FoxitReader", "Icon": "🦊📄"},
+    {"Name": "SumatraPDF", "Winget": "SumatraPDF.SumatraPDF", "Icon": "📚"},
+    {"Name": "Calibre", "Winget": "calibre.calibre", "Icon": "📖"},
+    {"Name": "OnlyOffice", "Winget": "ONLYOFFICE.DesktopEditors", "Icon": "🖥️"}
   ],
-  "📦 Tiện ích hệ thống": [
+  "Microsoft Tools": [
+    {"Name": "PowerToys", "Winget": "Microsoft.PowerToys", "Icon": "🛠️"},
+    {"Name": "Windows Terminal", "Winget": "Microsoft.WindowsTerminal", "Icon": "⌨️"},
+    {"Name": "Microsoft Visual C++ Redistributable", "Winget": "Microsoft.VC++2015-2022Redist-x64", "Icon": "📦"},
+    {"Name": "Microsoft .NET Runtime", "Winget": "Microsoft.dotNetRuntime.8-x64", "Icon": "⚙️"},
+    {"Name": "Sysinternals Suite", "Winget": "Microsoft.Sysinternals", "Icon": "🔧"},
+    {"Name": "Azure CLI", "Winget": "Microsoft.AzureCLI", "Icon": "☁️"},
+    {"Name": "Power BI Desktop", "Winget": "Microsoft.PowerBI.Desktop", "Icon": "📈"}
+  ],
+  "Utilities": [
     {"Name": "7-Zip", "Winget": "7zip.7zip", "Icon": "🗜️"},
     {"Name": "WinRAR", "Winget": "RARLab.WinRAR", "Icon": "📦"},
     {"Name": "CCleaner", "Winget": "Piriform.CCleaner", "Icon": "🧹"},
-    {"Name": "Everything", "Winget": "voidtools.Everything", "Icon": "🔎"}
+    {"Name": "Everything", "Winget": "voidtools.Everything", "Icon": "🔎"},
+    {"Name": "Rufus", "Winget": "Rufus.Rufus", "Icon": "💾"},
+    {"Name": "CPU-Z", "Winget": "CPUID.CPU-Z", "Icon": "🖥️"},
+    {"Name": "CrystalDiskInfo", "Winget": "CrystalDewWorld.CrystalDiskInfo", "Icon": "📀"}
   ]
 }
