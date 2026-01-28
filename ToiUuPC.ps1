@@ -91,95 +91,80 @@ function Create-MainWindow {
     $TabControl = New-Object Windows.Controls.TabControl
     $TabControl.Margin = "10"
 
-    # Tab Install (virtualizing)
-    $TabInstall = New-Object Windows.Controls.TabItem
-    $TabInstall.Header = "📦 CÀI ĐẶT ỨNG DỤNG"
+   # Tab Install (like WinUtil, with expanders for categories)
+$TabInstall = New-Object Windows.Controls.TabItem
+$TabInstall.Header = "📦 Cài App Nhanh"
 
-    $InstallScroll = New-Object Windows.Controls.ScrollViewer
-    $InstallScroll.VerticalScrollBarVisibility = "Auto"
+$InstallScroll = New-Object Windows.Controls.ScrollViewer
+$InstallScroll.VerticalScrollBarVisibility = "Auto"
 
-    $VirtualInstallStack = New-Object Windows.Controls.VirtualizingStackPanel
-    $VirtualInstallStack.Margin = "10"
+$VirtualInstallStack = New-Object Windows.Controls.VirtualizingStackPanel
+$VirtualInstallStack.Margin = "10"
 
-    $global:SelectedApps = @{}
+$global:SelectedApps = @{}
 
-    $appsJson = Get-Content "$scriptRoot\config\applications.json" -Raw | ConvertFrom-Json
-    foreach ($category in $appsJson.PSObject.Properties.Name) {
-        $CategoryGroup = New-Object Windows.Controls.Expander
-        $CategoryGroup.Header = $category
-        $CategoryGroup.IsExpanded = $false
-        $CategoryGroup.Margin = "0,0,0,5"
+# Load from config/applications.json
+$appsJson = Get-Content "$PSScriptRoot\config\applications.json" -Raw | ConvertFrom-Json
+foreach ($category in $appsJson.PSObject.Properties.Name) {
+    $CategoryGroup = New-Object Windows.Controls.Expander
+    $CategoryGroup.Header = $category
+    $CategoryGroup.IsExpanded = $false
+    $CategoryGroup.Margin = "0,0,0,5"
 
-        $AppPanel = New-Object Windows.Controls.WrapPanel
-        $AppPanel.Margin = "10,5,10,5"
+    $AppPanel = New-Object Windows.Controls.WrapPanel
+    $AppPanel.Margin = "10,5,10,5"
 
-        foreach ($app in $appsJson.$category) {
-            $AppButton = New-Object Windows.Controls.Button
-            $AppButton.Content = "$($app.Icon) $($app.Name)"
-            $AppButton.Tag = $app.Winget
-            $AppButton.Margin = "5"
-            $AppButton.Padding = "10,5"
-            $AppButton.Background = [Windows.Media.Brushes]::White
-            $AppButton.BorderBrush = [Windows.Media.Brushes]::LightGray
+    foreach ($app in $appsJson.$category) {
+        $AppCheckBox = New-Object Windows.Controls.CheckBox
+        $AppCheckBox.Content = "$($app.Icon) $($app.Name)"
+        $AppCheckBox.Tag = $app.Winget
+        $AppCheckBox.Margin = "5"
 
-            $AppButton.Add_Click({
-                $button = $sender
-                $appId = $button.Tag
-                if ($global:SelectedApps.ContainsKey($appId)) {
-                    $button.Background = [Windows.Media.Brushes]::White
-                    $global:SelectedApps.Remove($appId)
-                } else {
-                    $button.Background = [Windows.Media.Brushes]::LightGreen
-                    $global:SelectedApps[$appId] = $true
-                }
-            })
+        $AppCheckBox.Add_Checked({
+            $global:SelectedApps[$this.Tag] = $true
+        })
+        $AppCheckBox.Add_Unchecked({
+            $global:SelectedApps.Remove($this.Tag)
+        })
 
-            $AppPanel.Children.Add($AppButton)
-        }
-
-        $CategoryGroup.Content = $AppPanel
-        $VirtualInstallStack.Children.Add($CategoryGroup)
+        $AppPanel.Children.Add($AppCheckBox)
     }
 
-    $InstallButton = New-Object Windows.Controls.Button
-    $InstallButton.Content = "🚀 CÀI ĐẶT ỨNG DỤNG ĐÃ CHỌN"
-    $InstallButton.FontSize = 14
-    $InstallButton.FontWeight = "Bold"
-    $InstallButton.Height = 40
-    $InstallButton.Margin = "0,20,0,0"
-    $InstallButton.Background = [Windows.Media.Brushes]::Green
-    $InstallButton.Foreground = [Windows.Media.Brushes]::White
+    $CategoryGroup.Content = $AppPanel
+    $VirtualInstallStack.Children.Add($CategoryGroup)
+}
 
-    if (-not (Test-Winget)) {
-        $InstallButton.IsEnabled = $false
-        $InstallButton.Content = "⚠️ WINGET CHƯA CÀI ĐẶT"
-        $InstallButton.Background = [Windows.Media.Brushes]::Gray
+$InstallButton = New-Object Windows.Controls.Button
+$InstallButton.Content = "🚀 Cài Đặt Selected Apps"
+$InstallButton.FontSize = 14
+$InstallButton.FontWeight = "Bold"
+$InstallButton.Height = 40
+$InstallButton.Margin = "0,20,0,0"
+$InstallButton.Background = [Windows.Media.Brushes]::Green
+$InstallButton.Foreground = [Windows.Media.Brushes]::White
+
+if (-not (Test-Winget)) {
+    $InstallButton.IsEnabled = $false
+    $InstallButton.Content = "⚠️ Winget Chưa Cài"
+    $InstallButton.Background = [Windows.Media.Brushes]::Gray
+}
+
+$InstallButton.Add_Click({
+    if ($global:SelectedApps.Count -eq 0) { [Windows.MessageBox]::Show("Chọn ít nhất một app!", "Thông báo"); return }
+    $result = [Windows.MessageBox]::Show("Cài $($global:SelectedApps.Count) apps?", "Xác nhận", "YesNo", "Question")
+    if ($result -eq "Yes") {
+        $this.IsEnabled = $false
+        $this.Content = "⏳ Đang Cài..."
+        Install-SelectedApps  # Gọi function từ install-apps.ps1
+        $this.Content = "🚀 Cài Đặt Selected Apps"
+        $this.IsEnabled = $true
     }
+})
 
-    $InstallButton.Add_Click({
-        if ($global:SelectedApps.Count -eq 0) { [Windows.MessageBox]::Show("Chọn ít nhất một app!", "Thông báo"); return }
-        $result = [Windows.MessageBox]::Show("Cài $($global:SelectedApps.Count) app?", "Xác nhận", "YesNo", "Question")
-        if ($result -eq "Yes") {
-            $this.IsEnabled = $false
-            $this.Content = "⏳ ĐANG CÀI..."
-            $job = Start-Job -ScriptBlock {
-                foreach ($appId in $using:global:SelectedApps.Keys) {
-                    winget install --id $appId --silent --accept-package-agreements --accept-source-agreements
-                }
-            }
-            Wait-Job $job
-            Receive-Job $job
-            [Windows.MessageBox]::Show("Cài xong!", "Thành công")
-            $this.Content = "🚀 CÀI ĐẶT ỨNG DỤNG ĐÃ CHỌN"
-            $this.IsEnabled = $true
-        }
-    })
-
-    $VirtualInstallStack.Children.Add($InstallButton)
-    $InstallScroll.Content = $VirtualInstallStack
-    $TabInstall.Content = $InstallScroll
-    $TabControl.Items.Add($TabInstall)
-
+$VirtualInstallStack.Children.Add($InstallButton)
+$InstallScroll.Content = $VirtualInstallStack
+$TabInstall.Content = $InstallScroll
+$TabControl.Items.Add($TabInstall)
     # Tab Tweaks (tương tự, thêm từ tweaks.ps1)
     $TabTweaks = New-Object Windows.Controls.TabItem
     $TabTweaks.Header = "⚙️ TỐI ƯU HỆ THỐNG"
