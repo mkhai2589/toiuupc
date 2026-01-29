@@ -12,8 +12,6 @@ Công cụ hướng tới người dùng muốn:
 
 ## ▶️ Cách sử dụng
 
-### Phiên bản nhẹ
-
 ```powershell
 irm https://raw.githubusercontent.com/mkhai2589/toiuupc/main/ToiUuPC.ps1 | iex
 
