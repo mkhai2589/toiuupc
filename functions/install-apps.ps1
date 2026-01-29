@@ -1,3 +1,13 @@
+# Sample Apps (Thay bằng config/applications.json nếu muốn: $appsConfig = ConvertFrom-Json (Get-Content "$PSScriptRoot\..\config\applications.json"))
+$AppCategories = @{
+    "Essential" = @(
+        @{STT=1; Name="Google Chrome"; ID="Google.Chrome"},
+        @{STT=2; Name="7-Zip"; ID="7zip.7zip"},
+        @{STT=3; Name="Notepad++"; ID="Notepad++.Notepad++"}
+    )
+    # Add more categories...
+}
+
 function Install-AppsQuick {
     Reset-ConsoleStyle
     Show-PMKLogo
@@ -29,8 +39,6 @@ function Install-AppsQuick {
             }
         }
         Write-Host ""
-        Write-Host ""
-        Write-Host ""
     }
 
     Write-Host "====================================" -ForegroundColor $BORDER_COLOR
@@ -43,9 +51,13 @@ function Install-AppsQuick {
     Write-Host "Nhập lựa chọn: " -NoNewline -ForegroundColor $HEADER_COLOR
     $input = Read-Host
 
-    if ([Console]::KeyAvailable -and [Console]::ReadKey($true).Key -eq "Escape") {
-        Write-Host "`nThoát..." -ForegroundColor $BORDER_COLOR
-        return
+    # Robust ESC check
+    if ([Console]::KeyAvailable) {
+        $key = [Console]::ReadKey($true)
+        if ($key.Key -eq [ConsoleKey]::Escape) {
+            Write-Host "`nThoát..." -ForegroundColor $BORDER_COLOR
+            return
+        }
     }
 
     $items = $input.Split(',').Trim()
@@ -63,13 +75,14 @@ function Install-AppsQuick {
 
         try {
             if ($app) {
-                winget install --id $app.ID --silent --accept-package-agreements --accept-source-agreements
+                winget install --id $app.ID --silent --accept-package-agreements --accept-source-agreements -ErrorAction Stop
             } else {
-                winget install --id $item --silent --accept-package-agreements --accept-source-agreements
+                winget install --id $item --silent --accept-package-agreements --accept-source-agreements -ErrorAction Stop
             }
             $success++
         } catch {
             $fail++
+            Write-Warning "Failed: $item - $_"
         }
     }
 
