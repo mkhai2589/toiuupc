@@ -2,6 +2,15 @@
 # ToiUuPC Bootstrap (SAFE - WinUtil style)
 # =========================================
 
+
+
+# Force UTF-8
+chcp 65001 | Out-Null
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+
+$PSDefaultParameterValues['Out-File:Encoding'] = 'utf8'
+$PSDefaultParameterValues['*:Encoding'] = 'utf8'
+
 $ErrorActionPreference = "Stop"
 
 $RepoRaw = "https://raw.githubusercontent.com/mkhai2589/toiuupc/main"
