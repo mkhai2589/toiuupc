@@ -1,3 +1,6 @@
+Set-StrictMode -Off
+$ErrorActionPreference = "Continue"
+
 # ==========================================================
 # MAIN ENTRY (WINUTIL STYLE + PROGRESS)
 # ==========================================================
@@ -81,4 +84,11 @@ function Invoke-CleanSystem {
     } else {
         Write-Host "✅ Da don duoc: $freedMB MB" -ForegroundColor Green
     }
+}
+
+# ==========================================================
+# MENU WRAPPER (FIX FOR MAIN APP)
+# ==========================================================
+function Invoke-CleanMenu {
+    Invoke-CleanSystem
 }
