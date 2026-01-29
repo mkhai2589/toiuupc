@@ -1,6 +1,10 @@
 function Show-PMKLogo {
 
-    $logo = @"
+    # Ensure UTF-8 output
+    [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+    $OutputEncoding = [System.Text.Encoding]::UTF8
+
+$logo = @'
 ╔══════════════════════════════════════════════════════════════════════════╗
 ║ ██████╗ ███╗   ███╗██╗  ██╗      ████████╗ ██████╗  ██████╗ ██╗          ║
 ║ ██╔══██╗████╗ ████║██║ ██╔╝      ╚══██╔══╝██╔═══██╗██╔═══██╗██║          ║
@@ -12,7 +16,7 @@ function Show-PMKLogo {
 ║                   Author: MINH KHAI 0333090930                           ║
 ║                   PMK Toolbox - Toi Uu Windows                           ║
 ╚══════════════════════════════════════════════════════════════════════════╝
-"@
+'@
 
     Write-Host $logo -ForegroundColor Cyan
 }
