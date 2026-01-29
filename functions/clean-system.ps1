@@ -211,5 +211,5 @@ function Invoke-CleanMenu {
         Invoke-CleanSystem
     } | Out-Null
 
-    Write-Host "🧹 Bat dau don dep (chay nen)..." -ForegroundColor Cyan
+    Write-Host "Bat dau don dep (chay nen)..." -ForegroundColor Cyan
 }
