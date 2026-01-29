@@ -1,10 +1,17 @@
-# ===== COLOR PALETTE ===== (Di chuyển từ main để reuse)
+# utils.ps1 - Common helpers (fixed syntax for remote load)
+
 $global:TEXT_COLOR     = "White"
-$global:HEADER_COLOR   = "White"
+$global:HEADER_COLOR   = "Cyan"
 $global:SUCCESS_COLOR  = "Green"
 $global:ERROR_COLOR    = "Red"
 $global:BORDER_COLOR   = "DarkGray"
 $global:WARNING_COLOR  = "Yellow"
+
+function Reset-ConsoleStyle {
+    $Host.UI.RawUI.BackgroundColor = "Black"
+    $Host.UI.RawUI.ForegroundColor = $TEXT_COLOR
+    Clear-Host
+}
 
 function Show-SystemHeader {
     $os = Get-CimInstance Win32_OperatingSystem
@@ -21,13 +28,6 @@ function Show-SystemHeader {
     Write-Host ""
 }
 
-function Reset-ConsoleStyle {
-    $Host.UI.RawUI.BackgroundColor = "Black"
-    $Host.UI.RawUI.ForegroundColor = $TEXT_COLOR
-    Clear-Host
-}
-
-# Helper: Safe Registry Tweak (Thêm để tránh eval string)
 function Set-RegistryTweak {
     param (
         [string]$Path,
@@ -41,27 +41,25 @@ function Set-RegistryTweak {
         Set-ItemProperty -Path $Path -Name $Name -Value $Value -Type $Type -Force -ErrorAction Stop
         Write-Verbose "Set $Path\$Name = $Value"
     } catch {
-        Write-Warning "Failed to set $Path\$Name: $_"
+        Write-Warning "Failed to set ${Path}\${Name}: $($_.Exception.Message)"
     }
 }
 
-# Helper: Create Restore Point
 function Create-RestorePoint {
     try {
-        Checkpoint-Computer -Description "PMK Toolbox Restore Point" -RestorePointType "MODIFY_SETTINGS" -ErrorAction Stop
-        Write-Host "✅ Created restore point" -ForegroundColor $SUCCESS_COLOR
+        Checkpoint-Computer -Description "PMK Toolbox Restore" -RestorePointType MODIFY_SETTINGS -ErrorAction Stop
+        Write-Host "Đã tạo điểm khôi phục hệ thống" -ForegroundColor $SUCCESS_COLOR
     } catch {
-        Write-Warning "Failed to create restore point: $_"
+        Write-Warning "Không tạo được điểm khôi phục: $($_.Exception.Message)"
     }
 }
 
-# Helper: Remove Windows App (For Bloat)
 function Remove-WindowsApp {
     param([string]$Pattern)
     try {
-        Get-AppxPackage *$Pattern* -AllUsers | Remove-AppxPackage -AllUsers -ErrorAction Stop
+        Get-AppxPackage "*$Pattern*" -AllUsers | Remove-AppxPackage -AllUsers -ErrorAction Stop
         Write-Verbose "Removed apps matching $Pattern"
     } catch {
-        Write-Warning "Failed to remove $Pattern: $_"
+        Write-Warning "Failed to remove $Pattern: $($_.Exception.Message)"
     }
 }
