@@ -11,7 +11,7 @@ $ErrorActionPreference = "Continue"
 # ==========================================================
 function Ensure-Winget {
     if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
-        Write-Host "❌ Winget chua duoc cai dat" -ForegroundColor Red
+        Write-Host "Winget chua duoc cai dat" -ForegroundColor Red
         return $false
     }
     return $true
@@ -43,14 +43,14 @@ function Invoke-AppInstaller {
     if (-not (Ensure-Winget)) { return }
 
     if (-not $SelectedIds -or $SelectedIds.Count -eq 0) {
-        Write-Host "⚠️ Khong co ung dung nao duoc chon" -ForegroundColor Yellow
+        Write-Host "Khong co ung dung nao duoc chon" -ForegroundColor Yellow
         return
     }
 
     $apps = $Config.applications | Where-Object { $_.id -in $SelectedIds }
 
     if (-not $apps -or $apps.Count -eq 0) {
-        Write-Host "❌ Khong tim thay ung dung hop le" -ForegroundColor Red
+        Write-Host "Khong tim thay ung dung hop le" -ForegroundColor Red
         return
     }
 
@@ -59,7 +59,7 @@ function Invoke-AppInstaller {
 
     $results = @()
 
-    Write-Host "`n📦 Dang cai dat ung dung..." -ForegroundColor Cyan
+    Write-Host "`n Dang cai dat ung dung..." -ForegroundColor Cyan
 
     foreach ($app in $apps) {
 
@@ -76,7 +76,7 @@ function Invoke-AppInstaller {
         # ==========================
         if (Test-AppInstalled $app.packageId) {
 
-            Write-Host "⏭️ Da cai: $($app.name)" -ForegroundColor DarkGray
+            Write-Host "Da cai: $($app.name)" -ForegroundColor DarkGray
             Write-Log "SKIP | $($app.name)"
 
             $results += [PSCustomObject]@{
@@ -86,7 +86,7 @@ function Invoke-AppInstaller {
             continue
         }
 
-        Write-Host "⬇️ Dang cai: $($app.name)" -ForegroundColor Yellow
+        Write-Host "Dang cai: $($app.name)" -ForegroundColor Yellow
         Write-Log "INSTALL | $($app.name)"
 
         $args = @(
@@ -115,7 +115,7 @@ function Invoke-AppInstaller {
                 -PassThru
 
             if ($process.ExitCode -eq 0) {
-                Write-Host "✅ OK: $($app.name)" -ForegroundColor Green
+                Write-Host "OK: $($app.name)" -ForegroundColor Green
                 Write-Log "OK | $($app.name)"
 
                 $results += [PSCustomObject]@{
@@ -127,7 +127,7 @@ function Invoke-AppInstaller {
             }
 
         } catch {
-            Write-Host "❌ FAIL: $($app.name)" -ForegroundColor Red
+            Write-Host "FAIL: $($app.name)" -ForegroundColor Red
             Write-Log "FAIL | $($app.name) | $($_.Exception.Message)"
 
             $results += [PSCustomObject]@{
@@ -146,11 +146,11 @@ function Invoke-AppInstaller {
 
     $results | ForEach-Object {
         switch ($_.Status) {
-            "OK"      { Write-Host "✅ $($_.App)" -ForegroundColor Green }
-            "SKIPPED" { Write-Host "⏭️ $($_.App)" -ForegroundColor DarkGray }
-            "FAIL"    { Write-Host "❌ $($_.App)" -ForegroundColor Red }
+            "OK"      { Write-Host " $($_.App)" -ForegroundColor Green }
+            "SKIPPED" { Write-Host " $($_.App)" -ForegroundColor DarkGray }
+            "FAIL"    { Write-Host " $($_.App)" -ForegroundColor Red }
         }
     }
 
-    Write-Host "`n🎯 Hoan tat $total ung dung" -ForegroundColor Cyan
+    Write-Host "`n Hoan tat $total ung dung" -ForegroundColor Cyan
 }
