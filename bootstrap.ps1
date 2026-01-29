@@ -1,44 +1,48 @@
-# =========================================
-# ToiUuPC Bootstrap (SAFE - WinUtil style)
-# =========================================
+# ===============================
+# ToiUuPC Bootstrap (FINAL)
+# ===============================
 
-
-
-# Force UTF-8
+# ---- UTF-8 FIX (MANDATORY) ----
 chcp 65001 | Out-Null
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-
-$PSDefaultParameterValues['Out-File:Encoding'] = 'utf8'
 $PSDefaultParameterValues['*:Encoding'] = 'utf8'
 
+Set-StrictMode -Off
 $ErrorActionPreference = "Stop"
 
-$RepoRaw = "https://raw.githubusercontent.com/mkhai2589/toiuupc/main"
-$WorkDir = Join-Path $env:TEMP "ToiUuPC"
-$MainScript = Join-Path $WorkDir "ToiUuPC.ps1"
-
-# ---------- Admin check (SAFE, 1 line) ----------
-$IsAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+# ---- Admin Check ----
+$IsAdmin = ([Security.Principal.WindowsPrincipal] `
+    [Security.Principal.WindowsIdentity]::GetCurrent()
+).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 
 if (-not $IsAdmin) {
     Write-Host "❌ Vui lòng chạy PowerShell với quyền Administrator" -ForegroundColor Red
-    return
+    Pause
+    exit 1
 }
 
-# ---------- Prepare working directory ----------
-if (-not (Test-Path $WorkDir)) {
-    New-Item -ItemType Directory -Path $WorkDir | Out-Null
+# ---- Paths ----
+$RepoRaw = "https://raw.githubusercontent.com/mkhai2589/toiuupc/main"
+$WORKDIR = Join-Path $env:TEMP "ToiUuPC"
+
+$MainFile = Join-Path $WORKDIR "ToiUuPC.ps1"
+
+# ---- Prepare Folder ----
+if (-not (Test-Path $WORKDIR)) {
+    New-Item -ItemType Directory -Path $WORKDIR | Out-Null
 }
 
-# ---------- Download main controller ----------
+# ---- Download Main ----
 Write-Host "⬇ Đang tải ToiUuPC..." -ForegroundColor Cyan
-
 Invoke-WebRequest `
     -Uri "$RepoRaw/ToiUuPC.ps1" `
-    -OutFile $MainScript `
+    -OutFile $MainFile `
     -UseBasicParsing
 
-Write-Host "✅ Tải xong. Đang khởi động..." -ForegroundColor Green
+# ---- Run Main (Bypass Policy) ----
+Write-Host "🚀 Khởi động ToiUuPC..." -ForegroundColor Green
 
-# ---------- Run controller ----------
-& powershell -NoProfile -ExecutionPolicy Bypass -File $MainScript
+powershell `
+    -NoProfile `
+    -ExecutionPolicy Bypass `
+    -File $MainFile
