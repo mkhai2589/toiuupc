@@ -1,9 +1,8 @@
-# ToiUuPC Bootstrap - SAFE MODE
+# ToiUuPC Bootstrap
 
 Set-StrictMode -Off
 $ErrorActionPreference = "Stop"
 
-# Admin check
 $IsAdmin = ([Security.Principal.WindowsPrincipal] `
     [Security.Principal.WindowsIdentity]::GetCurrent()
 ).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
@@ -25,5 +24,5 @@ if (-not (Test-Path $WorkDir)) {
 Write-Host "Downloading ToiUuPC..."
 Invoke-WebRequest "$RepoRaw/ToiUuPC.ps1" -OutFile $Main -UseBasicParsing
 
-Write-Host "Launching..."
+Write-Host "Launching ToiUuPC..."
 powershell -NoProfile -ExecutionPolicy Bypass -File $Main
