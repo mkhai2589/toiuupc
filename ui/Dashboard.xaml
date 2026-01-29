@@ -1,84 +1,154 @@
 <Window
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    Title="PMK Toolbox - Performance"
-    Width="420"
-    Height="260"
+    Title="PMK Performance Dashboard"
+    Width="360"
+    Height="520"
     WindowStyle="None"
     ResizeMode="NoResize"
+    Background="#111111"
     AllowsTransparency="True"
-    Background="#AA0E0E0E"
-    Topmost="True">
+    Topmost="True"
+    ShowInTaskbar="False">
 
-    <Grid Margin="15">
+    <Border
+        CornerRadius="12"
+        BorderThickness="1"
+        BorderBrush="#2A2A2A"
+        Background="#111111"
+        Padding="14">
 
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="160"/>
-            <ColumnDefinition Width="*"/>
-        </Grid.ColumnDefinitions>
+        <StackPanel Orientation="Vertical" VerticalAlignment="Top">
 
-        <!-- ================= CPU RING ================= -->
-        <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
+            <!-- ================= HEADER ================= -->
+            <TextBlock
+                Text="PMK PERFORMANCE"
+                FontSize="16"
+                FontWeight="Bold"
+                Foreground="White"
+                HorizontalAlignment="Center"
+                Margin="0,0,0,10"/>
 
-            <Ellipse Width="130" Height="130"
-                     Stroke="#333"
-                     StrokeThickness="10"/>
+            <!-- ================= CPU RING ================= -->
+            <Grid Width="130" Height="130" HorizontalAlignment="Center">
 
-            <Path x:Name="CpuRing"
-                  Stroke="#00E5FF"
-                  StrokeThickness="10"
-                  StrokeStartLineCap="Round"
-                  StrokeEndLineCap="Round"/>
+                <!-- Background ring -->
+                <Ellipse
+                    Width="110"
+                    Height="110"
+                    Stroke="#2A2A2A"
+                    StrokeThickness="8"/>
 
-            <TextBlock x:Name="CpuText"
-                       Text="0%"
-                       Foreground="White"
-                       FontSize="26"
-                       FontWeight="Bold"
-                       HorizontalAlignment="Center"
-                       VerticalAlignment="Center"/>
-        </Grid>
+                <!-- CPU Ring -->
+                <Path
+                    x:Name="CpuRing"
+                    Stroke="LimeGreen"
+                    StrokeThickness="8"
+                    StrokeStartLineCap="Round"
+                    StrokeEndLineCap="Round"/>
 
-        <!-- ================= INFO ================= -->
-        <StackPanel Grid.Column="1" Margin="20,10,0,0">
+                <!-- CPU Text -->
+                <TextBlock
+                    x:Name="CpuText"
+                    Text="0%"
+                    FontSize="22"
+                    FontWeight="Bold"
+                    Foreground="White"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"/>
+            </Grid>
 
-            <TextBlock Text="SYSTEM PERFORMANCE"
-                       Foreground="#00E5FF"
-                       FontWeight="Bold"
-                       FontSize="14"/>
+            <!-- CPU BAR -->
+            <ProgressBar
+                x:Name="CpuBar"
+                Height="10"
+                Margin="0,8,0,12"
+                Maximum="100"
+                Value="0"
+                Foreground="LimeGreen"
+                Background="#2A2A2A"/>
 
-            <!-- CPU -->
-            <TextBlock Text="CPU Load"
-                       Foreground="Gray"
-                       Margin="0,12,0,0"/>
-            <ProgressBar x:Name="CpuBar" Height="8"/>
+            <!-- ================= RAM ================= -->
+            <TextBlock
+                Text="RAM"
+                Foreground="#AAAAAA"
+                FontSize="12"/>
 
-            <!-- RAM -->
-            <TextBlock Text="RAM Usage"
-                       Foreground="Gray"
-                       Margin="0,12,0,0"/>
-            <ProgressBar x:Name="RamBar" Height="8"/>
-            <TextBlock x:Name="RamText"
-                       Foreground="White"
-                       FontSize="11"/>
+            <Grid Margin="0,2,0,8">
+                <ProgressBar
+                    x:Name="RamBar"
+                    Height="10"
+                    Maximum="100"
+                    Value="0"
+                    Foreground="LimeGreen"
+                    Background="#2A2A2A"/>
+                <TextBlock
+                    x:Name="RamText"
+                    Text="0%"
+                    Foreground="White"
+                    FontSize="11"
+                    HorizontalAlignment="Right"
+                    Margin="0,0,4,0"/>
+            </Grid>
 
-            <!-- DISK -->
-            <TextBlock Text="Disk C:"
-                       Foreground="Gray"
-                       Margin="0,12,0,0"/>
-            <ProgressBar x:Name="DiskBar" Height="8"/>
-            <TextBlock x:Name="DiskText"
-                       Foreground="White"
-                       FontSize="11"/>
+            <!-- ================= DISK ================= -->
+            <TextBlock
+                Text="DISK C:"
+                Foreground="#AAAAAA"
+                FontSize="12"/>
 
-            <TextBlock x:Name="DiskWarn"
-                       Text="⚠ Disk nearly full"
-                       Foreground="OrangeRed"
-                       Visibility="Collapsed"
-                       FontWeight="Bold"
-                       Margin="0,5,0,0"/>
+            <Grid Margin="0,2,0,4">
+                <ProgressBar
+                    x:Name="DiskBar"
+                    Height="10"
+                    Maximum="100"
+                    Value="0"
+                    Foreground="LimeGreen"
+                    Background="#2A2A2A"/>
+                <TextBlock
+                    x:Name="DiskText"
+                    Text="0%"
+                    Foreground="White"
+                    FontSize="11"
+                    HorizontalAlignment="Right"
+                    Margin="0,0,4,0"/>
+            </Grid>
+
+            <!-- DISK WARNING -->
+            <TextBlock
+                x:Name="DiskWarn"
+                Text="⚠ Disk almost full"
+                Foreground="Red"
+                FontSize="12"
+                FontWeight="Bold"
+                Visibility="Collapsed"
+                HorizontalAlignment="Center"
+                Margin="0,4,0,8"/>
+
+            <!-- ================= CLEAN STATUS ================= -->
+            <Separator Margin="0,6,0,6"/>
+
+            <TextBlock
+                Text="SYSTEM CLEAN"
+                Foreground="#AAAAAA"
+                FontSize="12"/>
+
+            <ProgressBar
+                x:Name="CleanBar"
+                Height="10"
+                Maximum="100"
+                Value="0"
+                Foreground="DeepSkyBlue"
+                Background="#2A2A2A"
+                Margin="0,4,0,4"/>
+
+            <TextBlock
+                x:Name="CleanText"
+                Text="Idle"
+                Foreground="White"
+                FontSize="11"
+                HorizontalAlignment="Center"/>
 
         </StackPanel>
-
-    </Grid>
+    </Border>
 </Window>
