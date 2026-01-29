@@ -1,169 +1,173 @@
-# =========================================================
-# ToiUuPC – Windows 10 / 11 Optimization Toolkit
-# Bootstrap + Controller
-# Author: PMK
-# =========================================================
-
-# ⚠️ ENTRY SCRIPT: KHÔNG STRICT MODE
-Set-StrictMode -Off
-$ErrorActionPreference = "Stop"
-
-# ---------------- CONSTANTS ----------------
-$REPO_RAW = "https://raw.githubusercontent.com/mkhai2589/toiuupc/main"
-$WORKDIR  = Join-Path $env:TEMP "ToiUuPC"
-
-$DIRS = @{
-    Root      = $WORKDIR
-    Functions = Join-Path $WORKDIR "functions"
-    Config    = Join-Path $WORKDIR "config"
-    Logs      = Join-Path $WORKDIR "logs"
-    Backups   = Join-Path $WORKDIR "backups"
-}
-
-# ---------------- ADMIN CHECK ----------------
-function Test-Admin {
-    $id = [Security.Principal.WindowsIdentity]::GetCurrent()
-    $p  = New-Object Security.Principal.WindowsPrincipal($id)
-    return $p.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-}
-
-if (-not (Test-Admin)) {
-    Write-Host "❌ Vui lòng chạy PowerShell với quyền Administrator" -ForegroundColor Red
-    exit 1
-}
-
-# ---------------- ARGS ----------------
 param(
     [switch]$Update
 )
 
-# ---------------- PREPARE DIR ----------------
-foreach ($d in $DIRS.Values) {
+# ======================================================
+# ToiUuPC - Main Controller (WinUtil-style)
+# Author: PMK
+# ======================================================
+
+Set-StrictMode -Off
+$ErrorActionPreference = "Stop"
+
+# ------------------ Global paths ------------------
+$RepoRaw = "https://raw.githubusercontent.com/mkhai2589/toiuupc/main"
+
+$WORKDIR   = Join-Path $env:TEMP "ToiUuPC"
+$FUNC_DIR  = Join-Path $WORKDIR "functions"
+$CFG_DIR   = Join-Path $WORKDIR "config"
+$LOG_DIR   = Join-Path $WORKDIR "runtime\logs"
+$BK_DIR    = Join-Path $WORKDIR "runtime\backups"
+
+# ------------------ Admin check ------------------
+$IsAdmin = ([Security.Principal.WindowsPrincipal]
+    [Security.Principal.WindowsIdentity]::GetCurrent()
+).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+
+if (-not $IsAdmin) {
+    Write-Host "❌ Vui lòng chạy PowerShell với quyền Administrator" -ForegroundColor Red
+    exit 1
+}
+
+# ------------------ Prepare folders ------------------
+$dirs = @($WORKDIR, $FUNC_DIR, $CFG_DIR, $LOG_DIR, $BK_DIR)
+foreach ($d in $dirs) {
     if (-not (Test-Path $d)) {
-        New-Item -ItemType Directory -Path $d -Force | Out-Null
+        New-Item -ItemType Directory -Path $d | Out-Null
     }
 }
 
-# ---------------- DOWNLOAD HELPER ----------------
+# ------------------ Helper: download file ------------------
 function Get-RemoteFile {
-    param(
+    param (
+        [Parameter(Mandatory)]
         [string]$Url,
+
+        [Parameter(Mandatory)]
         [string]$OutFile
     )
 
-    try {
-        Invoke-RestMethod -Uri $Url -UseBasicParsing -ErrorAction Stop |
-            Out-File -FilePath $OutFile -Encoding UTF8 -Force
-    } catch {
-        Write-Host "❌ Không tải được: $Url" -ForegroundColor Red
-        throw
-    }
+    Write-Host "⬇ $Url" -ForegroundColor DarkGray
+
+    Invoke-WebRequest `
+        -Uri $Url `
+        -OutFile $OutFile `
+        -UseBasicParsing
 }
 
-# ---------------- FILE MANIFEST ----------------
-$FILES = @{
-    "functions/utils.ps1"         = "functions\utils.ps1"
-    "functions/Show-PMKLogo.ps1"  = "functions\Show-PMKLogo.ps1"
-    "functions/tweaks.ps1"        = "functions\tweaks.ps1"
-    "functions/install-apps.ps1"  = "functions\install-apps.ps1"
-    "functions/dns-management.ps1"= "functions\dns-management.ps1"
-    "functions/clean-system.ps1"  = "functions\clean-system.ps1"
-    "config/tweaks.json"          = "config\tweaks.json"
-    "config/applications.json"    = "config\applications.json"
-}
+# ------------------ Load all required files ------------------
+function Sync-ProjectFiles {
 
-# ---------------- UPDATE / FIRST BOOTSTRAP ----------------
-if ($Update -or -not (Test-Path (Join-Path $DIRS.Functions "utils.ps1"))) {
+    Write-Host "`n🔄 Đang đồng bộ file ToiUuPC..." -ForegroundColor Cyan
 
-    Write-Host "⬇ Đang tải ToiUuPC..." -ForegroundColor Cyan
+    # Functions
+    $functions = @(
+        "utils.ps1",
+        "Show-PMKLogo.ps1",
+        "tweaks.ps1",
+        "install-apps.ps1",
+        "dns-management.ps1",
+        "clean-system.ps1"
+    )
 
-    foreach ($key in $FILES.Keys) {
-        $dest = Join-Path $DIRS.Root $FILES[$key]
-        $url  = "$REPO_RAW/$key"
-        Get-RemoteFile -Url $url -OutFile $dest
+    foreach ($f in $functions) {
+        Get-RemoteFile `
+            -Url "$RepoRaw/functions/$f" `
+            -OutFile (Join-Path $FUNC_DIR $f)
     }
 
-    Write-Host "✅ Đã cập nhật ToiUuPC" -ForegroundColor Green
+    # Configs
+    $configs = @(
+        "tweaks.json",
+        "applications.json",
+        "dns.json"
+    )
 
-    if ($Update) {
-        Write-Host "🔁 Vui lòng chạy lại lệnh để sử dụng phiên bản mới" -ForegroundColor Yellow
-        return
+    foreach ($c in $configs) {
+        Get-RemoteFile `
+            -Url "$RepoRaw/config/$c" `
+            -OutFile (Join-Path $CFG_DIR $c)
     }
+
+    Write-Host "✅ Đồng bộ hoàn tất" -ForegroundColor Green
 }
 
-# ---------------- LOAD FUNCTIONS ----------------
-Get-ChildItem $DIRS.Functions -Filter *.ps1 | ForEach-Object {
+# ------------------ Initial sync ------------------
+Sync-ProjectFiles
+
+# ------------------ Import functions ------------------
+Get-ChildItem $FUNC_DIR -Filter "*.ps1" | ForEach-Object {
     . $_.FullName
 }
 
-# ---------------- MAIN MENU ----------------
-function Show-MainMenu {
-    Clear-Host
-    if (Get-Command Show-PMKLogo -ErrorAction SilentlyContinue) {
-        Show-PMKLogo
-    }
-
-    Write-Host "=================================================" -ForegroundColor DarkGray
-    Write-Host "  ToiUuPC – Tối ưu Windows 10 / 11" -ForegroundColor Cyan
-    Write-Host "=================================================`n"
-
-    Write-Host "1. ⚙️ Tối ưu hệ thống (Tweaks)"
-    Write-Host "2. 📦 Cài đặt ứng dụng (Winget)"
-    Write-Host "3. 🌐 Thiết lập DNS"
-    Write-Host "4. 🧹 Dọn dẹp hệ thống"
-    Write-Host "5. 🔄 Rollback tweaks"
-    Write-Host "6. 🔄 Cập nhật ToiUuPC"
-    Write-Host "0. ❌ Thoát`n"
+# ------------------ Update mode ------------------
+if ($Update) {
+    Write-Host "`n🔁 Đã cập nhật ToiUuPC lên phiên bản mới nhất" -ForegroundColor Green
+    exit 0
 }
 
-# ---------------- MAIN LOOP ----------------
-while ($true) {
+# ------------------ UI ------------------
+Clear-Host
+Show-PMKLogo
 
+function Show-MainMenu {
+    Write-Host ""
+    Write-Host "========== TOI UU PC ==========" -ForegroundColor Cyan
+    Write-Host "1. Tối ưu Windows (Tweaks)"
+    Write-Host "2. Cài ứng dụng (Winget)"
+    Write-Host "3. Quản lý DNS"
+    Write-Host "4. Dọn dẹp hệ thống"
+    Write-Host "5. Cập nhật tool"
+    Write-Host "0. Thoát"
+    Write-Host "================================"
+}
+
+# ------------------ Main loop ------------------
+while ($true) {
     Show-MainMenu
     $choice = Read-Host "👉 Chọn chức năng"
 
     switch ($choice) {
 
         "1" {
-            Invoke-Tweaks
-            Pause
+            Invoke-SystemTweaks `
+                -ConfigPath (Join-Path $CFG_DIR "tweaks.json") `
+                -BackupPath $BK_DIR
         }
 
         "2" {
-            Invoke-InstallApps
-            Pause
+            Invoke-AppInstaller `
+                -ConfigPath (Join-Path $CFG_DIR "applications.json")
         }
 
         "3" {
-            Invoke-DNSManager
-            Pause
+            Start-DnsManager `
+                -ConfigPath (Join-Path $CFG_DIR "dns.json")
         }
 
         "4" {
-            Invoke-SystemCleanup
-            Pause
+            Invoke-CleanSystem -All
         }
 
         "5" {
-            Invoke-Tweaks -Rollback
-            Pause
-        }
+            Write-Host "`n🔄 Đang cập nhật ToiUuPC..." -ForegroundColor Yellow
 
-        "6" {
-            Write-Host "🔄 Đang cập nhật..." -ForegroundColor Cyan
             & powershell -NoProfile -ExecutionPolicy Bypass `
-                -Command "irm $REPO_RAW/ToiUuPC.ps1 | iex -Update"
-            return
+                -File "$WORKDIR\ToiUuPC.ps1" -Update
+
+            Write-Host "✅ Cập nhật xong. Chạy lại tool để áp dụng." -ForegroundColor Green
+            break
         }
 
         "0" {
-            Write-Host "`n👋 Thoát ToiUuPC" -ForegroundColor Green
+            Write-Host "👋 Thoát ToiUuPC" -ForegroundColor Cyan
             break
         }
 
         default {
             Write-Host "❌ Lựa chọn không hợp lệ" -ForegroundColor Red
-            Start-Sleep 1
         }
     }
+
+    Pause
 }
