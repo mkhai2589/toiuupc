@@ -1,113 +1,161 @@
 # ==================================================
-# PMK Toolbox Bootstrap (SILENT MODE)
+# bootstrap.ps1
+# PMK Toolbox – ToiUuPC Bootstrap Installer
 # ==================================================
 
+# --------------------------------------------------
+# UTF8 / Encoding Setup
+# --------------------------------------------------
 chcp 65001 | Out-Null
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 Set-StrictMode -Off
 $ErrorActionPreference = "Stop"
-$ProgressPreference = 'SilentlyContinue'
+$ProgressPreference = 'SilentlyContinue'   # Suppress progress output
 
-# ==================================================
-# CONFIG
-# ==================================================
-$RepoUrl   = "https://github.com/mkhai2589/toiuupc.git"
+# --------------------------------------------------
+# CONFIGURATION
+# --------------------------------------------------
 $RepoRaw   = "https://raw.githubusercontent.com/mkhai2589/toiuupc/main"
 $TargetDir = Join-Path $env:TEMP "ToiUuPC"
 $MainFile  = Join-Path $TargetDir "ToiUuPC.ps1"
 
-# ==================================================
+# List of files to download
+$FilesToDownload = @(
+    "ToiUuPC.ps1",
+    "bootstrap.ps1",
+    "functions/utils.ps1",
+    "functions/Show-PMKLogo.ps1",
+    "functions/tweaks.ps1",
+    "functions/install-apps.ps1",
+    "functions/dns-management.ps1",
+    "functions/clean-system.ps1",
+    "functions/dashboard-engine.ps1",
+    "config/tweaks.json",
+    "config/applications.json",
+    "config/dns.json",
+    "ui/Dashboard.xaml"
+)
+
+# --------------------------------------------------
 # ADMIN CHECK
-# ==================================================
+# --------------------------------------------------
 function Test-IsAdmin {
-    $id = [Security.Principal.WindowsIdentity]::GetCurrent()
-    $p  = New-Object Security.Principal.WindowsPrincipal($id)
-    $p.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+    try {
+        $id = [Security.Principal.WindowsIdentity]::GetCurrent()
+        $principal = New-Object Security.Principal.WindowsPrincipal($id)
+        return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+    } catch {
+        return $false
+    }
 }
 
 if (-not (Test-IsAdmin)) {
-    Write-Host "Please run PowerShell as Administrator" -ForegroundColor Red
+    Write-Host "Please run PowerShell as Administrator." -ForegroundColor Red
     exit 1
 }
 
-# ==================================================
-# GIT CHECK
-# ==================================================
-function Test-Git {
-    try { git --version *> $null; $true } catch { $false }
-}
-
-# ==================================================
-# DOWNLOAD FILE (SILENT)
-# ==================================================
+# --------------------------------------------------
+# DOWNLOAD HELPER
+# --------------------------------------------------
 function Download-File {
-    param($Url, $Out)
-    Invoke-WebRequest `
-        -Uri $Url `
-        -OutFile $Out `
-        -UseBasicParsing `
-        -Headers @{ "Cache-Control" = "no-cache" } `
-        -ErrorAction Stop `
-        *> $null
+    param(
+        [string]$RelativePath,
+        [string]$Destination
+    )
+
+    $url = "$RepoRaw/$RelativePath"
+
+    try {
+        Invoke-WebRequest `
+            -Uri $url `
+            -OutFile $Destination `
+            -UseBasicParsing `
+            -ErrorAction Stop
+        return $true
+    } catch {
+        Write-Host "Failed to download: $RelativePath" -ForegroundColor Red
+        return $false
+    }
 }
 
-# ==================================================
-# PREPARE DIR
-# ==================================================
-New-Item -ItemType Directory -Path $TargetDir -Force | Out-Null
+# --------------------------------------------------
+# ENSURE TARGET DIR
+# --------------------------------------------------
+if (-not (Test-Path $TargetDir)) {
+    New-Item -Path $TargetDir -ItemType Directory -Force | Out-Null
+}
 
-Write-Host "PMK Toolbox Bootstrap" -ForegroundColor Cyan
+# Create subfolders
+@("functions","config","ui","runtime\logs","runtime\backups") | ForEach-Object {
+    $sub = Join-Path $TargetDir $_
+    if (-not (Test-Path $sub)) {
+        New-Item -Path $sub -ItemType Directory -Force | Out-Null
+    }
+}
+
+Write-Host "PMK Toolbox Bootstrap"
 Write-Host "Install path: $TargetDir"
 Write-Host ""
 
-# ==================================================
-# INSTALL
-# ==================================================
-if (Test-Git) {
+# --------------------------------------------------
+# DETECT IF GIT PRESENT
+# --------------------------------------------------
+function Test-Git {
+    try {
+        git --version *> $null
+        return $true
+    } catch {
+        return $false
+    }
+}
+
+$UseGit = Test-Git
+
+# --------------------------------------------------
+# INSTALL OR UPDATE
+# --------------------------------------------------
+if ($UseGit) {
+    Write-Host "Git detected, syncing repository..." -ForegroundColor Cyan
 
     if (Test-Path (Join-Path $TargetDir ".git")) {
         Push-Location $TargetDir
         git pull --rebase *> $null
         Pop-Location
     } else {
-        git clone $RepoUrl $TargetDir *> $null
+        git clone https://github.com/mkhai2589/toiuupc.git $TargetDir *> $null
     }
-
 } else {
+    Write-Host "Git not found – using RAW download" -ForegroundColor Yellow
 
-    Write-Host "Git not found — using RAW mode" -ForegroundColor Yellow
+    foreach ($relPath in $FilesToDownload) {
+        $destFile = Join-Path $TargetDir $relPath
+        $destDir  = Split-Path -Parent $destFile
 
-    $folders = "functions","config","ui"
-    foreach ($f in $folders) {
-        New-Item -ItemType Directory -Path (Join-Path $TargetDir $f) -Force | Out-Null
-    }
+        if (-not (Test-Path $destDir)) {
+            New-Item -Path $destDir -ItemType Directory -Force | Out-Null
+        }
 
-    $files = @(
-        "ToiUuPC.ps1",
-        "functions/utils.ps1",
-        "functions/tweaks.ps1",
-        "functions/install-apps.ps1",
-        "functions/dns-management.ps1",
-        "functions/clean-system.ps1",
-        "functions/dashboard-engine.ps1",
-        "functions/Show-PMKLogo.ps1",
-        "config/tweaks.json",
-        "config/applications.json",
-        "config/dns.json",
-        "ui/Dashboard.xaml"
-    )
-
-    foreach ($file in $files) {
-        Download-File "$RepoRaw/$file" (Join-Path $TargetDir $file)
+        Download-File -RelativePath $relPath -Destination $destFile | Out-Null
     }
 }
 
-# ==================================================
-# RUN
-# ==================================================
-Write-Host ""
-Write-Host "Launching PMK Toolbox..." -ForegroundColor Green
+# --------------------------------------------------
+# VERIFY MAIN SCRIPT
+# --------------------------------------------------
+if (-not (Test-Path $MainFile)) {
+    Write-Host "`nError: ToiUuPC.ps1 not found!" -ForegroundColor Red
+    exit 1
+}
+
+# --------------------------------------------------
+# LAUNCH TOOL
+# --------------------------------------------------
+Write-Host "`nLaunching PMK Toolbox..." -ForegroundColor Green
 
 Set-Location $TargetDir
-powershell -ExecutionPolicy Bypass -NoProfile -File $MainFile
+
+powershell.exe `
+    -NoProfile `
+    -ExecutionPolicy Bypass `
+    -File $MainFile
