@@ -1,10 +1,10 @@
-# functions/tweaks.ps1
-
 function Invoke-SystemTweaks {
-    param(
-        [string]$ConfigPath,
-        [string]$BackupPath
-    )
+    param([string]$ConfigPath)
+
+    if (-not (Test-Path $ConfigPath)) {
+        Write-Host "Khong tim thay file tweaks"
+        return
+    }
 
     $tweaks = Get-Content $ConfigPath | ConvertFrom-Json
 
@@ -16,11 +16,10 @@ function Invoke-SystemTweaks {
                 -Name $t.name `
                 -Value $t.value `
                 -Type $t.type
-        }
-        catch {
-            Write-Host "Fail: $($t.name)" -ForegroundColor Red
+        } catch {
+            Write-Host "Khong ap dung duoc tweak $($t.name)"
         }
     }
 
-    Write-Host "Tweaks applied"
+    Write-Host "Da ap dung toi uu"
 }
