@@ -1,6 +1,5 @@
 # ==================================================
-# bootstrap.ps1
-# PMK Toolbox - ToiUuPC Bootstrap Loader
+# PMK Toolbox Bootstrap (SILENT MODE)
 # ==================================================
 
 chcp 65001 | Out-Null
@@ -8,6 +7,7 @@ chcp 65001 | Out-Null
 
 Set-StrictMode -Off
 $ErrorActionPreference = "Stop"
+$ProgressPreference = 'SilentlyContinue'
 
 # ==================================================
 # CONFIG
@@ -18,83 +18,73 @@ $TargetDir = Join-Path $env:TEMP "ToiUuPC"
 $MainFile  = Join-Path $TargetDir "ToiUuPC.ps1"
 
 # ==================================================
-# HELPER: ADMIN CHECK
+# ADMIN CHECK
 # ==================================================
 function Test-IsAdmin {
     $id = [Security.Principal.WindowsIdentity]::GetCurrent()
     $p  = New-Object Security.Principal.WindowsPrincipal($id)
-    return $p.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+    $p.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 }
 
 if (-not (Test-IsAdmin)) {
-    Write-Host "Vui lòng chạy PowerShell bằng quyền Administrator" -ForegroundColor Red
-    Write-Host "➡ Right-click → Run as Administrator"
-    pause
+    Write-Host "Please run PowerShell as Administrator" -ForegroundColor Red
     exit 1
 }
 
 # ==================================================
-# HELPER: GIT CHECK
+# GIT CHECK
 # ==================================================
 function Test-Git {
-    try {
-        git --version | Out-Null
-        return $true
-    } catch {
-        return $false
-    }
+    try { git --version *> $null; $true } catch { $false }
 }
 
 # ==================================================
-# DOWNLOAD FILE (RAW)
+# DOWNLOAD FILE (SILENT)
 # ==================================================
 function Download-File {
-    param(
-        [string]$Url,
-        [string]$Out
-    )
-
-    Invoke-WebRequest -Uri $Url -OutFile $Out -UseBasicParsing -Headers @{ "Cache-Control" = "no-cache" }
+    param($Url, $Out)
+    Invoke-WebRequest `
+        -Uri $Url `
+        -OutFile $Out `
+        -UseBasicParsing `
+        -Headers @{ "Cache-Control" = "no-cache" } `
+        -ErrorAction Stop `
+        *> $null
 }
 
 # ==================================================
-# ENSURE TARGET DIR
+# PREPARE DIR
 # ==================================================
-if (-not (Test-Path $TargetDir)) {
-    New-Item -ItemType Directory -Path $TargetDir -Force | Out-Null
-}
+New-Item -ItemType Directory -Path $TargetDir -Force | Out-Null
 
 Write-Host "PMK Toolbox Bootstrap" -ForegroundColor Cyan
 Write-Host "Install path: $TargetDir"
 Write-Host ""
 
 # ==================================================
-# CLONE / UPDATE
+# INSTALL
 # ==================================================
 if (Test-Git) {
 
     if (Test-Path (Join-Path $TargetDir ".git")) {
-        Write-Host "Updating ToiUuPC..."
         Push-Location $TargetDir
-        git pull --rebase
+        git pull --rebase *> $null
         Pop-Location
     } else {
-        Write-Host "Cloning ToiUuPC..."
-        git clone $RepoUrl $TargetDir
+        git clone $RepoUrl $TargetDir *> $null
     }
 
 } else {
 
-    Write-Host "Git not found — fallback RAW download" -ForegroundColor Yellow
+    Write-Host "Git not found — using RAW mode" -ForegroundColor Yellow
 
-    $folders = @("functions","config","ui")
+    $folders = "functions","config","ui"
     foreach ($f in $folders) {
         New-Item -ItemType Directory -Path (Join-Path $TargetDir $f) -Force | Out-Null
     }
 
     $files = @(
         "ToiUuPC.ps1",
-        "bootstrap.ps1",
         "functions/utils.ps1",
         "functions/tweaks.ps1",
         "functions/install-apps.ps1",
@@ -109,32 +99,15 @@ if (Test-Git) {
     )
 
     foreach ($file in $files) {
-        $out = Join-Path $TargetDir $file
-        $url = "$RepoRaw/$file"
-        try {
-            Write-Host "Downloading $file"
-            Download-File $url $out
-        } catch {
-            Write-Host "Failed to download $file" -ForegroundColor Red
-        }
+        Download-File "$RepoRaw/$file" (Join-Path $TargetDir $file)
     }
 }
 
 # ==================================================
-# VERIFY MAIN FILE
-# ==================================================
-if (-not (Test-Path $MainFile)) {
-    Write-Host "ToiUuPC.ps1 not found" -ForegroundColor Red
-    pause
-    exit 1
-}
-
-# ==================================================
-# RUN TOOL
+# RUN
 # ==================================================
 Write-Host ""
 Write-Host "Launching PMK Toolbox..." -ForegroundColor Green
-Write-Host ""
 
 Set-Location $TargetDir
 powershell -ExecutionPolicy Bypass -NoProfile -File $MainFile
