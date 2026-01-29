@@ -1,4 +1,4 @@
-<img width="922" height="666" alt="image" src="https://github.com/user-attachments/assets/94f1b3a0-25aa-4213-ac46-a3b60fc9c726" /># 🖥️ ToiUuPC — Windows Optimization Toolkit
+# 🖥️ ToiUuPC — Windows Optimization Toolkit
 
 ---
 
