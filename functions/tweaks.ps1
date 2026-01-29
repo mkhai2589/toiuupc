@@ -1,65 +1,88 @@
-# tweaks.ps1
-# Windows optimization engine
-
-Set-StrictMode -Off
-
-function Apply-RegistryTweak {
-    param($Item)
-
-    try {
-        if (-not (Test-Path $Item.Path)) {
-            New-Item -Path $Item.Path -Force | Out-Null
-        }
-
-        Set-ItemProperty `
-            -Path $Item.Path `
-            -Name $Item.Name `
-            -Value $Item.Value `
-            -Type $Item.Type `
-            -Force
-
-        Write-Log "tweaks" "Applied $($Item.Path)\$($Item.Name)"
-    }
-    catch {
-        Write-Log "tweaks" "Failed $($Item.Path)\$($Item.Name)"
-    }
-}
-
-function Apply-ServiceTweak {
-    param($Item)
-
-    try {
-        Set-Service `
-            -Name $Item.Name `
-            -StartupType $Item.Startup `
-            -ErrorAction SilentlyContinue
-
-        if ($Item.State -eq "Stopped") {
-            Stop-Service $Item.Name -Force -ErrorAction SilentlyContinue
-        }
-
-        Write-Log "tweaks" "Service $($Item.Name)"
-    }
-    catch {
-        Write-Log "tweaks" "Service failed $($Item.Name)"
-    }
-}
-
 function Invoke-SystemTweaks {
-    param([string]$ConfigPath)
+    param(
+        [array]$Tweaks,
+        [string[]]$SelectedIds,
+        [string]$BackupPath,
+        $ProgressBar
+    )
 
-    Require-Admin
-    Write-Host "Dang ap dung tweaks..."
+    $applyList = $Tweaks | Where-Object { $_.id -in $SelectedIds }
+    $total = $applyList.Count
+    $i = 0
 
-    $cfg = Read-JsonFile $ConfigPath
+    foreach ($t in $applyList) {
+        $i++
+        Set-Progress $ProgressBar $i $total
 
-    foreach ($r in $cfg.registry) {
-        Apply-RegistryTweak $r
+        Write-Log "Apply tweak: $($t.id)"
+
+        switch ($t.type) {
+
+            "registry" {
+                if (-not (Test-Path $t.path)) {
+                    New-Item -Path $t.path -Force | Out-Null
+                }
+
+                # backup
+                $bkFile = Join-Path $BackupPath "$($t.id).json"
+                if (-not (Test-Path $bkFile)) {
+                    $old = Get-ItemProperty -Path $t.path -Name $t.nameReg -ErrorAction SilentlyContinue
+                    $old | ConvertTo-Json | Out-File $bkFile -Encoding UTF8
+                }
+
+                Set-ItemProperty `
+                    -Path $t.path `
+                    -Name $t.nameReg `
+                    -Value $t.value `
+                    -Type $t.regType
+            }
+
+            "service" {
+                $svc = Get-Service -Name $t.serviceName -ErrorAction SilentlyContinue
+                if ($svc) {
+                    sc.exe config $t.serviceName start= $t.startup | Out-Null
+                    Stop-Service $t.serviceName -Force -ErrorAction SilentlyContinue
+                }
+            }
+
+            "service_multiple" {
+                foreach ($s in $t.services) {
+                    $svc = Get-Service -Name $s.name -ErrorAction SilentlyContinue
+                    if ($svc) {
+                        sc.exe config $s.name start= $s.startup | Out-Null
+                        Stop-Service $s.name -Force -ErrorAction SilentlyContinue
+                    }
+                }
+            }
+
+            "scheduled_task" {
+                if ($t.taskName) {
+                    Get-ScheduledTask -TaskName $t.taskName -ErrorAction SilentlyContinue |
+                        Disable-ScheduledTask
+                }
+                if ($t.tasks) {
+                    foreach ($name in $t.tasks) {
+                        Get-ScheduledTask -TaskName $name -ErrorAction SilentlyContinue |
+                            Disable-ScheduledTask
+                    }
+                }
+            }
+        }
     }
+}
 
-    foreach ($s in $cfg.services) {
-        Apply-ServiceTweak $s
+function Undo-SystemTweaks {
+    param(
+        [string]$BackupPath
+    )
+
+    Get-ChildItem $BackupPath -Filter "*.json" | ForEach-Object {
+        $data = Get-Content $_.FullName | ConvertFrom-Json
+        if ($data.PSPath -and $data.PSChildName) {
+            Set-ItemProperty `
+                -Path $data.PSPath `
+                -Name $data.PSChildName `
+                -Value $data.$($data.PSChildName)
+        }
     }
-
-    Write-Host "Toi uu Windows hoan tat"
 }
