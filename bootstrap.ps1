@@ -28,7 +28,7 @@ function Test-IsAdmin {
 }
 
 if (-not (Test-IsAdmin)) {
-    Write-Host "❌ Vui long chay PowerShell bang quyen Administrator" -ForegroundColor Red
+    Write-Host "Vui long chay PowerShell bang quyen Administrator" -ForegroundColor Red
     Write-Host "➡ Right-click → Run as administrator"
     pause
     exit 1
@@ -69,8 +69,8 @@ if (-not (Test-Path $TargetDir)) {
     New-Item -ItemType Directory -Path $TargetDir -Force | Out-Null
 }
 
-Write-Host "📦 PMK Toolbox Bootstrap" -ForegroundColor Cyan
-Write-Host "📁 Install path: $TargetDir"
+Write-Host "PMK Toolbox Bootstrap" -ForegroundColor Cyan
+Write-Host "Install path: $TargetDir"
 Write-Host ""
 
 # ==================================================
@@ -79,7 +79,7 @@ Write-Host ""
 if (Test-Git) {
 
     if (Test-Path (Join-Path $TargetDir ".git")) {
-        Write-Host "🔄 Dang cap nhat ToiUuPC (git pull)..."
+        Write-Host "Dang cap nhat ToiUuPC (git pull)..."
         Push-Location $TargetDir
         git pull --rebase
         Pop-Location
@@ -129,7 +129,7 @@ else {
             Write-Host "⬇ $file"
             Download-File $url $out
         } catch {
-            Write-Host "❌ Loi tai: $file" -ForegroundColor Red
+            Write-Host "Loi tai: $file" -ForegroundColor Red
         }
     }
 }
@@ -138,7 +138,7 @@ else {
 # VERIFY MAIN FILE
 # ==================================================
 if (-not (Test-Path $MainFile)) {
-    Write-Host "❌ Khong tim thay ToiUuPC.ps1" -ForegroundColor Red
+    Write-Host "Khong tim thay ToiUuPC.ps1" -ForegroundColor Red
     pause
     exit 1
 }
@@ -147,7 +147,7 @@ if (-not (Test-Path $MainFile)) {
 # RUN TOOL
 # ==================================================
 Write-Host ""
-Write-Host "🚀 Khoi dong PMK Toolbox..." -ForegroundColor Green
+Write-Host "Khoi dong PMK Toolbox..." -ForegroundColor Green
 Write-Host ""
 
 Set-Location $TargetDir
