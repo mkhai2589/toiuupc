@@ -1,181 +1,234 @@
-# ===============================
-# 🛠️ ToiUuPC – Windows 10 / 11 Optimization Toolkit
-# Author : Phạm Minh Khải (PMK)
-# License: MIT
-# ===============================
+# =========================================
+# ToiUuPC - Bundled Version
+# Author: PMK
+# Windows PowerShell 5.1
+# =========================================
 
-param(
-    [switch]$Update
-)
+Set-StrictMode -Off
+$ErrorActionPreference = "Stop"
 
-# ===============================
-# GLOBAL CONFIG (BOOTSTRAP SAFE)
-# ===============================
-$Global:ToiUuPCRoot = "$env:ProgramData\ToiUuPC"
-$Global:LogFile     = "$ToiUuPCRoot\toiuupc.log"
-$Global:RepoRaw     = "https://raw.githubusercontent.com/mkhai2589/toiuupc/main/ToiUuPC-Bundled.ps1"
+# =========================================
+# ADMIN CHECK
+# =========================================
+$IsAdmin = ([Security.Principal.WindowsPrincipal] `
+    [Security.Principal.WindowsIdentity]::GetCurrent()
+).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 
-# ===============================
-# INIT
-# ===============================
-if (-not (Test-Path $ToiUuPCRoot)) {
-    New-Item -ItemType Directory -Path $ToiUuPCRoot | Out-Null
+if (-not $IsAdmin) {
+    Start-Process powershell `
+        -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" `
+        -Verb RunAs
+    exit
 }
 
+# =========================================
+# GLOBAL PATH
+# =========================================
+$Root = Join-Path $env:TEMP "ToiUuPC"
+$LogDir = Join-Path $Root "logs"
+$LogFile = Join-Path $LogDir "toiuupc.log"
+
+if (-not (Test-Path $LogDir)) {
+    New-Item -ItemType Directory -Path $LogDir -Force | Out-Null
+}
+
+# =========================================
+# LOGGING
+# =========================================
 function Write-Log {
     param([string]$Message)
-    $time = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    "$time | $Message" | Tee-Object -FilePath $LogFile -Append
+    $time = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
+    "$time | $Message" | Out-File -FilePath $LogFile -Append -Encoding UTF8
 }
 
-# ===============================
-# ADMIN CHECK
-# ===============================
-if (-not ([Security.Principal.WindowsPrincipal] `
-    [Security.Principal.WindowsIdentity]::GetCurrent()
-).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-    Write-Host "❌ Vui lòng chạy PowerShell với quyền Administrator" -ForegroundColor Red
-    exit
-}
-
-# ===============================
-# SELF UPDATE
-# ===============================
-if ($Update) {
-    Write-Host "🔄 Đang cập nhật ToiUuPC..." -ForegroundColor Cyan
-    try {
-        $content = Invoke-RestMethod $RepoRaw
-        $local   = "$ToiUuPCRoot\ToiUuPC-Bundled.ps1"
-        $content | Set-Content -Encoding UTF8 $local
-        Write-Host "✅ Cập nhật thành công. Chạy lại bằng:" -ForegroundColor Green
-        Write-Host "powershell -ExecutionPolicy Bypass -File `"$local`"" -ForegroundColor Yellow
-    } catch {
-        Write-Host "❌ Lỗi cập nhật: $_" -ForegroundColor Red
-    }
-    exit
-}
-
-# ===============================
+# =========================================
 # RESTORE POINT
-# ===============================
-function Create-RestorePoint {
+# =========================================
+function New-ToiUuPCRestorePoint {
+    Write-Host "Creating restore point..."
     Write-Log "Create restore point"
-    Checkpoint-Computer -Description "ToiUuPC Restore Point" -RestorePointType MODIFY_SETTINGS
+
+    Enable-ComputerRestore -Drive "C:\" -ErrorAction SilentlyContinue
+
+    Checkpoint-Computer `
+        -Description "ToiUuPC Restore Point" `
+        -RestorePointType "MODIFY_SETTINGS"
 }
 
-# ===============================
-# SYSTEM TWEAKS
-# ===============================
-function Apply-PrivacyTweaks {
-    Write-Log "Apply Privacy Tweaks"
+# =========================================
+# WINDOWS TWEAKS
+# =========================================
+function Invoke-WindowsTweaks {
 
-    $keys = @(
-        "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection",
-        "HKCU:\Software\Microsoft\Windows\CurrentVersion\AdvertisingInfo"
+    Write-Host "Applying Windows tweaks..."
+    Write-Log "Tweaks start"
+
+    New-ToiUuPCRestorePoint
+
+    $Tweaks = @(
+        # Disable Task View
+        @{ Path="HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"; Name="ShowTaskViewButton"; Value=0; Type="DWord" }
+
+        # Disable Widgets (Win11)
+        @{ Path="HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"; Name="TaskbarDa"; Value=0; Type="DWord" }
+
+        # Disable Chat
+        @{ Path="HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"; Name="TaskbarMn"; Value=0; Type="DWord" }
+
+        # Show file extensions
+        @{ Path="HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"; Name="HideFileExt"; Value=0; Type="DWord" }
+
+        # Disable Bing search
+        @{ Path="HKCU:\Software\Microsoft\Windows\CurrentVersion\Search"; Name="BingSearchEnabled"; Value=0; Type="DWord" }
     )
 
-    foreach ($k in $keys) {
-        if (-not (Test-Path $k)) { New-Item $k -Force | Out-Null }
+    foreach ($t in $Tweaks) {
+        if (-not (Test-Path $t.Path)) {
+            New-Item -Path $t.Path -Force | Out-Null
+        }
+        Set-ItemProperty `
+            -Path $t.Path `
+            -Name $t.Name `
+            -Value $t.Value `
+            -Type $t.Type
     }
 
-    Set-ItemProperty $keys[0] AllowTelemetry -Type DWord -Value 0
-    Set-ItemProperty $keys[1] Enabled -Type DWord -Value 0
+    Write-Host "Tweaks completed"
+    Write-Log "Tweaks end"
 }
 
-function Apply-PerformanceTweaks {
-    Write-Log "Apply Performance Tweaks"
-    powercfg -setactive SCHEME_MIN
-    Set-ItemProperty "HKCU:\Control Panel\Desktop" MenuShowDelay -Value 0
+# =========================================
+# CLEAN SYSTEM
+# =========================================
+function Invoke-CleanSystem {
+
+    Write-Host "Cleaning system..."
+    Write-Log "Clean start"
+
+    $Paths = @(
+        "$env:TEMP\*",
+        "$env:LOCALAPPDATA\Temp\*",
+        "C:\Windows\Temp\*"
+    )
+
+    foreach ($p in $Paths) {
+        Remove-Item $p -Recurse -Force -ErrorAction SilentlyContinue
+    }
+
+    Clear-RecycleBin -Force -ErrorAction SilentlyContinue
+
+    Write-Host "Clean completed"
+    Write-Log "Clean end"
 }
 
-# ===============================
-# DNS
-# ===============================
-function Set-DNSGoogle {
-    Write-Log "Set Google DNS"
+# =========================================
+# INSTALL APPS (WINGET)
+# =========================================
+function Invoke-AppInstall {
+
+    Write-Host "Installing applications..."
+    Write-Log "Install apps start"
+
+    $Apps = @(
+        "Google.Chrome",
+        "7zip.7zip",
+        "VideoLAN.VLC",
+        "Notepad++.Notepad++"
+    )
+
+    foreach ($app in $Apps) {
+        Start-Process winget `
+            -ArgumentList "install --id $app --silent --accept-package-agreements --accept-source-agreements" `
+            -Wait `
+            -NoNewWindow
+    }
+
+    Write-Host "Apps installed"
+    Write-Log "Install apps end"
+}
+
+# =========================================
+# DNS MANAGEMENT
+# =========================================
+function Set-DnsGoogle {
+
+    Write-Host "Setting Google DNS..."
+    Write-Log "DNS Google"
+
     Get-NetAdapter | Where-Object Status -eq "Up" | ForEach-Object {
-        Set-DnsClientServerAddress -InterfaceIndex $_.IfIndex `
+        Set-DnsClientServerAddress `
+            -InterfaceAlias $_.Name `
             -ServerAddresses 8.8.8.8,8.8.4.4
     }
 }
 
-function Set-DNSCloudflare {
-    Write-Log "Set Cloudflare DNS"
+function Set-DnsCloudflare {
+
+    Write-Host "Setting Cloudflare DNS..."
+    Write-Log "DNS Cloudflare"
+
     Get-NetAdapter | Where-Object Status -eq "Up" | ForEach-Object {
-        Set-DnsClientServerAddress -InterfaceIndex $_.IfIndex `
+        Set-DnsClientServerAddress `
+            -InterfaceAlias $_.Name `
             -ServerAddresses 1.1.1.1,1.0.0.1
     }
 }
 
-# ===============================
-# CLEAN SYSTEM
-# ===============================
-function Clean-System {
-    Write-Log "Clean system"
-    Remove-Item "$env:TEMP\*" -Recurse -Force -ErrorAction SilentlyContinue
-    Remove-Item "C:\Windows\Temp\*" -Recurse -Force -ErrorAction SilentlyContinue
-    Clear-RecycleBin -Force -ErrorAction SilentlyContinue
-}
+function Reset-Dns {
 
-# ===============================
-# WINGET
-# ===============================
-function Install-Apps {
-    $apps = @(
-        "Google.Chrome",
-        "Mozilla.Firefox",
-        "Microsoft.VisualStudioCode",
-        "7zip.7zip",
-        "Valve.Steam"
-    )
+    Write-Host "Reset DNS to automatic..."
+    Write-Log "DNS Reset"
 
-    foreach ($app in $apps) {
-        winget list --id $app | Out-Null
-        if ($LASTEXITCODE -ne 0) {
-            Write-Log "Install $app"
-            winget install --id $app --silent --accept-source-agreements --accept-package-agreements
-        }
+    Get-NetAdapter | Where-Object Status -eq "Up" | ForEach-Object {
+        Set-DnsClientServerAddress `
+            -InterfaceAlias $_.Name `
+            -ResetServerAddresses
     }
 }
 
-# ===============================
-# MENU
-# ===============================
-function Show-Menu {
-    Clear-Host
-    Write-Host "==============================="
-    Write-Host "🛠️  ToiUuPC – Windows Optimizer"
-    Write-Host "Author: Phạm Minh Khải (PMK)"
-    Write-Host "==============================="
-    Write-Host "1. Privacy Preset"
-    Write-Host "2. Performance Preset"
-    Write-Host "3. Install Popular Apps"
-    Write-Host "4. Set DNS (Google)"
-    Write-Host "5. Set DNS (Cloudflare)"
-    Write-Host "6. Clean System"
-    Write-Host "0. Exit"
-}
+# =========================================
+# GUI WPF
+# =========================================
+Add-Type -AssemblyName PresentationFramework
 
-# ===============================
-# MAIN
-# ===============================
-Create-RestorePoint
+$Xaml = @"
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        Title="ToiUuPC"
+        Height="420"
+        Width="420"
+        WindowStartupLocation="CenterScreen">
+    <StackPanel Margin="20">
+        <TextBlock Text="TOI UU PC"
+                   FontSize="22"
+                   FontWeight="Bold"
+                   Margin="0,0,0,20"/>
 
-do {
-    Show-Menu
-    $choice = Read-Host "Chọn chức năng"
+        <Button Name="BtnTweaks" Content="Toi uu Windows" Height="40" Margin="0,5"/>
+        <Button Name="BtnApps" Content="Cai ung dung" Height="40" Margin="0,5"/>
+        <Button Name="BtnDNSGoogle" Content="DNS Google" Height="40" Margin="0,5"/>
+        <Button Name="BtnDNSCloud" Content="DNS Cloudflare" Height="40" Margin="0,5"/>
+        <Button Name="BtnDNSReset" Content="Reset DNS" Height="40" Margin="0,5"/>
+        <Button Name="BtnClean" Content="Don dep he thong" Height="40" Margin="0,5"/>
+        <Button Name="BtnExit" Content="Thoat" Height="40" Margin="0,20,0,0"/>
+    </StackPanel>
+</Window>
+"@
 
-    switch ($choice) {
-        "1" { Apply-PrivacyTweaks }
-        "2" { Apply-PerformanceTweaks }
-        "3" { Install-Apps }
-        "4" { Set-DNSGoogle }
-        "5" { Set-DNSCloudflare }
-        "6" { Clean-System }
-        "0" { break }
-    }
+$Reader = New-Object System.Xml.XmlNodeReader ([xml]$Xaml)
+$Window = [Windows.Markup.XamlReader]::Load($Reader)
 
-    Pause
-} while ($true)
+# =========================================
+# GUI EVENTS
+# =========================================
+$Window.FindName("BtnTweaks").Add_Click({ Invoke-WindowsTweaks })
+$Window.FindName("BtnApps").Add_Click({ Invoke-AppInstall })
+$Window.FindName("BtnDNSGoogle").Add_Click({ Set-DnsGoogle })
+$Window.FindName("BtnDNSCloud").Add_Click({ Set-DnsCloudflare })
+$Window.FindName("BtnDNSReset").Add_Click({ Reset-Dns })
+$Window.FindName("BtnClean").Add_Click({ Invoke-CleanSystem })
+$Window.FindName("BtnExit").Add_Click({ $Window.Close() })
 
-Write-Host "✅ Hoàn tất. Log: $LogFile" -ForegroundColor Green
+# =========================================
+# START GUI
+# =========================================
+$Window.ShowDialog() | Out-Null
