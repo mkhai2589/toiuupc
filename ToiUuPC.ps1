@@ -1,10 +1,10 @@
-# ToiUuPC.ps1 - PMK Toolbox v3.3.2-final
-# Run: irm https://raw.githubusercontent.com/mkhai2589/toiuupc/main/ToiUuPC.ps1 | iex
+# ToiUuPC.ps1 - PMK Toolbox v3.3.2-final (Remote-safe version)
+# Run local: .\ToiUuPC.ps1
+# Run remote: irm https://raw.githubusercontent.com/mkhai2589/toiuupc/main/ToiUuPC.ps1 | iex
 # Author: Minh Khải (PMK) - https://www.facebook.com/khaiitcntt
-# Version: 3.3.2-final - Modular, fixed logo, input + ESC
 
 [CmdletBinding()]
-param([switch]$Silent)  # Thêm param cho silent mode
+param([switch]$Silent)  # Hỗ trợ chạy silent nếu cần sau này
 
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 Clear-Host
@@ -15,7 +15,7 @@ try {
     $Host.UI.RawUI.WindowSize = New-Object Management.Automation.Host.Size(100, 50)
 } catch { Write-Verbose "Console size not set: $_" }
 
-# Admin check
+# Kiểm tra quyền Admin
 if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     Write-Host "Yêu cầu chạy với quyền Administrator!" -ForegroundColor Red
     Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
@@ -24,18 +24,52 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
 
 $ProgressPreference = 'SilentlyContinue'
 
-# Load functions
+# ────────────────────────────────────────────────────────────────
+# Load functions - Hỗ trợ cả LOCAL và REMOTE
+# ────────────────────────────────────────────────────────────────
 $scriptDir = $PSScriptRoot
-if (-not $scriptDir) { $scriptDir = (Get-Location).Path }  # fallback remote
 
-. "$scriptDir\functions\Show-PMKLogo.ps1"
-. "$scriptDir\functions\utils.ps1"
-. "$scriptDir\functions\install-apps.ps1"
-. "$scriptDir\functions\tweaks.ps1"
-. "$scriptDir\functions\dns-management.ps1"
-. "$scriptDir\functions\clean-system.ps1"  # Thêm
+if ($scriptDir) {
+    # Local mode: dot-source từ folder functions
+    Write-Verbose "Local mode detected - loading from disk"
+    . "$scriptDir\functions\Show-PMKLogo.ps1"
+    . "$scriptDir\functions\utils.ps1"
+    . "$scriptDir\functions\install-apps.ps1"
+    . "$scriptDir\functions\tweaks.ps1"
+    . "$scriptDir\functions\dns-management.ps1"
+    . "$scriptDir\functions\clean-system.ps1"
+}
+else {
+    # Remote mode: tải functions trực tiếp từ GitHub raw
+    Write-Verbose "Remote mode detected - loading from GitHub raw"
+    $baseUrl = "https://raw.githubusercontent.com/mkhai2589/toiuupc/main/functions"
+    $functionFiles = @(
+        "Show-PMKLogo.ps1",
+        "utils.ps1",
+        "install-apps.ps1",
+        "tweaks.ps1",
+        "dns-management.ps1",
+        "clean-system.ps1"
+    )
 
-# Menu chính (sửa calls: Invoke-TweaksMenu, Invoke-CleanSystem, Set-DNSServerMenu)
+    foreach ($file in $functionFiles) {
+        try {
+            $url = "$baseUrl/$file"
+            $content = Invoke-RestMethod -Uri $url -UseBasicParsing -ErrorAction Stop
+            . ([ScriptBlock]::Create($content))
+            Write-Verbose "Loaded remote function: $file"
+        }
+        catch {
+            Write-Host "LỖI: Không thể tải function $file từ $url" -ForegroundColor Red
+            Write-Host $_.Exception.Message -ForegroundColor DarkRed
+            exit 1
+        }
+    }
+}
+
+# ────────────────────────────────────────────────────────────────
+# Menu chính
+# ────────────────────────────────────────────────────────────────
 do {
     Reset-ConsoleStyle
     Show-PMKLogo
@@ -56,7 +90,7 @@ do {
 
     $input = Read-Host
 
-    # ESC check
+    # ESC check (robust hơn)
     if ([Console]::KeyAvailable) {
         $key = [Console]::ReadKey($true)
         if ($key.Key -eq [ConsoleKey]::Escape) {
