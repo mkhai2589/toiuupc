@@ -1,18 +1,69 @@
-# 🛠️ ToiUuPC – Bộ công cụ tối ưu Windows 10 / 11
+📘 ToiUuPC — Windows Optimization Toolkit
 
-**ToiUuPC** là bộ công cụ tối ưu **Windows 10 / 11** được viết hoàn toàn bằng **PowerShell**, tập trung vào các tinh chỉnh **thực sự hiệu quả**, **có thể hoàn tác**, và **minh bạch**.
+ToiUuPC is a powerful all-in-one Windows optimization toolkit that helps users clean, tweak, manage DNS settings, install common applications, and monitor system performance — all from an easy-to-use PowerShell interface and optional graphical dashboard.
 
-Công cụ hướng tới người dùng muốn:
+📥 Installation
+Option 1 — Run Bootstrap (auto installer)
 
-- Windows gọn nhẹ hơn
-- Bảo mật & quyền riêng tư tốt hơn
-- Hiệu năng ổn định, không tweak bừa
+Open PowerShell as Administrator and run:
 
----
+irm https://raw.githubusercontent.com/mkhai2589/toiuupc/main/bootstrap.ps1 | iex
 
-## ▶️ Cách sử dụng
 
-```powershell
-irm https://raw.githubusercontent.com/mkhai2589/toiuupc/main/ToiUuPC.ps1 | iex
+This will download, update, and launch the toolkit.
 
-```
+Option 2 — Clone from GitHub
+git clone https://github.com/mkhai2589/toiuupc.git
+cd toiuupc
+powershell -ExecutionPolicy Bypass -File bootstrap.ps1
+
+🧭 Usage
+
+🚀 Features
+🧹 System Optimization
+
+Clean temporary files, update cache, logs, event logs, browser cache, shader cache, Windows Defender history, and more.
+
+Safe progress tracking with estimated freed space.
+
+⚙️ Windows Tweaks
+
+Apply privacy and performance tweaks (registry, services, scheduled tasks).
+
+Backup existing settings automatically for undo.
+
+📦 Application Installer
+
+Batch install popular tools using Winget and Microsoft Store.
+
+Supports presets like Office, Gaming, Privacy, etc.
+
+🌐 DNS Management
+
+Apply custom DNS servers (Google, Cloudflare, Quad9, AdGuard, etc.).
+
+Auto detect, latency test, and highlight fastest DNS.
+
+Reset back to DHCP.
+
+📊 Real-Time Dashboard
+
+Performance dashboard with CPU usage ring, RAM, Disk utilization, and system clean progress.
+
+Styled like MSI Afterburner overlay.
+
+Updates in realtime without blocking the UI.
+
+🖼️ Demo (optional)
+
+Add screenshots or animations here.
+
+![Dashboard](/path/to/screenshot.png)
+
+🛠️ Requirements
+
+Windows 10 or Windows 11
+
+PowerShell 5.1 or newer
+
+Administrator privileges (required for tweaks, DNS, cleaning)
