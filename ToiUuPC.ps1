@@ -1,17 +1,17 @@
 # ==================================================
-# ToiUuPC.ps1 - FINAL INTEGRATED VERSION
+# ToiUuPC.ps1 - FINAL INTEGRATED & FIXED VERSION
 # ==================================================
 
 chcp 65001 | Out-Null
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 Set-StrictMode -Off
-$ErrorActionPreference = "Continue"
+$ErrorActionPreference = "Stop"
 
 # ==================================================
-# RESOLVE SCRIPT ROOT (SAFE)
+# RESOLVE SCRIPT ROOT (IRM | IEX SAFE)
 # ==================================================
-if ($PSScriptRoot) {
+if ($PSScriptRoot -and (Test-Path $PSScriptRoot)) {
     $ROOT = $PSScriptRoot
 }
 elseif ($MyInvocation.MyCommand.Path) {
@@ -24,59 +24,73 @@ else {
 Set-Location $ROOT
 
 # ==================================================
-# PATHS (MATCH PROJECT STRUCTURE)
+# PROJECT PATHS
 # ==================================================
-$CFG  = Join-Path $ROOT "config"
 $FUNC = Join-Path $ROOT "functions"
+$CFG  = Join-Path $ROOT "config"
 $UI   = Join-Path $ROOT "ui"
 $LOG  = Join-Path $ROOT "runtime\logs"
 
 # ==================================================
-# VALIDATE FOLDERS
+# VALIDATE CORE STRUCTURE
 # ==================================================
-foreach ($p in @($CFG, $FUNC, $UI)) {
+foreach ($p in @($FUNC, $CFG, $UI)) {
     if (-not (Test-Path $p)) {
-        Write-Host "Missing required path: $p" -ForegroundColor Red
+        Write-Host "Missing required folder: $p" -ForegroundColor Red
         exit 1
     }
 }
 
 # ==================================================
-# LOAD FUNCTIONS
+# LOAD FUNCTIONS (ORDER MATTERS)
 # ==================================================
-Get-ChildItem $FUNC -Filter *.ps1 -File |
-    Sort-Object Name |
-    ForEach-Object {
-        . $_.FullName
+$functionOrder = @(
+    "utils.ps1",
+    "Show-PMKLogo.ps1",
+    "tweaks.ps1",
+    "install-apps.ps1",
+    "dns-management.ps1",
+    "clean-system.ps1",
+    "dashboard-engine.ps1"
+)
+
+foreach ($file in $functionOrder) {
+    $path = Join-Path $FUNC $file
+    if (Test-Path $path) {
+        . $path
     }
+    else {
+        Write-Host "Missing function file: $file" -ForegroundColor Red
+        exit 1
+    }
+}
 
 # ==================================================
-# INIT + ADMIN
+# INIT ENV + ADMIN
 # ==================================================
 Initialize-ToiUuPCEnvironment
 Ensure-Admin
 
 # ==================================================
-# DASHBOARD (WPF PERFORMANCE OVERLAY)
+# DASHBOARD (NON-BLOCKING WPF)
 # ==================================================
 function Show-Dashboard {
+
     Add-Type -AssemblyName PresentationFramework
     Add-Type -AssemblyName PresentationCore
     Add-Type -AssemblyName WindowsBase
 
-    $XamlPath = Join-Path $UI "Dashboard.xaml"
-    if (-not (Test-Path $XamlPath)) {
+    $xamlPath = Join-Path $UI "Dashboard.xaml"
+    if (-not (Test-Path $xamlPath)) {
         Write-Host "Dashboard.xaml not found" -ForegroundColor Red
         return
     }
 
-    [xml]$xaml = Get-Content $XamlPath -Raw
+    [xml]$xaml = Get-Content $xamlPath -Raw
     $reader = New-Object System.Xml.XmlNodeReader $xaml
     $Window = [Windows.Markup.XamlReader]::Load($reader)
 
-    # ============================
-    # BIND CONTROLS
-    # ============================
+    # ===== Bind controls =====
     $CpuRing  = $Window.FindName("CpuRing")
     $CpuText  = $Window.FindName("CpuText")
     $CpuBar   = $Window.FindName("CpuBar")
@@ -86,91 +100,76 @@ function Show-Dashboard {
     $DiskText = $Window.FindName("DiskText")
     $DiskWarn = $Window.FindName("DiskWarn")
 
-    # ============================
-    # PERFORMANCE COUNTERS
-    # ============================
+    # ===== Counters =====
     $cpuCounter = New-Object Diagnostics.PerformanceCounter(
         "Processor", "% Processor Time", "_Total"
     )
     $null = $cpuCounter.NextValue()
 
-    # ============================
-    # HELPER FUNCTIONS
-    # ============================
-    function Set-BarColor($bar, [int]$percent) {
-        if ($percent -ge 80) { $bar.Foreground = "Red" }
-        elseif ($percent -ge 60) { $bar.Foreground = "Gold" }
+    function Set-BarColor($bar, [int]$p) {
+        if ($p -ge 80) { $bar.Foreground = "Red" }
+        elseif ($p -ge 60) { $bar.Foreground = "Gold" }
         else { $bar.Foreground = "LimeGreen" }
     }
 
-    # ============================
-    # CPU RING GEOMETRY
-    # ============================
-    $centerX = 65
-    $centerY = 65
-    $radius  = 55
-
+    # ===== CPU Ring =====
+    $cx = 65; $cy = 65; $r = 55
     $arc = New-Object Windows.Media.ArcSegment
-    $arc.Size = New-Object Windows.Size($radius, $radius)
+    $arc.Size = New-Object Windows.Size($r, $r)
     $arc.SweepDirection = "Clockwise"
 
-    $figure = New-Object Windows.Media.PathFigure
-    $figure.StartPoint = New-Object Windows.Point($centerX, $centerY - $radius)
-    $figure.Segments.Add($arc)
+    $fig = New-Object Windows.Media.PathFigure
+    $fig.StartPoint = New-Object Windows.Point($cx, $cy - $r)
+    $fig.Segments.Add($arc)
 
-    $geometry = New-Object Windows.Media.PathGeometry
-    $geometry.Figures.Add($figure)
-    $CpuRing.Data = $geometry
+    $geo = New-Object Windows.Media.PathGeometry
+    $geo.Figures.Add($fig)
+    $CpuRing.Data = $geo
 
-    function Update-CpuRing([int]$percent) {
-        $angle = ($percent / 100) * 360
-        $rad   = ($angle - 90) * [Math]::PI / 180
-
+    function Update-CpuRing($p) {
+        $angle = ($p / 100) * 360
+        $rad = ($angle - 90) * [Math]::PI / 180
         $arc.Point = New-Object Windows.Point(
-            $centerX + $radius * [Math]::Cos($rad),
-            $centerY + $radius * [Math]::Sin($rad)
+            $cx + $r * [Math]::Cos($rad),
+            $cy + $r * [Math]::Sin($rad)
         )
         $arc.IsLargeArc = $angle -gt 180
     }
 
-    # ============================
-    # UPDATE TIMER
-    # ============================
+    # ===== Timer =====
     $timer = New-Object Windows.Threading.DispatcherTimer
-    $timer.Interval = [TimeSpan]::FromMilliseconds(1000)
+    $timer.Interval = [TimeSpan]::FromSeconds(1)
 
     $timer.Add_Tick({
 
-        # CPU
         $cpu = [Math]::Round($cpuCounter.NextValue(), 0)
         $CpuText.Text = "$cpu%"
         $CpuBar.Value = $cpu
         Set-BarColor $CpuBar $cpu
         Update-CpuRing $cpu
 
-        # RAM
         $os = Get-CimInstance Win32_OperatingSystem
-        $used = $os.TotalVisibleMemorySize - $os.FreePhysicalMemory
-        $ramPercent = [Math]::Round(($used / $os.TotalVisibleMemorySize) * 100, 0)
-        $RamBar.Value = $ramPercent
-        $RamText.Text = "$ramPercent%"
-        Set-BarColor $RamBar $ramPercent
-
-        # DISK
-        $disk = Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='C:'"
-        $diskPercent = [Math]::Round(
-            (($disk.Size - $disk.FreeSpace) / $disk.Size) * 100, 0
+        $ram = [Math]::Round(
+            (($os.TotalVisibleMemorySize - $os.FreePhysicalMemory)
+            / $os.TotalVisibleMemorySize) * 100, 0
         )
-        $DiskBar.Value = $diskPercent
-        $DiskText.Text = "$diskPercent% used"
-        Set-BarColor $DiskBar $diskPercent
-        $DiskWarn.Visibility = if ($diskPercent -ge 85) { "Visible" } else { "Collapsed" }
+        $RamBar.Value = $ram
+        $RamText.Text = "$ram%"
+        Set-BarColor $RamBar $ram
 
+        $disk = Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='C:'"
+        $dp = [Math]::Round((($disk.Size - $disk.FreeSpace) / $disk.Size) * 100, 0)
+        $DiskBar.Value = $dp
+        $DiskText.Text = "$dp% used"
+        Set-BarColor $DiskBar $dp
+        $DiskWarn.Visibility = if ($dp -ge 85) { "Visible" } else { "Collapsed" }
     })
 
     $Window.Add_Closed({ $timer.Stop() })
     $timer.Start()
-    $Window.ShowDialog() | Out-Null
+
+    # IMPORTANT: NON-BLOCKING
+    $Window.Show()
 }
 
 # ==================================================
@@ -193,40 +192,33 @@ function Show-MainMenu {
 # ==================================================
 # MAIN LOOP
 # ==================================================
-do {
+while ($true) {
+
     Show-MainMenu
     $c = Read-Host "Chon"
 
     switch ($c) {
 
         "1" {
-            $path = Join-Path $CFG "tweaks.json"
-            if (Test-Path $path) {
-                $cfg = Get-Content $path -Raw | ConvertFrom-Json
-                Invoke-TweaksMenu -Config $cfg
-            } else {
-                Write-Host "Không tìm thấy tweaks.json" -ForegroundColor Red
+            $p = Join-Path $CFG "tweaks.json"
+            if (Test-Path $p) {
+                Invoke-TweaksMenu (Get-Content $p -Raw | ConvertFrom-Json)
             }
             pause
         }
 
         "2" {
-            $path = Join-Path $CFG "applications.json"
-            if (Test-Path $path) {
-                $cfg = Get-Content $path -Raw | ConvertFrom-Json
-                Invoke-AppMenu -Config $cfg
-            } else {
-                Write-Host "Không tìm thấy applications.json" -ForegroundColor Red
+            $p = Join-Path $CFG "applications.json"
+            if (Test-Path $p) {
+                Invoke-AppMenu (Get-Content $p -Raw | ConvertFrom-Json)
             }
             pause
         }
 
         "3" {
-            $path = Join-Path $CFG "dns.json"
-            if (Test-Path $path) {
-                Invoke-DnsMenu -ConfigPath $path
-            } else {
-                Write-Host "Không tìm thấy dns.json" -ForegroundColor Red
+            $p = Join-Path $CFG "dns.json"
+            if (Test-Path $p) {
+                Invoke-DnsMenu -ConfigPath $p
             }
             pause
         }
@@ -248,11 +240,5 @@ do {
         "0" {
             break
         }
-
-        default {
-            Write-Host "Lựa chọn không hợp lệ"
-            Start-Sleep 1
-        }
     }
-
-} while ($true)
+}
