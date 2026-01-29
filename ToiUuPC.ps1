@@ -9,29 +9,46 @@ Set-StrictMode -Off
 $ErrorActionPreference = "Continue"
 
 # ==================================================
-# FORCE WORKING DIRECTORY = SCRIPT ROOT
+# RESOLVE SCRIPT ROOT (SAFE)
 # ==================================================
-$ScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
-Set-Location $ScriptRoot
+if ($PSScriptRoot) {
+    $ROOT = $PSScriptRoot
+}
+elseif ($MyInvocation.MyCommand.Path) {
+    $ROOT = Split-Path -Parent $MyInvocation.MyCommand.Path
+}
+else {
+    $ROOT = Get-Location
+}
+
+Set-Location $ROOT
 
 # ==================================================
 # PATHS (MATCH PROJECT STRUCTURE)
 # ==================================================
-$FUNC = Join-Path $ScriptRoot "functions"
-$CFG  = Join-Path $ScriptRoot "config"
-$UI   = Join-Path $ScriptRoot "ui"
+$CFG  = Join-Path $ROOT "config"
+$FUNC = Join-Path $ROOT "functions"
+$UI   = Join-Path $ROOT "ui"
+$LOG  = Join-Path $ROOT "runtime\logs"
+
+# ==================================================
+# VALIDATE FOLDERS
+# ==================================================
+foreach ($p in @($CFG, $FUNC, $UI)) {
+    if (-not (Test-Path $p)) {
+        Write-Host "Missing required path: $p" -ForegroundColor Red
+        exit 1
+    }
+}
 
 # ==================================================
 # LOAD FUNCTIONS
 # ==================================================
-if (-not (Test-Path $FUNC)) {
-    Write-Host "Khong tim thay thu muc functions" -ForegroundColor Red
-    exit 1
-}
-
-Get-ChildItem $FUNC -Filter *.ps1 | Sort-Object Name | ForEach-Object {
-    . $_.FullName
-}
+Get-ChildItem $FUNC -Filter *.ps1 -File |
+    Sort-Object Name |
+    ForEach-Object {
+        . $_.FullName
+    }
 
 # ==================================================
 # INIT + ADMIN
@@ -43,14 +60,13 @@ Ensure-Admin
 # DASHBOARD (WPF PERFORMANCE OVERLAY)
 # ==================================================
 function Show-Dashboard {
-
     Add-Type -AssemblyName PresentationFramework
     Add-Type -AssemblyName PresentationCore
     Add-Type -AssemblyName WindowsBase
 
     $XamlPath = Join-Path $UI "Dashboard.xaml"
     if (-not (Test-Path $XamlPath)) {
-        Write-Host "Khong tim thay Dashboard.xaml" -ForegroundColor Red
+        Write-Host "Dashboard.xaml not found" -ForegroundColor Red
         return
     }
 
@@ -58,9 +74,9 @@ function Show-Dashboard {
     $reader = New-Object System.Xml.XmlNodeReader $xaml
     $Window = [Windows.Markup.XamlReader]::Load($reader)
 
-    # ================================
+    # ============================
     # BIND CONTROLS
-    # ================================
+    # ============================
     $CpuRing  = $Window.FindName("CpuRing")
     $CpuText  = $Window.FindName("CpuText")
     $CpuBar   = $Window.FindName("CpuBar")
@@ -70,26 +86,26 @@ function Show-Dashboard {
     $DiskText = $Window.FindName("DiskText")
     $DiskWarn = $Window.FindName("DiskWarn")
 
-    # ================================
+    # ============================
     # PERFORMANCE COUNTERS
-    # ================================
+    # ============================
     $cpuCounter = New-Object Diagnostics.PerformanceCounter(
         "Processor", "% Processor Time", "_Total"
     )
     $null = $cpuCounter.NextValue()
 
-    # ================================
-    # HELPERS
-    # ================================
+    # ============================
+    # HELPER FUNCTIONS
+    # ============================
     function Set-BarColor($bar, [int]$percent) {
         if ($percent -ge 80) { $bar.Foreground = "Red" }
         elseif ($percent -ge 60) { $bar.Foreground = "Gold" }
         else { $bar.Foreground = "LimeGreen" }
     }
 
-    # ================================
-    # CPU RING GEOMETRY (SMOOTH)
-    # ================================
+    # ============================
+    # CPU RING GEOMETRY
+    # ============================
     $centerX = 65
     $centerY = 65
     $radius  = 55
@@ -117,9 +133,9 @@ function Show-Dashboard {
         $arc.IsLargeArc = $angle -gt 180
     }
 
-    # ================================
+    # ============================
     # UPDATE TIMER
-    # ================================
+    # ============================
     $timer = New-Object Windows.Threading.DispatcherTimer
     $timer.Interval = [TimeSpan]::FromMilliseconds(1000)
 
@@ -136,7 +152,6 @@ function Show-Dashboard {
         $os = Get-CimInstance Win32_OperatingSystem
         $used = $os.TotalVisibleMemorySize - $os.FreePhysicalMemory
         $ramPercent = [Math]::Round(($used / $os.TotalVisibleMemorySize) * 100, 0)
-
         $RamBar.Value = $ramPercent
         $RamText.Text = "$ramPercent%"
         Set-BarColor $RamBar $ramPercent
@@ -146,7 +161,6 @@ function Show-Dashboard {
         $diskPercent = [Math]::Round(
             (($disk.Size - $disk.FreeSpace) / $disk.Size) * 100, 0
         )
-
         $DiskBar.Value = $diskPercent
         $DiskText.Text = "$diskPercent% used"
         Set-BarColor $DiskBar $diskPercent
@@ -154,10 +168,7 @@ function Show-Dashboard {
 
     })
 
-    $Window.Add_Closed({
-        $timer.Stop()
-    })
-
+    $Window.Add_Closed({ $timer.Stop() })
     $timer.Start()
     $Window.ShowDialog() | Out-Null
 }
@@ -194,7 +205,7 @@ do {
                 $cfg = Get-Content $path -Raw | ConvertFrom-Json
                 Invoke-TweaksMenu -Config $cfg
             } else {
-                Write-Host "Khong tim thay tweaks.json" -ForegroundColor Red
+                Write-Host "Không tìm thấy tweaks.json" -ForegroundColor Red
             }
             pause
         }
@@ -205,7 +216,7 @@ do {
                 $cfg = Get-Content $path -Raw | ConvertFrom-Json
                 Invoke-AppMenu -Config $cfg
             } else {
-                Write-Host "Khong tim thay applications.json" -ForegroundColor Red
+                Write-Host "Không tìm thấy applications.json" -ForegroundColor Red
             }
             pause
         }
@@ -215,7 +226,7 @@ do {
             if (Test-Path $path) {
                 Invoke-DnsMenu -ConfigPath $path
             } else {
-                Write-Host "Khong tim thay dns.json" -ForegroundColor Red
+                Write-Host "Không tìm thấy dns.json" -ForegroundColor Red
             }
             pause
         }
@@ -234,10 +245,12 @@ do {
             Show-Dashboard
         }
 
-        "0" { break }
+        "0" {
+            break
+        }
 
         default {
-            Write-Host "Lua chon khong hop le"
+            Write-Host "Lựa chọn không hợp lệ"
             Start-Sleep 1
         }
     }
