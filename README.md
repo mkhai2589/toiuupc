@@ -33,4 +33,5 @@ Open **PowerShell as Administrator** and run:
 irm https://raw.githubusercontent.com/mkhai2589/toiuupc/main/bootstrap.ps1 | iex
 
 
-irm https://raw.githubusercontent.com/mkhai2589/toiuupc/main/bootstrap.ps1 | iex
+irm https://raw.githubusercontent.com/mkhai2589/toiuupc/main/ToiUuPC.ps1 | iex
+
