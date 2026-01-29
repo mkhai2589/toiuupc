@@ -1,92 +1,195 @@
-# Sample Apps (Thay bằng config/applications.json nếu muốn: $appsConfig = ConvertFrom-Json (Get-Content "$PSScriptRoot\..\config\applications.json"))
-$AppCategories = @{
-    "Essential" = @(
-        @{STT=1; Name="Google Chrome"; ID="Google.Chrome"},
-        @{STT=2; Name="7-Zip"; ID="7zip.7zip"},
-        @{STT=3; Name="Notepad++"; ID="Notepad++.Notepad++"}
-    )
-    # Add more categories...
+# ==========================================
+# PMK ToiUuPC – Application Installer Engine
+# UI: Console Checkbox
+# Log: logs/apps.log
+# Rollback: winget uninstall
+# ==========================================
+
+$ErrorActionPreference = "Stop"
+
+# ---------- Paths ----------
+$Root = Split-Path -Parent $PSScriptRoot
+$ConfigPath = Join-Path $Root "config\applications.json"
+$LogDir = Join-Path $Root "logs"
+$LogFile = Join-Path $LogDir "apps.log"
+
+if (-not (Test-Path $LogDir)) {
+    New-Item -ItemType Directory -Path $LogDir | Out-Null
 }
 
-function Install-AppsQuick {
-    Reset-ConsoleStyle
-    Show-PMKLogo
-    Show-SystemHeader
+# ---------- Logging ----------
+function Write-AppLog {
+    param (
+        [string]$Message,
+        [string]$Level = "INFO"
+    )
+    $time = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    "$time [$Level] $Message" | Tee-Object -FilePath $LogFile -Append
+}
 
-    Write-Host "DANH SÁCH ỨNG DỤNG CÓ THỂ CÀI NHANH" -ForegroundColor $HEADER_COLOR
-    Write-Host "====================================" -ForegroundColor $BORDER_COLOR
+# ---------- Winget Check ----------
+function Test-Winget {
+    if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
+        Write-Host "❌ Winget chưa có trên hệ thống." -ForegroundColor Red
+        Write-Host "👉 Yêu cầu Windows 10 1809+ hoặc Windows 11." -ForegroundColor Yellow
+        Write-AppLog "Winget not found" "ERROR"
+        return $false
+    }
+    return $true
+}
+
+# ---------- Load applications.json ----------
+function Load-ApplicationsConfig {
+    if (-not (Test-Path $ConfigPath)) {
+        throw "❌ Không tìm thấy applications.json"
+    }
+    return Get-Content $ConfigPath -Raw | ConvertFrom-Json
+}
+
+# ---------- Detect installed app ----------
+function Test-AppInstalled {
+    param ([string]$PackageId)
+
+    $result = winget list --id $PackageId --exact 2>$null
+    return ($result -match $PackageId)
+}
+
+# ---------- UI: Select Preset ----------
+function Select-Preset {
+    Clear-Host
+    Write-Host "===== CHỌN PRESET =====" -ForegroundColor Cyan
+    Write-Host "1. Office"
+    Write-Host "2. Gaming"
+    Write-Host "3. Privacy"
+    Write-Host "4. Tùy chọn thủ công"
     Write-Host ""
 
-    foreach ($category in $AppCategories.Keys) {
-        $apps = $AppCategories[$category]
-        Write-Host $category -ForegroundColor $HEADER_COLOR
-        Write-Host "------------------------------------" -ForegroundColor $BORDER_COLOR
+    switch (Read-Host "Chọn") {
+        "1" { return "Office" }
+        "2" { return "Gaming" }
+        "3" { return "Privacy" }
+        default { return $null }
+    }
+}
 
-        $half = [Math]::Ceiling($apps.Count / 2)
-        for ($j = 0; $j -lt $half; $j++) {
-            $app1 = $apps[$j]
-            $app2 = if ($j + $half -lt $apps.Count) { $apps[$j + $half] } else { $null }
+# ---------- UI: Checkbox Select ----------
+function Select-Applications {
+    param ([array]$Apps)
 
-            $line1 = " [$($app1.STT)] $($app1.Name.PadRight(35))"
-            $line2 = if ($app2) { " [$($app2.STT)] $($app2.Name.PadRight(35))" } else { "" }
-
-            Write-Host $line1 -NoNewline -ForegroundColor $HEADER_COLOR
-            if ($app2) {
-                Write-Host "  " -NoNewline
-                Write-Host $line2 -ForegroundColor $HEADER_COLOR
-            } else {
-                Write-Host ""
-            }
-        }
-        Write-Host ""
+    $selected = @{}
+    for ($i = 0; $i -lt $Apps.Count; $i++) {
+        $selected[$i] = $false
     }
 
-    Write-Host "====================================" -ForegroundColor $BORDER_COLOR
-    Write-Host ""
-    Write-Host "Hướng dẫn:" -ForegroundColor $TEXT_COLOR
-    Write-Host " - Nhập STT (ví dụ: 1,4,7) hoặc Winget ID" -ForegroundColor $TEXT_COLOR
-    Write-Host " - Nhấn ESC để thoát" -ForegroundColor $TEXT_COLOR
-    Write-Host ""
+    while ($true) {
+        Clear-Host
+        Write-Host "===== CHỌN ỨNG DỤNG =====" -ForegroundColor Cyan
+        Write-Host "Số = bật/tắt | A = tất | N = bỏ | ENTER = tiếp tục`n" -ForegroundColor DarkGray
 
-    Write-Host "Nhập lựa chọn: " -NoNewline -ForegroundColor $HEADER_COLOR
-    $input = Read-Host
+        for ($i = 0; $i -lt $Apps.Count; $i++) {
+            $check = if ($selected[$i]) { "[x]" } else { "[ ]" }
+            $installed = Test-AppInstalled $Apps[$i].packageId
+            $status = if ($installed) { "(đã cài)" } else { "" }
+            $color = if ($installed) { "DarkGray" } else { "White" }
 
-    # Robust ESC check
-    if ([Console]::KeyAvailable) {
-        $key = [Console]::ReadKey($true)
-        if ($key.Key -eq [ConsoleKey]::Escape) {
-            Write-Host "`nThoát..." -ForegroundColor $BORDER_COLOR
-            return
+            Write-Host ("{0,2}. {1} {2} {3}" -f ($i + 1), $check, $Apps[$i].name, $status) -ForegroundColor $color
+        }
+
+        $input = Read-Host "`nChọn"
+        if ([string]::IsNullOrWhiteSpace($input)) { break }
+
+        switch ($input.ToUpper()) {
+            "A" { $selected.Keys | ForEach-Object { $selected[$_] = $true } }
+            "N" { $selected.Keys | ForEach-Object { $selected[$_] = $false } }
+            default {
+                if ($input -match '^\d+$') {
+                    $idx = [int]$input - 1
+                    if ($idx -ge 0 -and $idx -lt $Apps.Count) {
+                        $selected[$idx] = -not $selected[$idx]
+                    }
+                }
+            }
         }
     }
 
-    $items = $input.Split(',').Trim()
-    $success = 0
-    $fail = 0
+    return $selected
+}
 
-    foreach ($item in $items) {
-        $app = $null
-        if ($item -match '^\d+$') {
-            foreach ($cat in $AppCategories.Values) {
-                $app = $cat | Where-Object { $_.STT -eq [int]$item }
-                if ($app) { break }
-            }
+# ---------- Install Apps ----------
+function Install-Applications {
+    param (
+        [array]$Apps,
+        [hashtable]$Selected
+    )
+
+    foreach ($key in $Selected.Keys) {
+        if (-not $Selected[$key]) { continue }
+
+        $app = $Apps[$key]
+
+        if (Test-AppInstalled $app.packageId) {
+            Write-Host "⏭ Đã cài: $($app.name)" -ForegroundColor DarkGray
+            Write-AppLog "Skipped (already installed): $($app.packageId)"
+            continue
         }
+
+        Write-Host "`n➡ Cài $($app.name)..." -ForegroundColor Yellow
+        Write-AppLog "Installing $($app.packageId)"
 
         try {
-            if ($app) {
-                winget install --id $app.ID --silent --accept-package-agreements --accept-source-agreements -ErrorAction Stop
-            } else {
-                winget install --id $item --silent --accept-package-agreements --accept-source-agreements -ErrorAction Stop
-            }
-            $success++
-        } catch {
-            $fail++
-            Write-Warning "Failed: $item - $_"
+            winget install `
+                --id $app.packageId `
+                --source $app.source `
+                --accept-package-agreements `
+                --accept-source-agreements `
+                --silent
+
+            Write-AppLog "Installed $($app.packageId)" "SUCCESS"
+        }
+        catch {
+            Write-Host "❌ Lỗi khi cài $($app.name)" -ForegroundColor Red
+            Write-AppLog "Failed $($app.packageId): $_" "ERROR"
         }
     }
+}
 
-    Write-Host "Kết quả: $success thành công, $fail thất bại" -ForegroundColor $(if ($fail -eq 0) { $SUCCESS_COLOR } else { $ERROR_COLOR })
-    Write-Host "Nhấn phím bất kỳ để tiếp tục..." -ForegroundColor $HEADER_COLOR
-    $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+# ---------- Rollback ----------
+function Rollback-Applications {
+    param ([array]$Apps)
+
+    foreach ($app in $Apps) {
+        if (Test-AppInstalled $app.packageId) {
+            Write-Host "↩ Gỡ $($app.name)" -ForegroundColor Yellow
+            Write-AppLog "Uninstalling $($app.packageId)"
+
+            winget uninstall --id $app.packageId --silent
+        }
+    }
+}
+
+# ---------- MAIN ENTRY ----------
+function Invoke-AppInstaller {
+
+    if (-not (Test-Winget)) { return }
+
+    $config = Load-ApplicationsConfig
+    $preset = Select-Preset
+
+    if ($preset) {
+        $apps = $config.applications | Where-Object { $_.preset -contains $preset }
+    }
+    else {
+        $apps = $config.applications
+    }
+
+    if ($apps.Count -eq 0) {
+        Write-Host "❌ Không có ứng dụng phù hợp preset." -ForegroundColor Red
+        return
+    }
+
+    $selected = Select-Applications -Apps $apps
+    Install-Applications -Apps $apps -Selected $selected
+
+    Write-Host "`n✅ Hoàn tất cài ứng dụng." -ForegroundColor Green
+    Write-AppLog "Installation finished"
 }

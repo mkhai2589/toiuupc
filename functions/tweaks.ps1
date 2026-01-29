@@ -1,135 +1,233 @@
-# tweaks.ps1 - Quản lý và áp dụng tweaks an toàn (tối ưu, không dùng Invoke-Expression)
+# =========================================================
+# tweaks.ps1 – Engine Tối Ưu (KHÔNG UI)
+# Chỉ xử lý logic tweak – được gọi từ ToiUuPC.ps1
+# =========================================================
 
-function Invoke-TweaksMenu {
-    [CmdletBinding()]
-    param()
+Set-StrictMode -Version Latest
 
-    # Kiểm tra quyền Admin (tweaks cần quyền cao)
-    if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-        Write-Host "Cần chạy với quyền Administrator để áp dụng tweaks!" -ForegroundColor Red
-        return
+# ---------------- ĐƯỜNG DẪN ----------------
+$Root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
+
+$ConfigDir  = Join-Path $Root "config"
+$RuntimeDir = Join-Path $Root "runtime"
+
+$LogDir     = Join-Path $RuntimeDir "logs"
+$BackupDir  = Join-Path $RuntimeDir "backups"
+
+$TweaksFile = Join-Path $ConfigDir "tweaks.json"
+$LogFile    = Join-Path $LogDir "tweaks.log"
+
+New-Item -ItemType Directory -Force -Path $LogDir, $BackupDir | Out-Null
+
+# ---------------- GHI LOG ----------------
+function Write-TweakLog {
+    param(
+        [string]$Message,
+        [string]$Level = "INFO"
+    )
+
+    $dong = "[{0}] [{1}] {2}" -f (Get-Date -Format "yyyy-MM-dd HH:mm:ss"), $Level, $Message
+    Add-Content -Path $LogFile -Value $dong -Encoding UTF8
+}
+
+# ---------------- HIỂN THỊ CONSOLE CÓ MÀU ----------------
+function Write-TweakConsole {
+    param(
+        [string]$Message,
+        [string]$Level = "INFO"
+    )
+
+    switch ($Level) {
+        "DANGEROUS" { Write-Host $Message -ForegroundColor Red }
+        "WARN"      { Write-Host $Message -ForegroundColor Yellow }
+        "SUCCESS"   { Write-Host $Message -ForegroundColor Green }
+        default     { Write-Host $Message }
     }
+}
 
-    # Load config
-    $jsonPath = "$PSScriptRoot\..\config\tweaks.json"
-    if (-not (Test-Path $jsonPath)) {
-        Write-Host "Không tìm thấy file tweaks.json" -ForegroundColor Yellow
-        return
-    }
+# ---------------- KIỂM TRA HỆ ĐIỀU HÀNH ----------------
+$CurrentOS = [System.Environment]::OSVersion.Version
+
+function Test-OSGuard {
+    param($Guard)
+
+    if (-not $Guard) { return $true }
 
     try {
-        $tweaksJson = Get-Content $jsonPath -Raw -ErrorAction Stop | ConvertFrom-Json
+        $min = [version]$Guard.min
+        $max = [version]$Guard.max
+        return ($CurrentOS -ge $min -and $CurrentOS -le $max)
     } catch {
-        Write-Host "Lỗi đọc tweaks.json: $($_.Exception.Message)" -ForegroundColor Red
-        return
+        return $false
     }
+}
 
-    # Xây dựng danh sách tweaks theo category
-    $tweaksByCategory = @{}
-    foreach ($category in $tweaksJson.PSObject.Properties.Name) {
-        $tweaksByCategory[$category] = $tweaksJson.$category
+# ---------------- CẤU TRÚC SAO LƯU ----------------
+$Global:Backup = @{
+    timestamp = Get-Date
+    registry  = @{}
+    services  = @{}
+    tasks     = @{}
+}
+
+function Backup-Registry {
+    param($Path, $Name)
+
+    try {
+        $v = Get-ItemProperty -Path $Path -Name $Name -ErrorAction Stop
+        $Backup.registry["$Path|$Name"] = $v.$Name
+    } catch {
+        $Backup.registry["$Path|$Name"] = "__KHÔNG_TỒN_TẠI__"
     }
+}
 
-    # Hiển thị danh sách
-    Clear-Host
-    Write-Host "DANH SÁCH TWEAKS CÓ SẴN" -ForegroundColor Cyan
-    Write-Host "=============================" -ForegroundColor DarkGray
+function Backup-Service {
+    param($Name)
 
-    $allTweaks = @{}
-    $index = 1
-    foreach ($category in $tweaksByCategory.Keys) {
-        Write-Host "`n$category" -ForegroundColor Yellow
-        Write-Host ("-" * $category.Length) -ForegroundColor DarkGray
+    $s = Get-Service -Name $Name -ErrorAction SilentlyContinue
+    if ($s) { $Backup.services[$Name] = $s.StartType }
+}
 
-        foreach ($tweak in $tweaksByCategory[$category]) {
-            $tweak | Add-Member -NotePropertyName "Index" -NotePropertyValue $index -Force
-            $allTweaks[$index] = $tweak
-            Write-Host " [$index] $($tweak.Name)" -ForegroundColor White
-            $index++
+function Backup-Task {
+    param($Name)
+
+    $t = Get-ScheduledTask -TaskName $Name -ErrorAction SilentlyContinue
+    if ($t) { $Backup.tasks[$Name] = $t.State }
+}
+
+function Save-Backup {
+    $file = Join-Path $BackupDir ("tweaks_backup_{0}.json" -f (Get-Date -Format "yyyyMMdd_HHmmss"))
+    $Backup | ConvertTo-Json -Depth 6 | Out-File $file -Encoding UTF8
+    Write-TweakLog "Đã lưu bản sao lưu: $file"
+}
+
+# ---------------- ÁP DỤNG TWEAK ----------------
+function Apply-RegistryAction {
+    param($A)
+
+    Backup-Registry $A.path $A.name
+    New-Item -Path $A.path -Force | Out-Null
+    Set-ItemProperty -Path $A.path -Name $A.name -Value $A.value -Type $A.value_type
+}
+
+function Apply-ServiceAction {
+    param($A)
+
+    Backup-Service $A.name
+    Set-Service -Name $A.name -StartupType $A.startup -ErrorAction SilentlyContinue
+}
+
+function Apply-TaskAction {
+    param($A)
+
+    if ($A.task) {
+        Backup-Task $A.task
+        if ($A.action -eq "Disable") {
+            Disable-ScheduledTask -TaskName $A.task -ErrorAction SilentlyContinue
+        } else {
+            Enable-ScheduledTask -TaskName $A.task -ErrorAction SilentlyContinue
         }
     }
 
-    Write-Host "`nHướng dẫn:" -ForegroundColor Cyan
-    Write-Host " - Nhập số (ví dụ: 1,3,5-8) để chọn tweak"
-    Write-Host " - Nhập 'all' để áp dụng tất cả"
-    Write-Host " - Nhập 'r' để revert (nếu có)"
-    Write-Host " - Nhấn ESC để thoát" -ForegroundColor DarkGray
-    Write-Host ""
-
-    Write-Host "Lựa chọn của bạn: " -NoNewline -ForegroundColor Cyan
-    $choice = Read-Host
-
-    if ([Console]::KeyAvailable) {
-        $key = [Console]::ReadKey($true)
-        if ($key.Key -eq [ConsoleKey]::Escape) { return }
-    }
-
-    $selectedIndices = @()
-
-    if ($choice -eq 'all') {
-        $selectedIndices = 1..($index-1)
-    } elseif ($choice -eq 'r') {
-        Write-Host "Chức năng revert chưa được triển khai đầy đủ." -ForegroundColor Yellow
-        return
-    } else {
-        foreach ($part in $choice.Split(',')) {
-            $part = $part.Trim()
-            if ($part -match '^(\d+)-(\d+)$') {
-                $start = [int]$Matches[1]
-                $end   = [int]$Matches[2]
-                $selectedIndices += $start..$end
-            } elseif ($part -match '^\d+$') {
-                $selectedIndices += [int]$part
-            }
+    if ($A.tasks) {
+        foreach ($t in $A.tasks) {
+            Backup-Task $t
+            Disable-ScheduledTask -TaskName $t -ErrorAction SilentlyContinue
         }
     }
+}
 
-    $selectedTweaks = $selectedIndices | Where-Object { $allTweaks.ContainsKey($_) } | ForEach-Object { $allTweaks[$_] }
+# ---------------- ÁP DỤNG 1 TWEAK ----------------
+function Apply-Tweak {
+    param($Tweak)
 
-    if ($selectedTweaks.Count -eq 0) {
-        Write-Host "Không có tweak nào được chọn." -ForegroundColor Yellow
+    if (-not (Test-OSGuard $Tweak.os_guard)) {
+        Write-TweakLog "BỎ QUA (KHÔNG PHÙ HỢP OS): $($Tweak.id)" "WARN"
         return
     }
 
-    # Xác nhận trước khi áp dụng
-    Write-Host "`nBạn sắp áp dụng $($selectedTweaks.Count) tweak sau:" -ForegroundColor Cyan
-    $selectedTweaks | ForEach-Object { Write-Host " - $($_.Name)" }
-    Write-Host "`nTiếp tục? (Y/N): " -NoNewline -ForegroundColor Yellow
-    $confirm = Read-Host
-    if ($confirm -notmatch '^[yY]$') { Write-Host "Đã hủy." -ForegroundColor Yellow; return }
-
-    # Tạo điểm khôi phục (nếu hàm tồn tại từ utils.ps1)
-    if (Get-Command Create-RestorePoint -ErrorAction SilentlyContinue) {
-        Create-RestorePoint
-    } else {
-        Write-Host "Không tìm thấy Create-RestorePoint, bỏ qua điểm khôi phục." -ForegroundColor Yellow
+    if ($Tweak.level -eq "dangerous") {
+        Write-TweakConsole "⚠ TWEAK NGUY HIỂM: $($Tweak.name)" "DANGEROUS"
     }
 
-    # Áp dụng từng tweak
-    foreach ($tweak in $selectedTweaks) {
-        Write-Host "`nĐang áp dụng: $($tweak.Name)" -ForegroundColor Cyan
+    Write-TweakLog "ÁP DỤNG TWEAK: $($Tweak.id)"
 
-        try {
-            # Thay vì Invoke-Expression nguy hiểm, dùng switch/map action
-            switch -Regex ($tweak.Name) {
-                "Tạo điểm khôi phục"            { Create-RestorePoint }
-                "Xóa file tạm"                   { Remove-Item -Path "$env:TEMP\*", "C:\Windows\Temp\*" -Recurse -Force -ErrorAction SilentlyContinue }
-                "Vô hiệu hóa Telemetry"          { Set-RegistryTweak -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection" -Name "AllowTelemetry" -Value 0 -CreatePath }
-                # Thêm mapping cho các tweak khác từ tweaks.json (bạn mở rộng dần)
-                "Tắt Cortana"                    { Set-RegistryTweak -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search" -Name "AllowCortana" -Value 0 -CreatePath }
-                "Xóa OneDrive"                   { taskkill /f /im OneDrive.exe; & "$env:SystemRoot\SysWOW64\OneDriveSetup.exe" /uninstall }
-                "Remove Edge"                    { Stop-Process -Name msedge -Force -ErrorAction SilentlyContinue; winget uninstall Microsoft.Edge --silent }
-                default {
-                    Write-Host "Chưa hỗ trợ action cho tweak này: $($tweak.Name)" -ForegroundColor Yellow
-                }
-            }
-            Write-Host "Hoàn tất: $($tweak.Name)" -ForegroundColor Green
-        } catch {
-            Write-Host "Lỗi khi áp dụng $($tweak.Name): $($_.Exception.Message)" -ForegroundColor Red
+    foreach ($a in $Tweak.apply) {
+        switch ($a.type) {
+            "registry"       { Apply-RegistryAction $a }
+            "service"        { Apply-ServiceAction $a }
+            "scheduled_task" { Apply-TaskAction $a }
+        }
+    }
+}
+
+# ---------------- HOÀN TÁC (ROLLBACK) ----------------
+function Restore-LastBackup {
+
+    $last = Get-ChildItem $BackupDir -Filter "tweaks_backup_*.json" |
+            Sort-Object LastWriteTime -Descending |
+            Select-Object -First 1
+
+    if (-not $last) { throw "Không tìm thấy bản sao lưu nào" }
+
+    $data = Get-Content $last.FullName -Raw | ConvertFrom-Json
+    Write-TweakLog "HOÀN TÁC từ $($last.Name)" "WARN"
+
+    foreach ($k in $data.registry.Keys) {
+        $p = $k.Split("|")
+        if ($data.registry[$k] -eq "__KHÔNG_TỒN_TẠI__") {
+            Remove-ItemProperty -Path $p[0] -Name $p[1] -ErrorAction SilentlyContinue
+        } else {
+            Set-ItemProperty -Path $p[0] -Name $p[1] -Value $data.registry[$k]
         }
     }
 
-    Write-Host "`nHoàn tất áp dụng tweaks!" -ForegroundColor Green
-    Write-Host "Nhấn phím bất kỳ để quay lại menu..." -ForegroundColor Cyan
-    $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+    foreach ($s in $data.services.Keys) {
+        Set-Service -Name $s -StartupType $data.services[$s] -ErrorAction SilentlyContinue
+    }
+}
+
+# ---------------- PRESET TỐI ƯU ----------------
+$PresetMap = @{
+    Privacy = @("privacy","telemetry","ai")
+    Gaming  = @("performance","ui")
+    Office  = @("ui","update","security")
+}
+
+# ---------------- ENTRY POINT ----------------
+function Invoke-Tweaks {
+    param(
+        [string[]]$Ids,
+        [ValidateSet("Privacy","Gaming","Office")]
+        [string]$Preset,
+        [switch]$Rollback
+    )
+
+    if ($Rollback) {
+        Restore-LastBackup
+        return
+    }
+
+    if (-not (Test-Path $TweaksFile)) {
+        throw "Không tìm thấy file tweaks.json"
+    }
+
+    $json = Get-Content $TweaksFile -Raw | ConvertFrom-Json
+    $Tweaks = $json.tweaks
+
+    Save-Backup
+
+    if ($Preset) {
+        $cats = $PresetMap[$Preset]
+        $Tweaks = $Tweaks | Where-Object { $cats -contains $_.category }
+        Write-TweakConsole "Đang áp dụng preset: $Preset" "SUCCESS"
+    }
+
+    if ($Ids) {
+        $Tweaks = $Tweaks | Where-Object { $Ids -contains $_.id }
+    }
+
+    foreach ($t in $Tweaks) {
+        Apply-Tweak $t
+    }
 }
