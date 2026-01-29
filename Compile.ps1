@@ -1,24 +1,50 @@
-# Compile.ps1 - Build bundled one-file for one-liner
-$Output = "ToiUuPC-Bundled.ps1"
+# =========================================================
+# ToiUuPC – Compile Script
+# Build PowerShell → EXE
+# Author: PMK
+# =========================================================
 
-if (Test-Path $Output) { Remove-Item $Output }
+Set-StrictMode -Version Latest
+$ErrorActionPreference = "Stop"
 
-"# PMK Toolbox v3.3.2 Bundled" | Out-File $Output -Encoding utf8
+Write-Host "▶ ToiUuPC Compile Tool" -ForegroundColor Cyan
 
-Get-Content "functions\*.ps1" | Add-Content $Output
+# ---------------- PATH ----------------
+$Root = Split-Path -Parent $MyInvocation.MyCommand.Path
+$Source = Join-Path $Root "ToiUuPC-Bundled.ps1"
+$Output = Join-Path $Root "ToiUuPC.exe"
 
-Get-Content "ToiUuPC.ps1" | Where-Object { $_ -notmatch '^\.' } | Add-Content $Output  # Skip dot-source
+# ---------------- CHECK SOURCE ----------------
+if (-not (Test-Path $Source)) {
+    Write-Host "❌ Không tìm thấy ToiUuPC-Bundled.ps1" -ForegroundColor Red
+    exit 1
+}
 
-Write-Host "Built: $Output - Use for releases/one-liner."
+# ---------------- CHECK PS2EXE ----------------
+if (-not (Get-Module -ListAvailable -Name ps2exe)) {
+    Write-Host "⚠ Chưa có ps2exe, đang cài..." -ForegroundColor Yellow
+    Install-Module ps2exe -Scope CurrentUser -Force -AllowClobber
+}
 
-# Auto append changelog (prompt note)
-$changelogPath = "changelog.md"
-if (Test-Path $changelogPath) {
-    $note = Read-Host "Enter update note for changelog (or empty to skip)"
-    if ($note) {
-        "## $(Get-Date -Format 'yyyy-MM-dd') - v3.3.2`n- $note`n" | Add-Content $changelogPath
-        Write-Host "Appended to $changelogPath"
-    }
+Import-Module ps2exe
+
+# ---------------- COMPILE ----------------
+Write-Host "⚙️ Đang build EXE..." -ForegroundColor Cyan
+
+Invoke-ps2exe `
+    -InputFile $Source `
+    -OutputFile $Output `
+    -NoConsole:$false `
+    -RequireAdmin `
+    -Title "ToiUuPC – Windows Optimizer" `
+    -Description "ToiUuPC - Windows 10/11 Optimization Toolkit" `
+    -Company "PMK" `
+    -Product "ToiUuPC" `
+    -Copyright "© PMK"
+
+# ---------------- DONE ----------------
+if (Test-Path $Output) {
+    Write-Host "✅ Build thành công: $Output" -ForegroundColor Green
 } else {
-    Write-Warning "changelog.md not found! Create it first."
+    Write-Host "❌ Build thất bại" -ForegroundColor Red
 }
