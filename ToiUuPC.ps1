@@ -37,7 +37,7 @@ $LOG  = Join-Path $ROOT "runtime\logs"
 foreach ($p in @($FUNC, $CFG, $UI)) {
     if (-not (Test-Path $p)) {
         Write-Host "Missing required folder: $p" -ForegroundColor Red
-        exit 1
+        return
     }
 }
 
@@ -61,7 +61,7 @@ foreach ($file in $functionOrder) {
     }
     else {
         Write-Host "Missing function file: $file" -ForegroundColor Red
-        exit 1
+        return
     }
 }
 
@@ -72,13 +72,18 @@ Initialize-ToiUuPCEnvironment
 Ensure-Admin
 
 # ==================================================
-# DASHBOARD (NON-BLOCKING WPF)
+# DASHBOARD (SAFE – NON BLOCKING – NO PARSE ERROR)
 # ==================================================
 function Show-Dashboard {
 
-    Add-Type -AssemblyName PresentationFramework
-    Add-Type -AssemblyName PresentationCore
-    Add-Type -AssemblyName WindowsBase
+    try {
+        Add-Type -AssemblyName PresentationFramework
+        Add-Type -AssemblyName PresentationCore
+        Add-Type -AssemblyName WindowsBase
+    } catch {
+        Write-Host "WPF not available" -ForegroundColor Red
+        return
+    }
 
     $xamlPath = Join-Path $UI "Dashboard.xaml"
     if (-not (Test-Path $xamlPath)) {
@@ -90,7 +95,7 @@ function Show-Dashboard {
     $reader = New-Object System.Xml.XmlNodeReader $xaml
     $Window = [Windows.Markup.XamlReader]::Load($reader)
 
-    # ===== Bind controls =====
+    # ===== Bind =====
     $CpuRing  = $Window.FindName("CpuRing")
     $CpuText  = $Window.FindName("CpuText")
     $CpuBar   = $Window.FindName("CpuBar")
@@ -100,7 +105,7 @@ function Show-Dashboard {
     $DiskText = $Window.FindName("DiskText")
     $DiskWarn = $Window.FindName("DiskWarn")
 
-    # ===== Counters =====
+    # ===== CPU Counter =====
     $cpuCounter = New-Object Diagnostics.PerformanceCounter(
         "Processor", "% Processor Time", "_Total"
     )
@@ -126,50 +131,60 @@ function Show-Dashboard {
     $geo.Figures.Add($fig)
     $CpuRing.Data = $geo
 
-    function Update-CpuRing($p) {
+    function Update-CpuRing([int]$p) {
         $angle = ($p / 100) * 360
         $rad = ($angle - 90) * [Math]::PI / 180
         $arc.Point = New-Object Windows.Point(
             $cx + $r * [Math]::Cos($rad),
             $cy + $r * [Math]::Sin($rad)
         )
-        $arc.IsLargeArc = $angle -gt 180
+        $arc.IsLargeArc = ($angle -gt 180)
     }
 
-    # ===== Timer =====
+    # ===== TIMER (SAFE) =====
     $timer = New-Object Windows.Threading.DispatcherTimer
     $timer.Interval = [TimeSpan]::FromSeconds(1)
 
     $timer.Add_Tick({
+        try {
+            # CPU
+            $cpu = [Math]::Round($cpuCounter.NextValue(), 0)
+            $CpuText.Text = "$cpu%"
+            $CpuBar.Value = $cpu
+            Set-BarColor $CpuBar $cpu
+            Update-CpuRing $cpu
 
-        $cpu = [Math]::Round($cpuCounter.NextValue(), 0)
-        $CpuText.Text = "$cpu%"
-        $CpuBar.Value = $cpu
-        Set-BarColor $CpuBar $cpu
-        Update-CpuRing $cpu
+            # RAM
+            $os = Get-CimInstance Win32_OperatingSystem
+            $ramPercent = [Math]::Round(
+                (
+                    ($os.TotalVisibleMemorySize - $os.FreePhysicalMemory) /
+                    $os.TotalVisibleMemorySize
+                ) * 100, 0
+            )
+            $RamBar.Value = $ramPercent
+            $RamText.Text = "$ramPercent%"
+            Set-BarColor $RamBar $ramPercent
 
-        $os = Get-CimInstance Win32_OperatingSystem
-        $ram = [Math]::Round(
-            (($os.TotalVisibleMemorySize - $os.FreePhysicalMemory)
-            / $os.TotalVisibleMemorySize) * 100, 0
-        )
-        $RamBar.Value = $ram
-        $RamText.Text = "$ram%"
-        Set-BarColor $RamBar $ram
-
-        $disk = Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='C:'"
-        $dp = [Math]::Round((($disk.Size - $disk.FreeSpace) / $disk.Size) * 100, 0)
-        $DiskBar.Value = $dp
-        $DiskText.Text = "$dp% used"
-        Set-BarColor $DiskBar $dp
-        $DiskWarn.Visibility = if ($dp -ge 85) { "Visible" } else { "Collapsed" }
+            # DISK
+            $disk = Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='C:'"
+            $diskPercent = [Math]::Round(
+                (($disk.Size - $disk.FreeSpace) / $disk.Size) * 100, 0
+            )
+            $DiskBar.Value = $diskPercent
+            $DiskText.Text = "$diskPercent% used"
+            Set-BarColor $DiskBar $diskPercent
+            $DiskWarn.Visibility = if ($diskPercent -ge 85) { "Visible" } else { "Collapsed" }
+        } catch {
+            # ignore runtime dashboard errors
+        }
     })
 
     $Window.Add_Closed({ $timer.Stop() })
     $timer.Start()
 
-    # IMPORTANT: NON-BLOCKING
-    $Window.Show()
+    # NON-BLOCKING
+    $Window.Show() | Out-Null
 }
 
 # ==================================================
