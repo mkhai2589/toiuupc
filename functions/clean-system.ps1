@@ -1,21 +1,11 @@
-# clean-system.ps1 - System cleanup (fixed - no YAML)
-
 function Invoke-CleanSystem {
     try {
         Write-Host "Đang dọn dẹp file tạm..." -ForegroundColor Cyan
-
-        # Temp folders
-        Remove-Item -Path "$env:TEMP\*" -Recurse -Force -ErrorAction SilentlyContinue
-        Remove-Item -Path "C:\Windows\Temp\*" -Recurse -Force -ErrorAction SilentlyContinue
-
-        # Disk Cleanup
-        Start-Process "cleanmgr.exe" -ArgumentList "/sagerun:1" -Wait -NoNewWindow
-
-        # Recycle Bin
+        Remove-Item -Path "$env:TEMP\*", "C:\Windows\Temp\*" -Recurse -Force -ErrorAction SilentlyContinue
+        Start-Process cleanmgr.exe -ArgumentList "/sagerun:1" -Wait -NoNewWindow
         Clear-RecycleBin -Force -ErrorAction SilentlyContinue
-
-        Write-Host "Dọn dẹp hoàn tất!" -ForegroundColor $SUCCESS_COLOR
+        Write-Host "Dọn dẹp hoàn tất!" -ForegroundColor Green
     } catch {
-        Write-Host "Lỗi dọn dẹp: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "Lỗi: $($_.Exception.Message)" -ForegroundColor Red
     }
 }
