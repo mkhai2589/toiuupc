@@ -1,43 +1,51 @@
-# utils.ps1
-# Core helpers
+Set-StrictMode -Version Latest
 
-Set-StrictMode -Off
-
-$Script:Root = Resolve-Path "$PSScriptRoot\.."
-$Script:LogDir = Join-Path $Script:Root "runtime\logs"
-
-if (-not (Test-Path $LogDir)) {
-    New-Item -ItemType Directory -Path $LogDir | Out-Null
+function Test-IsAdmin {
+    $id = [Security.Principal.WindowsIdentity]::GetCurrent()
+    $p  = New-Object Security.Principal.WindowsPrincipal($id)
+    return $p.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 }
 
-function Write-Log {
-    param(
-        [string]$Type,
-        [string]$Message
-    )
-
-    $time = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
-    $line = "$time | $Type | $Message"
-
-    $file = Join-Path $LogDir "$Type.log"
-    $line | Out-File -FilePath $file -Append -Encoding UTF8
-}
-
-function Require-Admin {
-    $isAdmin = ([Security.Principal.WindowsPrincipal] `
-        [Security.Principal.WindowsIdentity]::GetCurrent()
-    ).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-
-    if (-not $isAdmin) {
-        Write-Host "Please run PowerShell as Administrator"
+function Ensure-Admin {
+    if (-not (Test-IsAdmin)) {
+        [System.Windows.MessageBox]::Show(
+            "Vui long chay PowerShell bang quyen Administrator",
+            "ToiUuPC",
+            "OK",
+            "Error"
+        ) | Out-Null
         exit 1
     }
 }
 
-function Read-JsonFile {
-    param([string]$Path)
-    if (-not (Test-Path $Path)) {
-        throw "Config not found: $Path"
+function New-RestorePoint {
+    try {
+        Enable-ComputerRestore -Drive "C:\" -ErrorAction SilentlyContinue
+        Checkpoint-Computer -Description "ToiUuPC Restore Point" -RestorePointType "MODIFY_SETTINGS"
+    } catch {
+        # Neu service bi disable thi bo qua, KHONG stop tool
     }
-    Get-Content $Path -Raw | ConvertFrom-Json
+}
+
+function Write-Log {
+    param(
+        [string]$Message,
+        [string]$Level = "INFO"
+    )
+
+    $ts = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    Write-Host "[$ts][$Level] $Message"
+}
+
+function Set-Progress {
+    param(
+        $ProgressBar,
+        [int]$Current,
+        [int]$Total
+    )
+
+    if ($ProgressBar -and $Total -gt 0) {
+        $ProgressBar.Value = [Math]::Round(($Current / $Total) * 100)
+        [System.Windows.Forms.Application]::DoEvents()
+    }
 }
