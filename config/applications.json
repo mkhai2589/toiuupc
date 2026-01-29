@@ -14,9 +14,6 @@
   ],
 
   "applications": [
-    /* =======================
-       BROWSERS
-       ======================= */
     {
       "id": "chrome",
       "name": "Google Chrome",
@@ -73,7 +70,7 @@
     },
     {
       "id": "coccoc",
-      "name": "Cốc Cốc",
+      "name": "Coc Coc",
       "packageId": "CocCoc.CocCoc",
       "source": "winget",
       "category": "Browser",
@@ -89,10 +86,6 @@
       "preset": ["Privacy"],
       "silent": true
     },
-
-    /* =======================
-       COMMUNICATION
-       ======================= */
     {
       "id": "zalo",
       "name": "Zalo",
@@ -174,10 +167,6 @@
       "preset": ["Office"],
       "silent": true
     },
-
-    /* =======================
-       DEVELOPMENT
-       ======================= */
     {
       "id": "vscode",
       "name": "Visual Studio Code",
@@ -234,7 +223,7 @@
     },
     {
       "id": "java",
-      "name": "OpenJDK 21 (Temurin)",
+      "name": "OpenJDK 21",
       "packageId": "EclipseAdoptium.Temurin.21.JDK",
       "source": "winget",
       "category": "Development",
@@ -259,10 +248,6 @@
       "preset": ["Office"],
       "silent": true
     },
-
-    /* =======================
-       MEDIA
-       ======================= */
     {
       "id": "vlc",
       "name": "VLC Media Player",
@@ -308,10 +293,6 @@
       "preset": ["Office"],
       "silent": true
     },
-
-    /* =======================
-       UTILITIES
-       ======================= */
     {
       "id": "7zip",
       "name": "7-Zip",
