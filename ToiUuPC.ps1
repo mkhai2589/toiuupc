@@ -1,12 +1,24 @@
 # =========================================================
 # ToiUuPC – Windows 10 / 11 Optimization Toolkit
-# Main Controller + Bootstrap
+# Bootstrap + Controller
 # Author: PMK
 # =========================================================
 
-Set-StrictMode -Version Latest
+# ⚠️ ENTRY SCRIPT: KHÔNG STRICT MODE
+Set-StrictMode -Off
 $ErrorActionPreference = "Stop"
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+
+# ---------------- CONSTANTS ----------------
+$REPO_RAW = "https://raw.githubusercontent.com/mkhai2589/toiuupc/main"
+$WORKDIR  = Join-Path $env:TEMP "ToiUuPC"
+
+$DIRS = @{
+    Root      = $WORKDIR
+    Functions = Join-Path $WORKDIR "functions"
+    Config    = Join-Path $WORKDIR "config"
+    Logs      = Join-Path $WORKDIR "logs"
+    Backups   = Join-Path $WORKDIR "backups"
+}
 
 # ---------------- ADMIN CHECK ----------------
 function Test-Admin {
@@ -20,94 +32,68 @@ if (-not (Test-Admin)) {
     exit 1
 }
 
-# ---------------- DETECT RUN MODE ----------------
-$IsRemote = (-not $PSScriptRoot) -and (-not $MyInvocation.MyCommand.Path)
-
-if (-not $IsRemote) {
-    $Root = $PSScriptRoot ?? (Split-Path -Parent $MyInvocation.MyCommand.Path)
-}
-else {
-    $Root = Join-Path $env:TEMP "ToiUuPC"
-}
-
-# ---------------- PATHS ----------------
-$Functions = Join-Path $Root "functions"
-$Config    = Join-Path $Root "config"
-$Assets    = Join-Path $Root "assets"
-$Logs      = Join-Path $Root "logs"
-$Backups   = Join-Path $Root "backups"
-
-# ---------------- ENSURE FOLDERS ----------------
-$Folders = @($Functions, $Config, $Assets, $Logs, $Backups)
-foreach ($f in $Folders) {
-    if (-not (Test-Path $f)) {
-        New-Item -ItemType Directory -Path $f -Force | Out-Null
-    }
-}
-
-# ---------------- GITHUB SOURCE ----------------
-$RepoRaw = "https://raw.githubusercontent.com/mkhai2589/toiuupc/main"
-
-$RequiredFiles = @{
-    "functions\utils.ps1"            = "functions/utils.ps1"
-    "functions\Show-PMKLogo.ps1"     = "functions/Show-PMKLogo.ps1"
-    "functions\tweaks.ps1"           = "functions/tweaks.ps1"
-    "functions\install-apps.ps1"     = "functions/install-apps.ps1"
-    "functions\dns-management.ps1"   = "functions/dns-management.ps1"
-    "functions\clean-system.ps1"     = "functions/clean-system.ps1"
-    "config\tweaks.json"             = "config/tweaks.json"
-    "config\applications.json"       = "config/applications.json"
-}
-
-# ---------------- UPDATE MODE ----------------
-if ($args -contains "--update") {
-    Write-Host "🔄 Đang cập nhật ToiUuPC..." -ForegroundColor Cyan
-    Remove-Item $Functions, $Config -Recurse -Force -ErrorAction SilentlyContinue
-}
-
-# ---------------- BOOTSTRAP DOWNLOAD ----------------
-if ($IsRemote -or ($args -contains "--update")) {
-
-    Write-Host "🌐 Đang đồng bộ thành phần ToiUuPC..." -ForegroundColor Cyan
-
-    foreach ($item in $RequiredFiles.GetEnumerator()) {
-
-        $localPath  = Join-Path $Root $item.Key
-        $remotePath = "$RepoRaw/$($item.Value)"
-
-        if (-not (Test-Path $localPath)) {
-            try {
-                Invoke-RestMethod $remotePath -OutFile $localPath -UseBasicParsing
-            }
-            catch {
-                Write-Host "❌ Không tải được: $remotePath" -ForegroundColor Red
-                exit 1
-            }
-        }
-    }
-}
-
-Write-Host "📁 Workspace: $Root" -ForegroundColor DarkGray
-
-# ---------------- LOAD FUNCTIONS ----------------
-$FunctionFiles = @(
-    "utils.ps1"
-    "Show-PMKLogo.ps1"
-    "tweaks.ps1"
-    "install-apps.ps1"
-    "dns-management.ps1"
-    "clean-system.ps1"
+# ---------------- ARGS ----------------
+param(
+    [switch]$Update
 )
 
-foreach ($file in $FunctionFiles) {
-    $path = Join-Path $Functions $file
-    if (Test-Path $path) {
-        . $path
+# ---------------- PREPARE DIR ----------------
+foreach ($d in $DIRS.Values) {
+    if (-not (Test-Path $d)) {
+        New-Item -ItemType Directory -Path $d -Force | Out-Null
     }
-    else {
-        Write-Host "❌ Thiếu file: $file" -ForegroundColor Red
-        exit 1
+}
+
+# ---------------- DOWNLOAD HELPER ----------------
+function Get-RemoteFile {
+    param(
+        [string]$Url,
+        [string]$OutFile
+    )
+
+    try {
+        Invoke-RestMethod -Uri $Url -UseBasicParsing -ErrorAction Stop |
+            Out-File -FilePath $OutFile -Encoding UTF8 -Force
+    } catch {
+        Write-Host "❌ Không tải được: $Url" -ForegroundColor Red
+        throw
     }
+}
+
+# ---------------- FILE MANIFEST ----------------
+$FILES = @{
+    "functions/utils.ps1"         = "functions\utils.ps1"
+    "functions/Show-PMKLogo.ps1"  = "functions\Show-PMKLogo.ps1"
+    "functions/tweaks.ps1"        = "functions\tweaks.ps1"
+    "functions/install-apps.ps1"  = "functions\install-apps.ps1"
+    "functions/dns-management.ps1"= "functions\dns-management.ps1"
+    "functions/clean-system.ps1"  = "functions\clean-system.ps1"
+    "config/tweaks.json"          = "config\tweaks.json"
+    "config/applications.json"    = "config\applications.json"
+}
+
+# ---------------- UPDATE / FIRST BOOTSTRAP ----------------
+if ($Update -or -not (Test-Path (Join-Path $DIRS.Functions "utils.ps1"))) {
+
+    Write-Host "⬇ Đang tải ToiUuPC..." -ForegroundColor Cyan
+
+    foreach ($key in $FILES.Keys) {
+        $dest = Join-Path $DIRS.Root $FILES[$key]
+        $url  = "$REPO_RAW/$key"
+        Get-RemoteFile -Url $url -OutFile $dest
+    }
+
+    Write-Host "✅ Đã cập nhật ToiUuPC" -ForegroundColor Green
+
+    if ($Update) {
+        Write-Host "🔁 Vui lòng chạy lại lệnh để sử dụng phiên bản mới" -ForegroundColor Yellow
+        return
+    }
+}
+
+# ---------------- LOAD FUNCTIONS ----------------
+Get-ChildItem $DIRS.Functions -Filter *.ps1 | ForEach-Object {
+    . $_.FullName
 }
 
 # ---------------- MAIN MENU ----------------
@@ -121,13 +107,13 @@ function Show-MainMenu {
     Write-Host "  ToiUuPC – Tối ưu Windows 10 / 11" -ForegroundColor Cyan
     Write-Host "=================================================`n"
 
-    Write-Host "1. Tối ưu hệ thống (Tweaks)"
-    Write-Host "2. Cài đặt ứng dụng (Winget)"
-    Write-Host "3. Thiết lập DNS"
-    Write-Host "4. Dọn dẹp hệ thống"
-    Write-Host "5. Rollback tweaks"
-    Write-Host "6. Cập nhật ToiUuPC"
-    Write-Host "0. Thoát`n"
+    Write-Host "1. ⚙️ Tối ưu hệ thống (Tweaks)"
+    Write-Host "2. 📦 Cài đặt ứng dụng (Winget)"
+    Write-Host "3. 🌐 Thiết lập DNS"
+    Write-Host "4. 🧹 Dọn dẹp hệ thống"
+    Write-Host "5. 🔄 Rollback tweaks"
+    Write-Host "6. 🔄 Cập nhật ToiUuPC"
+    Write-Host "0. ❌ Thoát`n"
 }
 
 # ---------------- MAIN LOOP ----------------
@@ -139,45 +125,39 @@ while ($true) {
     switch ($choice) {
 
         "1" {
-            Clear-Host
             Invoke-Tweaks
             Pause
         }
 
         "2" {
-            Clear-Host
             Invoke-InstallApps
             Pause
         }
 
         "3" {
-            Clear-Host
             Invoke-DNSManager
             Pause
         }
 
         "4" {
-            Clear-Host
             Invoke-SystemCleanup
             Pause
         }
 
         "5" {
-            Clear-Host
             Invoke-Tweaks -Rollback
             Pause
         }
 
         "6" {
             Write-Host "🔄 Đang cập nhật..." -ForegroundColor Cyan
-            & powershell -NoProfile -Command {
-                irm https://raw.githubusercontent.com/mkhai2589/toiuupc/main/ToiUuPC.ps1 | iex --update
-            }
-            break
+            & powershell -NoProfile -ExecutionPolicy Bypass `
+                -Command "irm $REPO_RAW/ToiUuPC.ps1 | iex -Update"
+            return
         }
 
         "0" {
-            Write-Host "`n👋 Thoát ToiUuPC. Hẹn gặp lại!" -ForegroundColor Green
+            Write-Host "`n👋 Thoát ToiUuPC" -ForegroundColor Green
             break
         }
 
