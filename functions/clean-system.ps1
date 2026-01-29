@@ -1,9 +1,16 @@
 # clean-system.ps1
 # Windows 10/11 Clean Engine
-# Không UI – gọi từ ToiUuPC.ps1
+# No UI - WinUtil style
+
+Set-StrictMode -Off
 
 $Script:RootDir = Resolve-Path "$PSScriptRoot\.."
-$Script:LogFile = Join-Path $Script:RootDir "logs\apps.log"
+$Script:LogDir  = Join-Path $Script:RootDir "runtime\logs"
+$Script:LogFile = Join-Path $Script:LogDir "clean.log"
+
+if (-not (Test-Path $Script:LogDir)) {
+    New-Item -ItemType Directory -Path $Script:LogDir | Out-Null
+}
 
 # =========================
 # Logging
@@ -11,7 +18,8 @@ $Script:LogFile = Join-Path $Script:RootDir "logs\apps.log"
 function Write-CleanLog {
     param([string]$Message)
     $time = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
-    "$time | CLEAN | $Message" | Out-File -FilePath $Script:LogFile -Append -Encoding UTF8
+    "$time | CLEAN | $Message" |
+        Out-File -FilePath $Script:LogFile -Append -Encoding UTF8
 }
 
 # =========================
@@ -28,7 +36,8 @@ function Remove-SafeItem {
             try {
                 Remove-Item $p -Force -Recurse:$Recurse -ErrorAction Stop
                 Write-CleanLog "Removed: $p"
-            } catch {
+            }
+            catch {
                 Write-CleanLog "Failed: $p | $($_.Exception.Message)"
             }
         }
@@ -36,10 +45,9 @@ function Remove-SafeItem {
 }
 
 # =========================
-# TEMP / CACHE
+# Clean Actions
 # =========================
 function Clean-TempFiles {
-    Write-Host "🧹 TEMP & cache..." -ForegroundColor Cyan
     Write-CleanLog "Temp clean start"
 
     Remove-SafeItem -Recurse -Path @(
@@ -50,11 +58,7 @@ function Clean-TempFiles {
     )
 }
 
-# =========================
-# Windows Update Cache
-# =========================
 function Clean-WindowsUpdateCache {
-    Write-Host "🧹 Windows Update cache..." -ForegroundColor Cyan
     Write-CleanLog "WU cache clean start"
 
     Stop-Service wuauserv -Force -ErrorAction SilentlyContinue
@@ -66,12 +70,8 @@ function Clean-WindowsUpdateCache {
     Start-Service wuauserv -ErrorAction SilentlyContinue
 }
 
-# =========================
-# Logs / Dumps
-# =========================
 function Clean-SystemLogs {
-    Write-Host "🧹 System logs & dumps..." -ForegroundColor Cyan
-    Write-CleanLog "Logs clean start"
+    Write-CleanLog "System logs clean start"
 
     Remove-SafeItem -Recurse -Path @(
         "C:\Windows\Logs\CBS\*",
@@ -81,21 +81,12 @@ function Clean-SystemLogs {
     )
 }
 
-# =========================
-# Recycle Bin
-# =========================
 function Clean-RecycleBin {
-    Write-Host "🧹 Recycle Bin..." -ForegroundColor Cyan
     Write-CleanLog "Recycle bin clean"
-
     Clear-RecycleBin -Force -ErrorAction SilentlyContinue
 }
 
-# =========================
-# Browser Cache
-# =========================
 function Clean-BrowserCache {
-    Write-Host "🧹 Browser cache..." -ForegroundColor Cyan
     Write-CleanLog "Browser cache clean"
 
     Remove-SafeItem -Recurse -Path @(
@@ -105,20 +96,16 @@ function Clean-BrowserCache {
     )
 }
 
-# =========================
-# DISM (Dangerous)
-# =========================
 function Clean-WinSxS {
-    Write-Host "⚠ WinSxS (Advanced)..." -ForegroundColor Yellow
     Write-CleanLog "DISM StartComponentCleanup"
 
     Start-Process dism.exe `
-        -ArgumentList "/Online /Cleanup-Image /StartComponentCleanup /ResetBase" `
+        -ArgumentList "/Online /Cleanup-Image /StartComponentCleanup" `
         -Wait -NoNewWindow
 }
 
 # =========================
-# MAIN
+# MAIN ENTRY
 # =========================
 function Invoke-CleanSystem {
     param(
@@ -138,12 +125,7 @@ function Invoke-CleanSystem {
     if ($All -or $Logs)       { Clean-SystemLogs }
     if ($All -or $RecycleBin) { Clean-RecycleBin }
     if ($All -or $Browser)    { Clean-BrowserCache }
-
-    if ($WinSxS) {
-        Write-Host "⚠ Không nên chạy WinSxS thường xuyên" -ForegroundColor Yellow
-        Clean-WinSxS
-    }
+    if ($WinSxS)              { Clean-WinSxS }
 
     Write-CleanLog "Invoke-CleanSystem END"
-    Write-Host "✅ Clean complete!" -ForegroundColor Green
 }
