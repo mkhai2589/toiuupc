@@ -112,7 +112,85 @@ $AppCategories = @{
         @{STT=9; Name="Thorium (AVX2)"; ID="Alex313031.Thorium.AVX2"},
         @{STT=10; Name="Zen Browser"; ID="Zen-Team.Zen-Browser"}
     )
-    # ... (giữ nguyên các category khác như bản bạn, mình không copy hết để ngắn gọn, bạn giữ nguyên phần này)
+        "TIỆN ÍCH" = @(
+        @{STT=11; Name="7-Zip"; ID="7zip.7zip"},
+        @{STT=12; Name="WinRAR"; ID="RARLab.WinRAR"},
+        @{STT=13; Name="PowerToys"; ID="Microsoft.PowerToys"},
+        @{STT=14; Name="Windows Terminal"; ID="Microsoft.WindowsTerminal"},
+        @{STT=15; Name="Everything"; ID="voidtools.Everything"},
+        @{STT=16; Name="EarTrumpet"; ID="File-New-Project.EarTrumpet"},
+        @{STT=17; Name="QuickLook"; ID="QL-Win.QuickLook"},
+        @{STT=18; Name="TranslucentTB"; ID="TranslucentTB.TranslucentTB"},
+        @{STT=19; Name="Twinkle Tray"; ID="xanderfrangos.twinkletray"},
+        @{STT=20; Name="AutoHotkey"; ID="AutoHotkey.AutoHotkey"},
+        @{STT=21; Name="Flow Launcher"; ID="Flow-Launcher.Flow-Launcher"},
+        @{STT=22; Name="WizTree"; ID="AntibodySoftware.WizTree"},
+        @{STT=23; Name="WizFile"; ID="AntibodySoftware.WizFile"},
+        @{STT=24; Name="LockHunter"; ID="CrystalRich.LockHunter"},
+        @{STT=25; Name="Bulk Crap Uninstaller"; ID="Klocman.BulkCrapUninstaller"},
+        @{STT=26; Name="Revo Uninstaller"; ID="RevoUninstaller.RevoUninstaller"},
+        @{STT=27; Name="Glary Utilities"; ID="Glarysoft.GlaryUtilities"},
+        @{STT=28; Name="CCleaner"; ID="Piriform.CCleaner"},
+        @{STT=29; Name="BleachBit"; ID="BleachBit.BleachBit"},
+        @{STT=30; Name="NanaZip"; ID="M2Team.NanaZip"}
+    )
+    
+    "PHÁT TRIỂN" = @(
+        @{STT=31; Name="Visual Studio Code"; ID="Microsoft.VisualStudioCode"},
+        @{STT=32; Name="VSCodium"; ID="VSCodium.VSCodium"},
+        @{STT=33; Name="Git"; ID="Git.Git"},
+        @{STT=34; Name="GitHub Desktop"; ID="GitHub.GitHubDesktop"},
+        @{STT=35; Name="GitKraken"; ID="Axosoft.GitKraken"},
+        @{STT=36; Name="Notepad++"; ID="Notepad++.Notepad++"},
+        @{STT=37; Name="Python 3"; ID="Python.Python.3.12"},
+        @{STT=38; Name="Node.js"; ID="OpenJS.NodeJS"},
+        @{STT=39; Name="Docker Desktop"; ID="Docker.DockerDesktop"},
+        @{STT=40; Name="Postman"; ID="Postman.Postman"}
+    )
+    
+    "ĐA PHƯƠNG TIỆN" = @(
+        @{STT=41; Name="VLC Media Player"; ID="VideoLAN.VLC"},
+        @{STT=42; Name="MPC-HC"; ID="clsid2.mpc-hc"},
+        @{STT=43; Name="K-Lite Codec Pack"; ID="CodecGuide.K-LiteCodecPack.Standard"},
+        @{STT=44; Name="Spotify"; ID="Spotify.Spotify"},
+        @{STT=45; Name="OBS Studio"; ID="OBSProject.OBSStudio"},
+        @{STT=46; Name="HandBrake"; ID="HandBrake.HandBrake"},
+        @{STT=47; Name="Blender"; ID="BlenderFoundation.Blender"},
+        @{STT=48; Name="GIMP"; ID="GIMP.GIMP.3"},
+        @{STT=49; Name="Krita"; ID="KDE.Krita"},
+        @{STT=50; Name="Inkscape"; ID="Inkscape.Inkscape"}
+    )
+    
+    "VĂN PHÒNG & PDF" = @(
+        @{STT=51; Name="LibreOffice"; ID="TheDocumentFoundation.LibreOffice"},
+        @{STT=52; Name="ONLYOffice Desktop"; ID="ONLYOFFICE.DesktopEditors"},
+        @{STT=53; Name="SumatraPDF"; ID="SumatraPDF.SumatraPDF"},
+        @{STT=54; Name="Foxit PDF Reader"; ID="Foxit.FoxitReader"},
+        @{STT=55; Name="Adobe Acrobat Reader"; ID="Adobe.Acrobat.Reader.64-bit"},
+        @{STT=56; Name="Obsidian"; ID="Obsidian.Obsidian"},
+        @{STT=57; Name="Joplin"; ID="Joplin.Joplin"},
+        @{STT=58; Name="Calibre"; ID="calibre.calibre"}
+    )
+    
+    "CÔNG CỤ HỆ THỐNG" = @(
+        @{STT=59; Name="CrystalDiskInfo"; ID="CrystalDewWorld.CrystalDiskInfo"},
+        @{STT=60; Name="CrystalDiskMark"; ID="CrystalDewWorld.CrystalDiskMark"},
+        @{STT=61; Name="CPU-Z"; ID="CPUID.CPU-Z"},
+        @{STT=62; Name="GPU-Z"; ID="TechPowerUp.GPU-Z"},
+        @{STT=63; Name="HWiNFO"; ID="REALiX.HWiNFO"},
+        @{STT=64; Name="Rufus"; ID="Rufus.Rufus"},
+        @{STT=65; Name="Ventoy"; ID="Ventoy.Ventoy"},
+        @{STT=66; Name="VirtualBox"; ID="Oracle.VirtualBox"},
+        @{STT=67; Name="Sandboxie Plus"; ID="Sandboxie.Plus"}
+    )
+    
+    "LIÊN LẠC" = @(
+        @{STT=68; Name="Discord"; ID="Discord.Discord"},
+        @{STT=69; Name="Telegram"; ID="Telegram.TelegramDesktop"},
+        @{STT=70; Name="Signal"; ID="OpenWhisperSystems.Signal"},
+        @{STT=71; Name="Zoom"; ID="Zoom.Zoom"},
+        @{STT=72; Name="Microsoft Teams"; ID="Microsoft.Teams"}
+    )
 }
 
 # Progress bar khi cài nhiều app
