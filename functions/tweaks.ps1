@@ -1,6 +1,7 @@
 # ==========================================================
 # tweaks.ps1
-# PMK Toolbox - Windows Tweaks Engine (WinUtil Style)
+# PMK Toolbox - Windows Tweaks Engine (WinUtil compatible)
+# PowerShell 5.1 SAFE
 # ==========================================================
 
 Set-StrictMode -Off
@@ -21,7 +22,11 @@ function Get-TweakState {
                     -Name $Tweak.nameReg `
                     -ErrorAction Stop
 
-                return ($val.$($Tweak.nameReg) -eq $Tweak.value) ? "ON" : "OFF"
+                if ($val.$($Tweak.nameReg) -eq $Tweak.value) {
+                    return "ON"
+                } else {
+                    return "OFF"
+                }
             }
 
             "service" {
@@ -29,7 +34,11 @@ function Get-TweakState {
                     -Filter "Name='$($Tweak.serviceName)'" `
                     -ErrorAction Stop
 
-                return ($svc.StartMode -eq $Tweak.startup) ? "ON" : "OFF"
+                if ($svc.StartMode -eq $Tweak.startup) {
+                    return "ON"
+                } else {
+                    return "OFF"
+                }
             }
 
             "service_multiple" {
@@ -48,13 +57,19 @@ function Get-TweakState {
             "scheduled_task" {
                 if ($Tweak.taskName) {
                     $task = Get-ScheduledTask -TaskName $Tweak.taskName -ErrorAction Stop
-                    return ($task.Enabled -eq $false) ? "ON" : "OFF"
+                    if ($task.Enabled -eq $false) {
+                        return "ON"
+                    } else {
+                        return "OFF"
+                    }
                 }
 
                 if ($Tweak.tasks) {
                     foreach ($name in $Tweak.tasks) {
                         $task = Get-ScheduledTask -TaskName $name -ErrorAction Stop
-                        if ($task.Enabled) { return "OFF" }
+                        if ($task.Enabled) {
+                            return "OFF"
+                        }
                     }
                     return "ON"
                 }
@@ -77,14 +92,12 @@ function Build-TweakViewModel {
     $list = @()
 
     foreach ($t in $Tweaks) {
-        $state = Get-TweakState $t
-
         $list += [PSCustomObject]@{
-            Id        = $t.id
-            Name      = $t.name
-            Category  = $t.category
-            State     = $state
-            Raw       = $t
+            Id       = $t.id
+            Name     = $t.name
+            Category = $t.category
+            State    = Get-TweakState $t
+            Raw      = $t
         }
     }
 
@@ -92,7 +105,7 @@ function Build-TweakViewModel {
 }
 
 # ==========================================================
-# APPLY SINGLE TWEAK (ON)
+# APPLY TWEAK (ON)
 # ==========================================================
 function Apply-Tweak {
     param($Tweak, $BackupPath)
@@ -105,11 +118,13 @@ function Apply-Tweak {
             }
 
             $bkFile = Join-Path $BackupPath "$($Tweak.id).json"
+
             if (-not (Test-Path $bkFile)) {
                 $old = Get-ItemProperty `
                     -Path $Tweak.path `
                     -Name $Tweak.nameReg `
                     -ErrorAction SilentlyContinue
+
                 if ($old) {
                     $old | ConvertTo-Json | Out-File $bkFile -Encoding UTF8
                 }
@@ -153,7 +168,7 @@ function Apply-Tweak {
 }
 
 # ==========================================================
-# UNDO SINGLE TWEAK (OFF)
+# UNDO TWEAK (OFF) – REGISTRY ONLY
 # ==========================================================
 function Undo-Tweak {
     param($Tweak, $BackupPath)
@@ -179,7 +194,7 @@ function Undo-Tweak {
 }
 
 # ==========================================================
-# MAIN MENU (REQUIRED)
+# MAIN MENU (REQUIRED BY ToiUuPC.ps1)
 # ==========================================================
 function Invoke-TweaksMenu {
     param([object]$Config)
@@ -194,7 +209,7 @@ function Invoke-TweaksMenu {
         New-Item -ItemType Directory -Path $BackupPath | Out-Null
     }
 
-    do {
+    while ($true) {
         Clear-Host
         Write-Host "==============================="
         Write-Host " WINDOWS TWEAKS"
@@ -206,15 +221,20 @@ function Invoke-TweaksMenu {
         $i = 1
 
         foreach ($t in $vm) {
-            $color = ($t.State -eq "ON") ? "Green" : "Yellow"
+            if ($t.State -eq "ON") {
+                $color = "Green"
+            } else {
+                $color = "Yellow"
+            }
+
             Write-Host ("[{0}] {1} [{2}]" -f $i, $t.Name, $t.State) -ForegroundColor $color
             $map[$i] = $t
             $i++
         }
 
         Write-Host ""
-        Write-Host "Enter number to TOGGLE (ON/OFF)"
-        Write-Host "Enter U<ID> to UNDO by ID (ex: U disable_telemetry)"
+        Write-Host "Enter number to TOGGLE"
+        Write-Host "Enter U<ID> to UNDO (ex: U disable_telemetry)"
         Write-Host "Press ENTER to return"
         Write-Host ""
 
@@ -242,13 +262,11 @@ function Invoke-TweaksMenu {
             if ($item.State -eq "ON") {
                 Undo-Tweak $raw $BackupPath
                 Write-Host "Tweak OFF: $($raw.name)" -ForegroundColor Yellow
-            }
-            else {
+            } else {
                 Apply-Tweak $raw $BackupPath
                 Write-Host "Tweak ON: $($raw.name)" -ForegroundColor Green
             }
             Start-Sleep 1
         }
-
-    } while ($true)
+    }
 }
