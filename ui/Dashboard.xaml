@@ -1,1 +1,84 @@
+<Window
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="PMK Toolbox - Performance"
+    Width="420"
+    Height="260"
+    WindowStyle="None"
+    ResizeMode="NoResize"
+    AllowsTransparency="True"
+    Background="#AA0E0E0E"
+    Topmost="True">
 
+    <Grid Margin="15">
+
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="160"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- ================= CPU RING ================= -->
+        <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
+
+            <Ellipse Width="130" Height="130"
+                     Stroke="#333"
+                     StrokeThickness="10"/>
+
+            <Path x:Name="CpuRing"
+                  Stroke="#00E5FF"
+                  StrokeThickness="10"
+                  StrokeStartLineCap="Round"
+                  StrokeEndLineCap="Round"/>
+
+            <TextBlock x:Name="CpuText"
+                       Text="0%"
+                       Foreground="White"
+                       FontSize="26"
+                       FontWeight="Bold"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"/>
+        </Grid>
+
+        <!-- ================= INFO ================= -->
+        <StackPanel Grid.Column="1" Margin="20,10,0,0">
+
+            <TextBlock Text="SYSTEM PERFORMANCE"
+                       Foreground="#00E5FF"
+                       FontWeight="Bold"
+                       FontSize="14"/>
+
+            <!-- CPU -->
+            <TextBlock Text="CPU Load"
+                       Foreground="Gray"
+                       Margin="0,12,0,0"/>
+            <ProgressBar x:Name="CpuBar" Height="8"/>
+
+            <!-- RAM -->
+            <TextBlock Text="RAM Usage"
+                       Foreground="Gray"
+                       Margin="0,12,0,0"/>
+            <ProgressBar x:Name="RamBar" Height="8"/>
+            <TextBlock x:Name="RamText"
+                       Foreground="White"
+                       FontSize="11"/>
+
+            <!-- DISK -->
+            <TextBlock Text="Disk C:"
+                       Foreground="Gray"
+                       Margin="0,12,0,0"/>
+            <ProgressBar x:Name="DiskBar" Height="8"/>
+            <TextBlock x:Name="DiskText"
+                       Foreground="White"
+                       FontSize="11"/>
+
+            <TextBlock x:Name="DiskWarn"
+                       Text="⚠ Disk nearly full"
+                       Foreground="OrangeRed"
+                       Visibility="Collapsed"
+                       FontWeight="Bold"
+                       Margin="0,5,0,0"/>
+
+        </StackPanel>
+
+    </Grid>
+</Window>
