@@ -1,10 +1,10 @@
 # ==========================================================
 # dashboard-engine.ps1
-# PMK Toolbox - Performance Dashboard Engine
+# PMK Toolbox - Performance Dashboard Engine (FIXED)
 # ==========================================================
 
 Set-StrictMode -Off
-$ErrorActionPreference = "Continue"
+$ErrorActionPreference = "SilentlyContinue"
 
 # ==========================================================
 # LOAD WPF
@@ -19,13 +19,49 @@ Add-Type -AssemblyName WindowsBase
 $XamlPath = Join-Path $PSScriptRoot "..\ui\Dashboard.xaml"
 
 if (-not (Test-Path $XamlPath)) {
-    Write-Log "Dashboard.xaml not found" "ERROR"
+    Write-Host "Dashboard.xaml not found" -ForegroundColor Red
     return
 }
 
-[xml]$xaml = Get-Content $XamlPath -Raw
-$reader = New-Object System.Xml.XmlNodeReader $xaml
-$Window = [Windows.Markup.XamlReader]::Load($reader)
+try {
+    [xml]$xaml = Get-Content $XamlPath -Raw
+    $reader = New-Object System.Xml.XmlNodeReader $xaml
+    $Window = [Windows.Markup.XamlReader]::Load($reader)
+} catch {
+    Write-Host "Failed to load Dashboard.xaml" -ForegroundColor Red
+    return
+}
+
+# ==========================================================
+# SAFE UI HELPERS
+# ==========================================================
+function Set-TextSafe {
+    param($Ctrl, [string]$Text)
+    if ($Ctrl -and $Ctrl.PSObject.Properties["Text"]) {
+        $Ctrl.Dispatcher.Invoke([action]{ $Ctrl.Text = $Text })
+    }
+}
+
+function Set-ValueSafe {
+    param($Ctrl, [int]$Value)
+    if ($Ctrl -and $Ctrl.PSObject.Properties["Value"]) {
+        $Ctrl.Dispatcher.Invoke([action]{ $Ctrl.Value = $Value })
+    }
+}
+
+function Set-ForegroundSafe {
+    param($Ctrl, [string]$Color)
+    if ($Ctrl -and $Ctrl.PSObject.Properties["Foreground"]) {
+        $Ctrl.Dispatcher.Invoke([action]{ $Ctrl.Foreground = $Color })
+    }
+}
+
+function Set-VisibilitySafe {
+    param($Ctrl, [string]$State)
+    if ($Ctrl -and $Ctrl.PSObject.Properties["Visibility"]) {
+        $Ctrl.Dispatcher.Invoke([action]{ $Ctrl.Visibility = $State })
+    }
+}
 
 # ==========================================================
 # BIND CONTROLS
@@ -52,33 +88,37 @@ $cpuCounter = New-Object Diagnostics.PerformanceCounter(
     "% Processor Time",
     "_Total"
 )
-$cpuCounter.NextValue() | Out-Null
+$null = $cpuCounter.NextValue()
 
 # ==========================================================
 # COLOR HELPER
 # ==========================================================
-function Set-BarColor {
+function Set-BarColorSafe {
     param($Bar, [int]$Percent)
 
+    if (-not $Bar) { return }
+
     if ($Percent -ge 80) {
-        $Bar.Foreground = "Red"
+        Set-ForegroundSafe $Bar "Red"
     } elseif ($Percent -ge 60) {
-        $Bar.Foreground = "Gold"
+        Set-ForegroundSafe $Bar "Gold"
     } else {
-        $Bar.Foreground = "LimeGreen"
+        Set-ForegroundSafe $Bar "LimeGreen"
     }
 }
 
 # ==========================================================
-# CPU RING DRAW (SMOOTH)
+# CPU RING DRAW
 # ==========================================================
-function Draw-CpuRing {
+function Draw-CpuRingSafe {
     param([int]$Percent)
+
+    if (-not $CpuRing) { return }
 
     $radius = 55
     $center = 65
 
-    $angle = ($Percent / 100) * 360
+    $angle  = ($Percent / 100) * 360
     $radian = ($angle - 90) * [Math]::PI / 180
 
     $x = $center + $radius * [Math]::Cos($radian)
@@ -86,87 +126,86 @@ function Draw-CpuRing {
 
     $largeArc = if ($angle -gt 180) { 1 } else { 0 }
 
-    $CpuRing.Data = [Windows.Media.Geometry]::Parse(
-        "M $center,10 A $radius,$radius 0 $largeArc 1 $x,$y"
-    )
+    $geo = "M $center,10 A $radius,$radius 0 $largeArc 1 $x,$y"
+
+    $CpuRing.Dispatcher.Invoke([action]{
+        $CpuRing.Data = [Windows.Media.Geometry]::Parse($geo)
+    })
 }
 
 # ==========================================================
-# SYSTEM INFO HELPERS
+# SYSTEM INFO
 # ==========================================================
 function Get-RamPercent {
-    $os = Get-CimInstance Win32_OperatingSystem
-    $used = $os.TotalVisibleMemorySize - $os.FreePhysicalMemory
-    return [Math]::Round(($used / $os.TotalVisibleMemorySize) * 100)
+    try {
+        $os = Get-CimInstance Win32_OperatingSystem
+        $used = $os.TotalVisibleMemorySize - $os.FreePhysicalMemory
+        return [Math]::Round(($used / $os.TotalVisibleMemorySize) * 100)
+    } catch { return 0 }
 }
 
 function Get-DiskPercent {
-    $disk = Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='C:'"
-    return [Math]::Round((($disk.Size - $disk.FreeSpace) / $disk.Size) * 100)
+    try {
+        $disk = Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='C:'"
+        return [Math]::Round((($disk.Size - $disk.FreeSpace) / $disk.Size) * 100)
+    } catch { return 0 }
 }
 
 # ==========================================================
-# DASHBOARD UPDATE LOOP
+# DASHBOARD TIMER
 # ==========================================================
 $timer = New-Object Windows.Threading.DispatcherTimer
-$timer.Interval = [TimeSpan]::FromMilliseconds(1000)
+$timer.Interval = [TimeSpan]::FromSeconds(1)
 
 $timer.Add_Tick({
 
-    # =========================
     # CPU
-    # =========================
     $cpu = [Math]::Round($cpuCounter.NextValue())
-    $CpuText.Text = "$cpu%"
-    $CpuBar.Value = $cpu
-    Set-BarColor $CpuBar $cpu
-    Draw-CpuRing $cpu
+    Set-TextSafe  $CpuText "$cpu%"
+    Set-ValueSafe $CpuBar  $cpu
+    Set-BarColorSafe $CpuBar $cpu
+    Draw-CpuRingSafe $cpu
 
-    # =========================
     # RAM
-    # =========================
     $ram = Get-RamPercent
-    $RamText.Text = "$ram%"
-    $RamBar.Value = $ram
-    Set-BarColor $RamBar $ram
+    Set-TextSafe  $RamText "$ram%"
+    Set-ValueSafe $RamBar  $ram
+    Set-BarColorSafe $RamBar $ram
 
-    # =========================
     # DISK
-    # =========================
     $disk = Get-DiskPercent
-    $DiskText.Text = "$disk% used"
-    $DiskBar.Value = $disk
-    Set-BarColor $DiskBar $disk
+    Set-TextSafe  $DiskText "$disk% used"
+    Set-ValueSafe $DiskBar  $disk
+    Set-BarColorSafe $DiskBar $disk
 
-    $DiskWarn.Visibility = if ($disk -ge 85) {
-        "Visible"
+    if ($disk -ge 85) {
+        Set-VisibilitySafe $DiskWarn "Visible"
     } else {
-        "Collapsed"
+        Set-VisibilitySafe $DiskWarn "Collapsed"
     }
 
-    # =========================
-    # CLEAN SYSTEM (BACKGROUND)
-    # =========================
+    # CLEAN STATE
     if ($Global:CleanState) {
-
         if ($Global:CleanState.Running) {
-            $CleanText.Text = "Cleaning: $($Global:CleanState.Step)"
-            $CleanBar.Value = $Global:CleanState.Percent
+            Set-TextSafe  $CleanText "Cleaning: $($Global:CleanState.Step)"
+            Set-ValueSafe $CleanBar  $Global:CleanState.Percent
         } else {
             if ($Global:CleanState.FreedMB -gt 0) {
-                $CleanText.Text = "Freed: $($Global:CleanState.FreedMB) MB"
-                $CleanBar.Value = 100
+                Set-TextSafe  $CleanText "Freed: $($Global:CleanState.FreedMB) MB"
+                Set-ValueSafe $CleanBar  100
             } else {
-                $CleanText.Text = "Idle"
-                $CleanBar.Value = 0
+                Set-TextSafe  $CleanText "Idle"
+                Set-ValueSafe $CleanBar  0
             }
         }
+    } else {
+        Set-TextSafe  $CleanText "Idle"
+        Set-ValueSafe $CleanBar  0
     }
-
 })
 
 # ==========================================================
-# SHOW DASHBOARD
+# SHOW WINDOW
 # ==========================================================
 $Window.Add_Closed({
     $timer.Stop()
