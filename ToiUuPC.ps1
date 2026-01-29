@@ -1,195 +1,109 @@
-param([switch]$Update)
+# =========================================
+# ToiUuPC - Controller (WinUtil Style)
+# =========================================
 
 Set-StrictMode -Off
-$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Continue"
 
-# ===============================
-# GLOBAL
-# ===============================
-$RepoRaw = "https://raw.githubusercontent.com/mkhai2589/toiuupc/main"
+# ---------- ADMIN ----------
+$IsAdmin = ([Security.Principal.WindowsPrincipal] `
+ [Security.Principal.WindowsIdentity]::GetCurrent()
+).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 
+if (-not $IsAdmin) {
+    Write-Host "Run PowerShell as Administrator"
+    exit
+}
+
+# ---------- PATH ----------
 $ROOT = Join-Path $env:TEMP "ToiUuPC"
 $FUNC = Join-Path $ROOT "functions"
 $CFG  = Join-Path $ROOT "config"
 $RUN  = Join-Path $ROOT "runtime"
-$LOG  = Join-Path $RUN  "logs"
-$BK   = Join-Path $RUN  "backups"
+$BK   = Join-Path $RUN  "backup"
 
-# ===============================
-# ADMIN CHECK
-# ===============================
-$IsAdmin = ([Security.Principal.WindowsPrincipal] `
-    [Security.Principal.WindowsIdentity]::GetCurrent()
-).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+$null = New-Item $FUNC,$CFG,$RUN,$BK -ItemType Directory -Force
 
-if (-not $IsAdmin) {
-    Write-Host "Please run PowerShell as Administrator"
-    pause
-    exit 1
-}
-
-# ===============================
-# PREPARE FOLDERS
-# ===============================
-foreach ($d in @($ROOT,$FUNC,$CFG,$RUN,$LOG,$BK)) {
-    if (-not (Test-Path $d)) {
-        New-Item -ItemType Directory -Path $d | Out-Null
-    }
-}
-
-# ===============================
-# DOWNLOAD HELPER
-# ===============================
-function Get-RemoteFile {
-    param([string]$Url,[string]$Out)
-    Invoke-WebRequest $Url -OutFile $Out -UseBasicParsing
-}
-
-# ===============================
-# SYNC PROJECT
-# ===============================
-function Sync-ToiUuPC {
-
-    Write-Host "Dang dong bo ToiUuPC..."
-
-    $FunctionFiles = @(
-        "utils.ps1",
-        "Show-PMKLogo.ps1",
-        "tweaks.ps1",
-        "install-apps.ps1",
-        "dns-management.ps1",
-        "clean-system.ps1"
-    )
-
-    foreach ($f in $FunctionFiles) {
-        Get-RemoteFile "$RepoRaw/functions/$f" (Join-Path $FUNC $f)
-    }
-
-    $ConfigFiles = @(
-        "tweaks.json",
-        "applications.json",
-        "dns.json"
-    )
-
-    foreach ($c in $ConfigFiles) {
-        Get-RemoteFile "$RepoRaw/config/$c" (Join-Path $CFG $c)
-    }
-
-    Write-Host "Dong bo hoan tat"
-}
-
-# ===============================
-# INIT
-# ===============================
-Sync-ToiUuPC
-
+# ---------- LOAD FUNCTIONS ----------
 Get-ChildItem $FUNC -Filter "*.ps1" | ForEach-Object {
     . $_.FullName
 }
 
-if ($Update) {
-    Write-Host "Cap nhat hoan tat"
-    exit 0
+# ---------- LOAD JSON ----------
+$TweaksJson = Get-Content "$CFG\tweaks.json" | ConvertFrom-Json
+$AppsJson   = Get-Content "$CFG\applications.json" | ConvertFrom-Json
+$DnsJson    = Get-Content "$CFG\dns.json" | ConvertFrom-Json
+
+# ---------- HELPERS ----------
+function Select-Multi {
+    param($Items)
+
+    $map = @{}
+    $i = 1
+    foreach ($it in $Items) {
+        Write-Host "$i. $($it.name)"
+        $map[$i] = $it.id
+        $i++
+    }
+
+    $raw = Read-Host "Nhap so (vd: 1,3,5)"
+    $raw -split "," | ForEach-Object { $map[[int]$_] }
 }
 
-# ===============================
-# UI
-# ===============================
-Clear-Host
-Show-PMKLogo
-
-function Show-MainMenu {
-    Write-Host ""
-    Write-Host "=============================="
-    Write-Host "          TOI UU PC           "
-    Write-Host "=============================="
-    Write-Host "1. Toi uu Windows"
-    Write-Host "2. Cai ung dung"
-    Write-Host "3. Quan ly DNS"
-    Write-Host "4. Don dep he thong"
-    Write-Host "5. Cap nhat ToiUuPC"
-    Write-Host "0. Thoat"
-    Write-Host "=============================="
+# ---------- MENU ----------
+function Show-Menu {
+    Clear-Host
+    Write-Host "=========== TOI UU PC ==========="
+    Write-Host "1. Windows tweaks"
+    Write-Host "2. Undo tweaks"
+    Write-Host "3. Install apps"
+    Write-Host "4. DNS"
+    Write-Host "5. Clean system"
+    Write-Host "0. Exit"
 }
 
-# ===============================
-# MAIN LOOP
-# ===============================
-while ($true) {
+# ---------- MAIN ----------
+do {
+    Show-Menu
+    $c = Read-Host "Chon"
 
-    Show-MainMenu
-    $choice = Read-Host "Chon chuc nang"
-
-    switch ($choice) {
+    switch ($c) {
 
         "1" {
-            Write-Host "Dang toi uu Windows..."
+            $selected = Select-Multi $TweaksJson
             Invoke-SystemTweaks `
-                -ConfigPath (Join-Path $CFG "tweaks.json")
-            Write-Host "Hoan tat toi uu"
+                -Config $TweaksJson `
+                -SelectedIds $selected `
+                -BackupPath $BK
         }
 
         "2" {
-            Write-Host "Dang cai ung dung..."
-            Invoke-AppInstaller `
-                -ConfigPath (Join-Path $CFG "applications.json")
-            Write-Host "Cai ung dung hoan tat"
+            Undo-SystemTweaks -BackupPath $BK
         }
 
         "3" {
-            Start-DnsManager `
-                -ConfigPath (Join-Path $CFG "dns.json")
+            $selected = Select-Multi $AppsJson
+            Invoke-AppInstaller `
+                -Config $AppsJson `
+                -SelectedIds $selected
         }
 
         "4" {
-            Write-Host ""
-            Write-Host "1. Don dep tat ca"
-            Write-Host "2. Don temp"
-            Write-Host "3. Don Windows Update"
-            Write-Host "4. Don log he thong"
-            Write-Host "5. Don Recycle Bin"
-            Write-Host "6. Don browser cache"
-            Write-Host "7. WinSxS nang cao"
-            Write-Host "0. Quay lai"
+            Write-Host "1. Google DNS"
+            Write-Host "2. Cloudflare DNS"
+            Write-Host "3. Reset DNS"
+            $d = Read-Host "Chon"
 
-            $c = Read-Host "Chon che do don dep"
-
-            switch ($c) {
-                "1" { Invoke-CleanSystem -All }
-                "2" { Invoke-CleanSystem -Temp }
-                "3" { Invoke-CleanSystem -Update }
-                "4" { Invoke-CleanSystem -Logs }
-                "5" { Invoke-CleanSystem -RecycleBin }
-                "6" { Invoke-CleanSystem -Browser }
-                "7" {
-                    Write-Host "Canh bao: WinSxS khong rollback"
-                    $ok = Read-Host "Nhap y de tiep tuc"
-                    if ($ok -eq "y") {
-                        Invoke-CleanSystem -WinSxS
-                    }
-                }
-            }
+            if ($d -eq "1") { Set-DnsProfile "google" }
+            if ($d -eq "2") { Set-DnsProfile "cloudflare" }
+            if ($d -eq "3") { Reset-DnsProfile }
         }
 
         "5" {
-            Write-Host "Dang cap nhat ToiUuPC..."
-            powershell `
-                -NoProfile `
-                -ExecutionPolicy Bypass `
-                -File "$ROOT\ToiUuPC.ps1" -Update
-            Write-Host "Cap nhat xong, hay chay lai tool"
-            break
-        }
-
-        "0" {
-            Write-Host "Thoat ToiUuPC"
-            break
-        }
-
-        default {
-            Write-Host "Lua chon khong hop le"
+            Invoke-CleanSystem -Mode "All"
         }
     }
 
-    pause
-}
+    if ($c -ne "0") { pause }
+
+} while ($c -ne "0")
