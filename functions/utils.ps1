@@ -74,9 +74,17 @@ function Write-Log {
     Initialize-ToiUuPCEnvironment
 
     $timestamp = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
-    "$timestamp [$Level] $Message" |
-        Out-File -FilePath $Global:LogFile -Append -Encoding UTF8
+    $line = "$timestamp [$Level] $Message"
+
+    $line | Out-File -FilePath $Global:LogFile -Append -Encoding UTF8
+
+    switch ($Level) {
+        "INFO"  { Write-Host $Message -ForegroundColor Gray }
+        "WARN"  { Write-Host $Message -ForegroundColor Yellow }
+        "ERROR" { Write-Host $Message -ForegroundColor Red }
+    }
 }
+
 
 # =====================================================
 # RESTORE POINT (SAFE)
