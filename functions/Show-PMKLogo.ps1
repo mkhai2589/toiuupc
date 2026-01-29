@@ -10,5 +10,5 @@ function Show-PMKLogo {
 ║                 PMK Toolbox - Tối ưu Windows                             ║
 ╚══════════════════════════════════════════════════════════════════════════╝
 "@
-    Write-Host $logo -ForegroundColor $HEADER_COLOR
+    -ForegroundColor $COLOR_HEADER
 }
