@@ -1,56 +1,361 @@
 {
-  "Browsers": [
-    {"Name": "Brave", "Winget": "Brave.Brave", "Icon": "🚀"},
-    {"Name": "Google Chrome", "Winget": "Google.Chrome", "Icon": "🔍"},
-    {"Name": "Firefox", "Winget": "Mozilla.Firefox", "Icon": "🦊"},
-    {"Name": "Microsoft Edge", "Winget": "Microsoft.Edge", "Icon": "⚡"},
-    {"Name": "Opera", "Winget": "Opera.Opera", "Icon": "🎭"},
-    {"Name": "Tor Browser", "Winget": "TorProject.TorBrowser", "Icon": "🧅"},
-    {"Name": "Vivaldi", "Winget": "VivaldiTechnologies.Vivaldi", "Icon": "🎻"}
+  "sources": [
+    { "name": "winget", "argument": "winget" },
+    { "name": "msstore", "argument": "msstore" }
   ],
-  "Communications": [
-    {"Name": "Discord", "Winget": "Discord.Discord", "Icon": "🎮"},
-    {"Name": "Telegram", "Winget": "Telegram.TelegramDesktop", "Icon": "✈️"},
-    {"Name": "Zoom", "Winget": "Zoom.Zoom", "Icon": "📹"},
-    {"Name": "Skype", "Winget": "Microsoft.Skype", "Icon": "💼"},
-    {"Name": "Slack", "Winget": "SlackTechnologies.Slack", "Icon": "📧"},
-    {"Name": "Microsoft Teams", "Winget": "Microsoft.Teams", "Icon": "👥"},
-    {"Name": "Signal", "Winget": "OpenWhisperSystems.Signal", "Icon": "🔒"}
+
+  "categories": [
+    "Browser",
+    "Communication",
+    "Development",
+    "Media",
+    "Utility",
+    "Gaming"
   ],
-  "Development": [
-    {"Name": "Visual Studio Code", "Winget": "Microsoft.VisualStudioCode", "Icon": "📝"},
-    {"Name": "Git", "Winget": "Git.Git", "Icon": "🌿"},
-    {"Name": "Python 3", "Winget": "Python.Python.3.12", "Icon": "🐍"},
-    {"Name": "Node.js", "Winget": "OpenJS.NodeJS", "Icon": "⬢"},
-    {"Name": "Visual Studio Community", "Winget": "Microsoft.VisualStudio.2022.Community", "Icon": "🛠️"},
-    {"Name": "Notepad++", "Winget": "Notepad++.Notepad++", "Icon": "📄"},
-    {"Name": "Postman", "Winget": "Postman.Postman", "Icon": "📬"}
-  ],
-  "Document": [
-    {"Name": "LibreOffice", "Winget": "TheDocumentFoundation.LibreOffice", "Icon": "📑"},
-    {"Name": "Microsoft Office (via winget, if available)", "Winget": "Microsoft.Office", "Icon": "📊"},
-    {"Name": "Adobe Acrobat Reader", "Winget": "Adobe.Acrobat.Reader.64-bit", "Icon": "📖"},
-    {"Name": "Foxit PDF Reader", "Winget": "Foxit.FoxitReader", "Icon": "🦊📄"},
-    {"Name": "SumatraPDF", "Winget": "SumatraPDF.SumatraPDF", "Icon": "📚"},
-    {"Name": "Calibre", "Winget": "calibre.calibre", "Icon": "📖"},
-    {"Name": "OnlyOffice", "Winget": "ONLYOFFICE.DesktopEditors", "Icon": "🖥️"}
-  ],
-  "Microsoft Tools": [
-    {"Name": "PowerToys", "Winget": "Microsoft.PowerToys", "Icon": "🛠️"},
-    {"Name": "Windows Terminal", "Winget": "Microsoft.WindowsTerminal", "Icon": "⌨️"},
-    {"Name": "Microsoft Visual C++ Redistributable", "Winget": "Microsoft.VC++2015-2022Redist-x64", "Icon": "📦"},
-    {"Name": "Microsoft .NET Runtime", "Winget": "Microsoft.dotNetRuntime.8-x64", "Icon": "⚙️"},
-    {"Name": "Sysinternals Suite", "Winget": "Microsoft.Sysinternals", "Icon": "🔧"},
-    {"Name": "Azure CLI", "Winget": "Microsoft.AzureCLI", "Icon": "☁️"},
-    {"Name": "Power BI Desktop", "Winget": "Microsoft.PowerBI.Desktop", "Icon": "📈"}
-  ],
-  "Utilities": [
-    {"Name": "7-Zip", "Winget": "7zip.7zip", "Icon": "🗜️"},
-    {"Name": "WinRAR", "Winget": "RARLab.WinRAR", "Icon": "📦"},
-    {"Name": "CCleaner", "Winget": "Piriform.CCleaner", "Icon": "🧹"},
-    {"Name": "Everything", "Winget": "voidtools.Everything", "Icon": "🔎"},
-    {"Name": "Rufus", "Winget": "Rufus.Rufus", "Icon": "💾"},
-    {"Name": "CPU-Z", "Winget": "CPUID.CPU-Z", "Icon": "🖥️"},
-    {"Name": "CrystalDiskInfo", "Winget": "CrystalDewWorld.CrystalDiskInfo", "Icon": "📀"}
+
+  "applications": [
+    /* =======================
+       BROWSERS
+       ======================= */
+    {
+      "id": "chrome",
+      "name": "Google Chrome",
+      "packageId": "Google.Chrome",
+      "source": "winget",
+      "category": "Browser",
+      "preset": ["Office", "Gaming"],
+      "silent": true
+    },
+    {
+      "id": "firefox",
+      "name": "Mozilla Firefox",
+      "packageId": "Mozilla.Firefox",
+      "source": "winget",
+      "category": "Browser",
+      "preset": ["Office"],
+      "silent": true
+    },
+    {
+      "id": "edge",
+      "name": "Microsoft Edge",
+      "packageId": "Microsoft.Edge",
+      "source": "winget",
+      "category": "Browser",
+      "preset": ["Office"],
+      "silent": true
+    },
+    {
+      "id": "brave",
+      "name": "Brave Browser",
+      "packageId": "Brave.Brave",
+      "source": "winget",
+      "category": "Browser",
+      "preset": ["Office", "Gaming"],
+      "silent": true
+    },
+    {
+      "id": "vivaldi",
+      "name": "Vivaldi",
+      "packageId": "Vivaldi.Vivaldi",
+      "source": "winget",
+      "category": "Browser",
+      "preset": ["Office"],
+      "silent": true
+    },
+    {
+      "id": "opera",
+      "name": "Opera",
+      "packageId": "Opera.Opera",
+      "source": "winget",
+      "category": "Browser",
+      "preset": ["Office"],
+      "silent": true
+    },
+    {
+      "id": "coccoc",
+      "name": "Cốc Cốc",
+      "packageId": "CocCoc.CocCoc",
+      "source": "winget",
+      "category": "Browser",
+      "preset": ["Office"],
+      "silent": true
+    },
+    {
+      "id": "tor",
+      "name": "Tor Browser",
+      "packageId": "TorProject.TorBrowser",
+      "source": "winget",
+      "category": "Browser",
+      "preset": ["Privacy"],
+      "silent": true
+    },
+
+    /* =======================
+       COMMUNICATION
+       ======================= */
+    {
+      "id": "zalo",
+      "name": "Zalo",
+      "packageId": "VNGCorp.Zalo",
+      "source": "winget",
+      "category": "Communication",
+      "preset": ["Office"],
+      "silent": true
+    },
+    {
+      "id": "telegram",
+      "name": "Telegram Desktop",
+      "packageId": "Telegram.TelegramDesktop",
+      "source": "winget",
+      "category": "Communication",
+      "preset": ["Office", "Gaming"],
+      "silent": true
+    },
+    {
+      "id": "whatsapp",
+      "name": "WhatsApp",
+      "packageId": "WhatsApp.WhatsApp",
+      "source": "msstore",
+      "category": "Communication",
+      "preset": ["Office"],
+      "silent": true
+    },
+    {
+      "id": "signal",
+      "name": "Signal",
+      "packageId": "OpenWhisperSystems.Signal",
+      "source": "winget",
+      "category": "Communication",
+      "preset": ["Privacy"],
+      "silent": true
+    },
+    {
+      "id": "discord",
+      "name": "Discord",
+      "packageId": "Discord.Discord",
+      "source": "winget",
+      "category": "Communication",
+      "preset": ["Gaming"],
+      "silent": true
+    },
+    {
+      "id": "teams",
+      "name": "Microsoft Teams",
+      "packageId": "Microsoft.Teams",
+      "source": "winget",
+      "category": "Communication",
+      "preset": ["Office"],
+      "silent": true
+    },
+    {
+      "id": "slack",
+      "name": "Slack",
+      "packageId": "SlackTechnologies.Slack",
+      "source": "winget",
+      "category": "Communication",
+      "preset": ["Office"],
+      "silent": true
+    },
+    {
+      "id": "viber",
+      "name": "Viber",
+      "packageId": "Viber.Viber",
+      "source": "winget",
+      "category": "Communication",
+      "preset": ["Office"],
+      "silent": true
+    },
+    {
+      "id": "line",
+      "name": "LINE",
+      "packageId": "LINE.LINE",
+      "source": "winget",
+      "category": "Communication",
+      "preset": ["Office"],
+      "silent": true
+    },
+
+    /* =======================
+       DEVELOPMENT
+       ======================= */
+    {
+      "id": "vscode",
+      "name": "Visual Studio Code",
+      "packageId": "Microsoft.VisualStudioCode",
+      "source": "winget",
+      "category": "Development",
+      "preset": ["Office"],
+      "silent": true
+    },
+    {
+      "id": "git",
+      "name": "Git",
+      "packageId": "Git.Git",
+      "source": "winget",
+      "category": "Development",
+      "preset": ["Office"],
+      "silent": true
+    },
+    {
+      "id": "githubcli",
+      "name": "GitHub CLI",
+      "packageId": "GitHub.cli",
+      "source": "winget",
+      "category": "Development",
+      "preset": ["Office"],
+      "silent": true
+    },
+    {
+      "id": "python",
+      "name": "Python 3",
+      "packageId": "Python.Python.3",
+      "source": "winget",
+      "category": "Development",
+      "preset": ["Office"],
+      "silent": true
+    },
+    {
+      "id": "nodejs",
+      "name": "Node.js LTS",
+      "packageId": "OpenJS.NodeJS.LTS",
+      "source": "winget",
+      "category": "Development",
+      "preset": ["Office"],
+      "silent": true
+    },
+    {
+      "id": "dotnet",
+      "name": ".NET SDK 8",
+      "packageId": "Microsoft.DotNet.SDK.8",
+      "source": "winget",
+      "category": "Development",
+      "preset": ["Office"],
+      "silent": true
+    },
+    {
+      "id": "java",
+      "name": "OpenJDK 21 (Temurin)",
+      "packageId": "EclipseAdoptium.Temurin.21.JDK",
+      "source": "winget",
+      "category": "Development",
+      "preset": ["Office"],
+      "silent": true
+    },
+    {
+      "id": "androidstudio",
+      "name": "Android Studio",
+      "packageId": "Google.AndroidStudio",
+      "source": "winget",
+      "category": "Development",
+      "preset": ["Office"],
+      "silent": true
+    },
+    {
+      "id": "docker",
+      "name": "Docker Desktop",
+      "packageId": "Docker.DockerDesktop",
+      "source": "winget",
+      "category": "Development",
+      "preset": ["Office"],
+      "silent": true
+    },
+
+    /* =======================
+       MEDIA
+       ======================= */
+    {
+      "id": "vlc",
+      "name": "VLC Media Player",
+      "packageId": "VideoLAN.VLC",
+      "source": "winget",
+      "category": "Media",
+      "preset": ["Office", "Gaming"],
+      "silent": true
+    },
+    {
+      "id": "mpv",
+      "name": "MPV",
+      "packageId": "mpv.mpv",
+      "source": "winget",
+      "category": "Media",
+      "preset": ["Office"],
+      "silent": true
+    },
+    {
+      "id": "spotify",
+      "name": "Spotify",
+      "packageId": "Spotify.Spotify",
+      "source": "msstore",
+      "category": "Media",
+      "preset": ["Office", "Gaming"],
+      "silent": true
+    },
+    {
+      "id": "obs",
+      "name": "OBS Studio",
+      "packageId": "OBSProject.OBSStudio",
+      "source": "winget",
+      "category": "Media",
+      "preset": ["Gaming"],
+      "silent": true
+    },
+    {
+      "id": "audacity",
+      "name": "Audacity",
+      "packageId": "Audacity.Audacity",
+      "source": "winget",
+      "category": "Media",
+      "preset": ["Office"],
+      "silent": true
+    },
+
+    /* =======================
+       UTILITIES
+       ======================= */
+    {
+      "id": "7zip",
+      "name": "7-Zip",
+      "packageId": "7zip.7zip",
+      "source": "winget",
+      "category": "Utility",
+      "preset": ["Office", "Gaming"],
+      "silent": true
+    },
+    {
+      "id": "winrar",
+      "name": "WinRAR",
+      "packageId": "RARLab.WinRAR",
+      "source": "winget",
+      "category": "Utility",
+      "preset": ["Office"],
+      "silent": true
+    },
+    {
+      "id": "rufus",
+      "name": "Rufus",
+      "packageId": "Rufus.Rufus",
+      "source": "winget",
+      "category": "Utility",
+      "preset": ["Office"],
+      "silent": true
+    },
+    {
+      "id": "notepadpp",
+      "name": "Notepad++",
+      "packageId": "Notepad++.Notepad++",
+      "source": "winget",
+      "category": "Utility",
+      "preset": ["Office"],
+      "silent": true
+    },
+    {
+      "id": "powertoys",
+      "name": "PowerToys",
+      "packageId": "Microsoft.PowerToys",
+      "source": "winget",
+      "category": "Utility",
+      "preset": ["Office"],
+      "silent": true
+    }
   ]
 }
