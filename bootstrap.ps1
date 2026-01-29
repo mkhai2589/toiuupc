@@ -1,48 +1,29 @@
-# ===============================
-# ToiUuPC Bootstrap (FINAL)
-# ===============================
-
-# ---- UTF-8 FIX (MANDATORY) ----
-chcp 65001 | Out-Null
-[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-$PSDefaultParameterValues['*:Encoding'] = 'utf8'
+# ToiUuPC Bootstrap - SAFE MODE
 
 Set-StrictMode -Off
 $ErrorActionPreference = "Stop"
 
-# ---- Admin Check ----
+# Admin check
 $IsAdmin = ([Security.Principal.WindowsPrincipal] `
     [Security.Principal.WindowsIdentity]::GetCurrent()
 ).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 
 if (-not $IsAdmin) {
-    Write-Host "❌ Vui lòng chạy PowerShell với quyền Administrator" -ForegroundColor Red
-    Pause
+    Write-Host "Please run PowerShell as Administrator"
+    pause
     exit 1
 }
 
-# ---- Paths ----
 $RepoRaw = "https://raw.githubusercontent.com/mkhai2589/toiuupc/main"
-$WORKDIR = Join-Path $env:TEMP "ToiUuPC"
+$WorkDir = Join-Path $env:TEMP "ToiUuPC"
+$Main    = Join-Path $WorkDir "ToiUuPC.ps1"
 
-$MainFile = Join-Path $WORKDIR "ToiUuPC.ps1"
-
-# ---- Prepare Folder ----
-if (-not (Test-Path $WORKDIR)) {
-    New-Item -ItemType Directory -Path $WORKDIR | Out-Null
+if (-not (Test-Path $WorkDir)) {
+    New-Item -ItemType Directory -Path $WorkDir | Out-Null
 }
 
-# ---- Download Main ----
-Write-Host "⬇ Đang tải ToiUuPC..." -ForegroundColor Cyan
-Invoke-WebRequest `
-    -Uri "$RepoRaw/ToiUuPC.ps1" `
-    -OutFile $MainFile `
-    -UseBasicParsing
+Write-Host "Downloading ToiUuPC..."
+Invoke-WebRequest "$RepoRaw/ToiUuPC.ps1" -OutFile $Main -UseBasicParsing
 
-# ---- Run Main (Bypass Policy) ----
-Write-Host "🚀 Khởi động ToiUuPC..." -ForegroundColor Green
-
-powershell `
-    -NoProfile `
-    -ExecutionPolicy Bypass `
-    -File $MainFile
+Write-Host "Launching..."
+powershell -NoProfile -ExecutionPolicy Bypass -File $Main
