@@ -14,7 +14,6 @@ $Global:BackupDir   = Join-Path $Global:RuntimeDir "backups"
 # INITIALIZE ENVIRONMENT
 # =====================================================
 function Initialize-ToiUuPCEnvironment {
-
     foreach ($dir in @(
         $Global:ToiUuPC_Root,
         $Global:RuntimeDir,
@@ -39,24 +38,12 @@ function Test-IsAdmin {
         $id = [Security.Principal.WindowsIdentity]::GetCurrent()
         $p  = New-Object Security.Principal.WindowsPrincipal($id)
         return $p.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-    } catch {
-        return $false
-    }
+    } catch { return $false }
 }
 
 function Ensure-Admin {
     if (-not (Test-IsAdmin)) {
-        try {
-            Add-Type -AssemblyName PresentationFramework
-            [System.Windows.MessageBox]::Show(
-                "Vui long chay PowerShell bang quyen Administrator",
-                "ToiUuPC",
-                "OK",
-                "Error"
-            ) | Out-Null
-        } catch {
-            Write-Host "Vui long chay PowerShell bang quyen Administrator" -ForegroundColor Red
-        }
+        Write-Host "Vui long chay PowerShell bang quyen Administrator" -ForegroundColor Red
         exit 1
     }
 }
@@ -73,84 +60,115 @@ function Write-Log {
 
     Initialize-ToiUuPCEnvironment
 
-    $timestamp = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
-    $line = "$timestamp [$Level] $Message"
-
-    $line | Out-File -FilePath $Global:LogFile -Append -Encoding UTF8
-
-    switch ($Level) {
-        "INFO"  { Write-Host $Message -ForegroundColor Gray }
-        "WARN"  { Write-Host $Message -ForegroundColor Yellow }
-        "ERROR" { Write-Host $Message -ForegroundColor Red }
-    }
-}
-
-
-# =====================================================
-# RESTORE POINT (SAFE)
-# =====================================================
-function New-RestorePoint {
-    param(
-        [string]$Description = "ToiUuPC Restore Point"
-    )
-
-    Write-Log "Creating restore point: $Description"
-
-    try {
-        Enable-ComputerRestore -Drive "C:\" -ErrorAction SilentlyContinue
-        Checkpoint-Computer `
-            -Description $Description `
-            -RestorePointType "MODIFY_SETTINGS" `
-            -ErrorAction Stop
-        Write-Log "Restore point created"
-    } catch {
-        Write-Log "Restore point skipped: $($_.Exception.Message)" "WARN"
-    }
+    $ts = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
+    "$ts [$Level] $Message" |
+        Out-File -FilePath $Global:LogFile -Append -Encoding UTF8
 }
 
 # =====================================================
-# PROGRESS BAR (GUI SAFE)
+# COLOR HELPER
+# =====================================================
+function Get-UsageColor {
+    param([double]$Percent)
+
+    if ($Percent -ge 80) { return "Red" }
+    elseif ($Percent -ge 60) { return "Orange" }
+    else { return "LimeGreen" }
+}
+
+# =====================================================
+# PROGRESS BAR
 # =====================================================
 function Set-Progress {
+    param($ProgressBar,[int]$Current,[int]$Total)
+
+    if (-not $ProgressBar -or $Total -le 0) { return }
+
+    $ProgressBar.Value = [Math]::Min(
+        100,
+        [Math]::Round(($Current / $Total) * 100)
+    )
+
+    if ([System.Windows.Forms.Application]::MessageLoop) {
+        [System.Windows.Forms.Application]::DoEvents()
+    }
+}
+
+# =====================================================
+# SMOOTH PROGRESS ANIMATION
+# =====================================================
+function Set-ProgressSmooth {
     param(
         $ProgressBar,
-        [int]$Current,
-        [int]$Total
+        [double]$TargetValue,
+        [int]$DurationMs = 400
     )
 
     if (-not $ProgressBar) { return }
-    if ($Total -le 0) { return }
 
     try {
-        $ProgressBar.Value = [Math]::Min(
-            100,
-            [Math]::Round(($Current / $Total) * 100)
-        )
+        Add-Type -AssemblyName PresentationFramework
 
-        # GUI refresh
-        if ([System.Windows.Forms.Application]::MessageLoop) {
-            [System.Windows.Forms.Application]::DoEvents()
-        }
+        $anim = New-Object System.Windows.Media.Animation.DoubleAnimation
+        $anim.From = $ProgressBar.Value
+        $anim.To   = [Math]::Min(100, $TargetValue)
+        $anim.Duration = [TimeSpan]::FromMilliseconds($DurationMs)
+        $anim.EasingFunction = New-Object `
+            System.Windows.Media.Animation.CubicEase -Property @{ EasingMode = "EaseOut" }
+
+        $ProgressBar.BeginAnimation(
+            [System.Windows.Controls.ProgressBar]::ValueProperty,
+            $anim
+        )
     } catch {
-        # ignore GUI errors
+        $ProgressBar.Value = $TargetValue
     }
 }
 
 # =====================================================
-# SAFE EXECUTION WRAPPER
+# SYSTEM INFO (DASHBOARD)
 # =====================================================
-function Invoke-Safe {
-    param(
-        [Parameter(Mandatory)][scriptblock]$Script,
-        [string]$Name = "Task"
-    )
+function Get-SystemInfo {
 
-    Write-Log "Start: $Name"
+    # CPU
+    $cpu = Get-Counter '\Processor(_Total)\% Processor Time'
+    $cpuLoad = [Math]::Round($cpu.CounterSamples[0].CookedValue,1)
 
-    try {
-        & $Script
-        Write-Log "Done: $Name"
-    } catch {
-        Write-Log "Failed: $Name | $($_.Exception.Message)" "ERROR"
+    # RAM
+    $os = Get-CimInstance Win32_OperatingSystem
+    $totalRam = [Math]::Round($os.TotalVisibleMemorySize / 1MB,1)
+    $freeRam  = [Math]::Round($os.FreePhysicalMemory / 1MB,1)
+    $usedRam  = $totalRam - $freeRam
+    $ramPct   = [Math]::Round(($usedRam / $totalRam) * 100,1)
+
+    # DISK
+    $disks = Get-CimInstance Win32_LogicalDisk -Filter "DriveType=3" |
+        ForEach-Object {
+            $freePct = [Math]::Round(($_.FreeSpace / $_.Size) * 100,1)
+            [PSCustomObject]@{
+                Drive       = $_.DeviceID
+                FreeGB      = [Math]::Round($_.FreeSpace / 1GB,1)
+                TotalGB     = [Math]::Round($_.Size / 1GB,1)
+                FreePercent = $freePct
+                UsedPercent = 100 - $freePct
+                Color       = Get-UsageColor (100 - $freePct)
+                Warning     = if ($freePct -lt 8) { "CRITICAL" }
+                              elseif ($freePct -lt 15) { "LOW SPACE" }
+                              else { "" }
+            }
+        }
+
+    return [PSCustomObject]@{
+        CPU  = @{
+            LoadPercent = $cpuLoad
+            Color       = Get-UsageColor $cpuLoad
+        }
+        RAM  = @{
+            TotalGB     = $totalRam
+            UsedGB      = $usedRam
+            UsedPercent = $ramPct
+            Color       = Get-UsageColor $ramPct
+        }
+        Disk = $disks
     }
 }
