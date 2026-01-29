@@ -1,50 +1,141 @@
 # =========================================================
 # ToiUuPC – Compile Script
-# Build PowerShell → EXE
+# Bundle PowerShell to EXE (WPF SAFE)
 # Author: PMK
 # =========================================================
 
-Set-StrictMode -Version Latest
+Set-StrictMode -Off
 $ErrorActionPreference = "Stop"
 
-Write-Host "▶ ToiUuPC Compile Tool" -ForegroundColor Cyan
+Write-Host "ToiUuPC Compile Tool"
 
-# ---------------- PATH ----------------
-$Root = Split-Path -Parent $MyInvocation.MyCommand.Path
-$Source = Join-Path $Root "ToiUuPC-Bundled.ps1"
-$Output = Join-Path $Root "ToiUuPC.exe"
-
-# ---------------- CHECK SOURCE ----------------
-if (-not (Test-Path $Source)) {
-    Write-Host "❌ Không tìm thấy ToiUuPC-Bundled.ps1" -ForegroundColor Red
+# =========================================================
+# CHECK POWERSHELL VERSION
+# =========================================================
+if ($PSVersionTable.PSVersion.Major -ne 5) {
+    Write-Host "ERROR: Please run this script using Windows PowerShell 5.1"
+    Write-Host "PowerShell 7 is not supported for WPF compilation"
     exit 1
 }
 
-# ---------------- CHECK PS2EXE ----------------
+# =========================================================
+# PATH DEFINITIONS
+# =========================================================
+$Root      = Split-Path -Parent $MyInvocation.MyCommand.Path
+$MainFile  = Join-Path $Root "ToiUuPC.ps1"
+$FuncDir   = Join-Path $Root "functions"
+$UiDir     = Join-Path $Root "ui"
+
+$BundledPS = Join-Path $Root "ToiUuPC-Bundled.ps1"
+$OutputExe = Join-Path $Root "ToiUuPC.exe"
+
+# =========================================================
+# VALIDATION
+# =========================================================
+if (-not (Test-Path $MainFile)) {
+    Write-Host "ERROR: Missing ToiUuPC.ps1"
+    exit 1
+}
+
+if (-not (Test-Path $FuncDir)) {
+    Write-Host "ERROR: Missing functions directory"
+    exit 1
+}
+
+if (-not (Test-Path $UiDir)) {
+    Write-Host "ERROR: Missing ui directory"
+    exit 1
+}
+
+# =========================================================
+# BUILD BUNDLED SCRIPT
+# =========================================================
+Write-Host "Bundling source files..."
+
+$bundle = New-Object System.Collections.Generic.List[string]
+
+$bundle.Add("# =========================================================")
+$bundle.Add("# ToiUuPC – AUTO GENERATED BUNDLE")
+$bundle.Add("# DO NOT EDIT MANUALLY")
+$bundle.Add("# =========================================================")
+$bundle.Add("")
+$bundle.Add("Set-StrictMode -Off")
+$bundle.Add('$ErrorActionPreference = "Continue"')
+$bundle.Add("")
+
+# =========================================================
+# EMBED FUNCTIONS
+# =========================================================
+$bundle.Add("# ================= FUNCTIONS =================")
+
+Get-ChildItem $FuncDir -Filter "*.ps1" | Sort-Object Name | ForEach-Object {
+    Write-Host " + functions\$($_.Name)"
+    $bundle.Add("")
+    $bundle.Add("# ----- BEGIN $($_.Name) -----")
+    $bundle.Add((Get-Content $_ -Raw))
+    $bundle.Add("# ----- END $($_.Name) -----")
+}
+
+# =========================================================
+# EMBED XAML FILES
+# =========================================================
+$bundle.Add("")
+$bundle.Add("# ================= UI FILES =================")
+
+Get-ChildItem $UiDir -Filter "*.xaml" | Sort-Object Name | ForEach-Object {
+    Write-Host " + ui\$($_.Name)"
+    $varName = "UI_" + ($_.Name -replace '\.', '_')
+    $content = (Get-Content $_ -Raw) -replace "@","@@"
+    $bundle.Add("")
+    $bundle.Add("`$Global:$varName = @'")
+    $bundle.Add($content)
+    $bundle.Add("'@")
+}
+
+# =========================================================
+# MAIN SCRIPT
+# =========================================================
+$bundle.Add("")
+$bundle.Add("# ================= MAIN SCRIPT =================")
+$bundle.Add((Get-Content $MainFile -Raw))
+
+# =========================================================
+# WRITE BUNDLE FILE
+# =========================================================
+Set-Content -Path $BundledPS -Value $bundle -Encoding UTF8
+Write-Host "Bundled script created: ToiUuPC-Bundled.ps1"
+
+# =========================================================
+# ENSURE PS2EXE
+# =========================================================
 if (-not (Get-Module -ListAvailable -Name ps2exe)) {
-    Write-Host "⚠ Chưa có ps2exe, đang cài..." -ForegroundColor Yellow
+    Write-Host "Installing ps2exe module..."
     Install-Module ps2exe -Scope CurrentUser -Force -AllowClobber
 }
 
-Import-Module ps2exe
+Import-Module ps2exe -ErrorAction Stop
 
-# ---------------- COMPILE ----------------
-Write-Host "⚙️ Đang build EXE..." -ForegroundColor Cyan
+# =========================================================
+# COMPILE TO EXE
+# =========================================================
+Write-Host "Compiling EXE..."
 
 Invoke-ps2exe `
-    -InputFile $Source `
-    -OutputFile $Output `
-    -NoConsole:$false `
+    -InputFile $BundledPS `
+    -OutputFile $OutputExe `
     -RequireAdmin `
-    -Title "ToiUuPC – Windows Optimizer" `
-    -Description "ToiUuPC - Windows 10/11 Optimization Toolkit" `
+    -NoConsole:$false `
+    -Title "ToiUuPC - Windows Optimizer" `
+    -Description "Windows optimization and monitoring toolkit" `
     -Company "PMK" `
-    -Product "ToiUuPC" `
-    -Copyright "© PMK"
+    -Product "ToiUuPC"
 
-# ---------------- DONE ----------------
-if (Test-Path $Output) {
-    Write-Host "✅ Build thành công: $Output" -ForegroundColor Green
+# =========================================================
+# DONE
+# =========================================================
+if (Test-Path $OutputExe) {
+    Write-Host "BUILD SUCCESS"
+    Write-Host $OutputExe
 } else {
-    Write-Host "❌ Build thất bại" -ForegroundColor Red
+    Write-Host "BUILD FAILED"
 }
