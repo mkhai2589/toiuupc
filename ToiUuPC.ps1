@@ -2,15 +2,20 @@ param(
     [switch]$Update
 )
 
-# =========================================
-# ToiUuPC - Main Controller (Stable)
+# ===============================
+# ToiUuPC - Main Controller FINAL
 # Author: PMK
-# =========================================
+# ===============================
+
+# ---- UTF-8 FIX ----
+chcp 65001 | Out-Null
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$PSDefaultParameterValues['*:Encoding'] = 'utf8'
 
 Set-StrictMode -Off
 $ErrorActionPreference = "Stop"
 
-# ---------- Global ----------
+# ---- Global ----
 $RepoRaw = "https://raw.githubusercontent.com/mkhai2589/toiuupc/main"
 
 $WORKDIR  = Join-Path $env:TEMP "ToiUuPC"
@@ -19,37 +24,39 @@ $CFG_DIR  = Join-Path $WORKDIR "config"
 $LOG_DIR  = Join-Path $WORKDIR "runtime\logs"
 $BK_DIR   = Join-Path $WORKDIR "runtime\backups"
 
-# ---------- Admin check ----------
-$IsAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
- 
+# ---- Admin Check ----
+$IsAdmin = ([Security.Principal.WindowsPrincipal] `
+    [Security.Principal.WindowsIdentity]::GetCurrent()
+).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+
 if (-not $IsAdmin) {
     Write-Host "❌ Vui lòng chạy PowerShell với quyền Administrator" -ForegroundColor Red
     exit 1
 }
 
-# ---------- Prepare folders ----------
+# ---- Prepare Folders ----
 foreach ($dir in @($WORKDIR, $FUNC_DIR, $CFG_DIR, $LOG_DIR, $BK_DIR)) {
     if (-not (Test-Path $dir)) {
         New-Item -ItemType Directory -Path $dir | Out-Null
     }
 }
 
-# ---------- Download helper ----------
+# ---- Download Helper ----
 function Get-RemoteFile {
     param(
-        [Parameter(Mandatory)][string]$Url,
-        [Parameter(Mandatory)][string]$OutFile
+        [string]$Url,
+        [string]$OutFile
     )
-
     Write-Host "⬇ $Url" -ForegroundColor DarkGray
     Invoke-WebRequest -Uri $Url -OutFile $OutFile -UseBasicParsing
 }
 
-# ---------- Sync project files ----------
+# ---- Sync Project ----
 function Sync-ToiUuPC {
+
     Write-Host "`n🔄 Đồng bộ ToiUuPC..." -ForegroundColor Cyan
 
-    $functions = @(
+    $Functions = @(
         "utils.ps1",
         "Show-PMKLogo.ps1",
         "tweaks.ps1",
@@ -58,38 +65,38 @@ function Sync-ToiUuPC {
         "clean-system.ps1"
     )
 
-    foreach ($f in $functions) {
+    foreach ($f in $Functions) {
         Get-RemoteFile "$RepoRaw/functions/$f" (Join-Path $FUNC_DIR $f)
     }
 
-    $configs = @(
+    $Configs = @(
         "tweaks.json",
         "applications.json",
         "dns.json"
     )
 
-    foreach ($c in $configs) {
+    foreach ($c in $Configs) {
         Get-RemoteFile "$RepoRaw/config/$c" (Join-Path $CFG_DIR $c)
     }
 
-    Write-Host "✅ Đồng bộ xong" -ForegroundColor Green
+    Write-Host "✅ Đồng bộ hoàn tất" -ForegroundColor Green
 }
 
-# ---------- Initial sync ----------
+# ---- Initial Sync ----
 Sync-ToiUuPC
 
-# ---------- Import functions ----------
+# ---- SAFE LOAD FUNCTIONS (NO EXECUTION POLICY ISSUE) ----
 Get-ChildItem $FUNC_DIR -Filter "*.ps1" | ForEach-Object {
-    . $_.FullName
+    Invoke-Expression (Get-Content $_.FullName -Raw)
 }
 
-# ---------- Update only ----------
+# ---- Update Only ----
 if ($Update) {
     Write-Host "✅ ToiUuPC đã cập nhật xong" -ForegroundColor Green
     exit 0
 }
 
-# ---------- UI ----------
+# ---- UI ----
 Clear-Host
 if (Get-Command Show-PMKLogo -ErrorAction SilentlyContinue) {
     Show-PMKLogo
@@ -107,7 +114,7 @@ function Show-MainMenu {
     Write-Host "================================"
 }
 
-# ---------- Main loop ----------
+# ---- Main Loop ----
 while ($true) {
 
     Show-MainMenu
@@ -137,9 +144,11 @@ while ($true) {
 
         "5" {
             Write-Host "`n🔄 Đang cập nhật..." -ForegroundColor Yellow
-            & powershell -NoProfile -ExecutionPolicy Bypass `
+            powershell `
+                -NoProfile `
+                -ExecutionPolicy Bypass `
                 -File "$WORKDIR\ToiUuPC.ps1" -Update
-            Write-Host "✅ Cập nhật xong. Chạy lại tool." -ForegroundColor Green
+            Write-Host "✅ Cập nhật xong. Vui lòng chạy lại tool." -ForegroundColor Green
             break
         }
 
