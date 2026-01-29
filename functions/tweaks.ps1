@@ -21,11 +21,7 @@ function Get-TweakState {
                     -Name $Tweak.nameReg `
                     -ErrorAction Stop
 
-                if ($val.$($Tweak.nameReg) -eq $Tweak.value) {
-                    return "ON"
-                } else {
-                    return "OFF"
-                }
+                return ($val.$($Tweak.nameReg) -eq $Tweak.value) ? "ON" : "OFF"
             }
 
             "service" {
@@ -33,11 +29,7 @@ function Get-TweakState {
                     -Filter "Name='$($Tweak.serviceName)'" `
                     -ErrorAction Stop
 
-                if ($svc.StartMode -eq $Tweak.startup) {
-                    return "ON"
-                } else {
-                    return "OFF"
-                }
+                return ($svc.StartMode -eq $Tweak.startup) ? "ON" : "OFF"
             }
 
             "service_multiple" {
@@ -55,24 +47,21 @@ function Get-TweakState {
 
             "scheduled_task" {
                 if ($Tweak.taskName) {
-                    $task = Get-ScheduledTask `
-                        -TaskName $Tweak.taskName `
-                        -ErrorAction Stop
+                    $task = Get-ScheduledTask -TaskName $Tweak.taskName -ErrorAction Stop
                     return ($task.Enabled -eq $false) ? "ON" : "OFF"
                 }
 
                 if ($Tweak.tasks) {
                     foreach ($name in $Tweak.tasks) {
-                        $task = Get-ScheduledTask `
-                            -TaskName $name `
-                            -ErrorAction Stop
+                        $task = Get-ScheduledTask -TaskName $name -ErrorAction Stop
                         if ($task.Enabled) { return "OFF" }
                     }
                     return "ON"
                 }
             }
         }
-    } catch {
+    }
+    catch {
         return "UNKNOWN"
     }
 
@@ -80,150 +69,186 @@ function Get-TweakState {
 }
 
 # ==========================================================
-# BUILD GUI MODEL (CHECKBOX + STATE)
+# VIEW MODEL
 # ==========================================================
 function Build-TweakViewModel {
     param([array]$Tweaks)
 
+    $list = @()
+
     foreach ($t in $Tweaks) {
         $state = Get-TweakState $t
 
-        [PSCustomObject]@{
-            Id          = $t.id
-            Name        = $t.name
-            Description = $t.description
-            Category    = $t.category
-            State       = $state
-            IsChecked   = ($state -eq "ON")
-            Raw         = $t
+        $list += [PSCustomObject]@{
+            Id        = $t.id
+            Name      = $t.name
+            Category  = $t.category
+            State     = $state
+            Raw       = $t
+        }
+    }
+
+    return $list
+}
+
+# ==========================================================
+# APPLY SINGLE TWEAK (ON)
+# ==========================================================
+function Apply-Tweak {
+    param($Tweak, $BackupPath)
+
+    switch ($Tweak.type) {
+
+        "registry" {
+            if (-not (Test-Path $Tweak.path)) {
+                New-Item -Path $Tweak.path -Force | Out-Null
+            }
+
+            $bkFile = Join-Path $BackupPath "$($Tweak.id).json"
+            if (-not (Test-Path $bkFile)) {
+                $old = Get-ItemProperty `
+                    -Path $Tweak.path `
+                    -Name $Tweak.nameReg `
+                    -ErrorAction SilentlyContinue
+                if ($old) {
+                    $old | ConvertTo-Json | Out-File $bkFile -Encoding UTF8
+                }
+            }
+
+            Set-ItemProperty `
+                -Path $Tweak.path `
+                -Name $Tweak.nameReg `
+                -Value $Tweak.value `
+                -Type $Tweak.regType `
+                -Force
+        }
+
+        "service" {
+            sc.exe config $Tweak.serviceName start= $Tweak.startup | Out-Null
+            if ($Tweak.startup -eq "disabled") {
+                Stop-Service $Tweak.serviceName -Force -ErrorAction SilentlyContinue
+            }
+        }
+
+        "service_multiple" {
+            foreach ($s in $Tweak.services) {
+                sc.exe config $s.name start= $s.startup | Out-Null
+                if ($s.startup -eq "disabled") {
+                    Stop-Service $s.name -Force -ErrorAction SilentlyContinue
+                }
+            }
+        }
+
+        "scheduled_task" {
+            if ($Tweak.taskName) {
+                Disable-ScheduledTask -TaskName $Tweak.taskName -ErrorAction SilentlyContinue | Out-Null
+            }
+            if ($Tweak.tasks) {
+                foreach ($name in $Tweak.tasks) {
+                    Disable-ScheduledTask -TaskName $name -ErrorAction SilentlyContinue | Out-Null
+                }
+            }
         }
     }
 }
 
 # ==========================================================
-# APPLY SYSTEM TWEAKS
+# UNDO SINGLE TWEAK (OFF)
 # ==========================================================
-function Invoke-SystemTweaks {
-    param(
-        [array]$Tweaks,
-        [string[]]$SelectedIds,
-        [string]$BackupPath,
-        $ProgressBar
-    )
+function Undo-Tweak {
+    param($Tweak, $BackupPath)
 
-    if (-not (Test-Path $BackupPath)) {
-        New-Item -ItemType Directory -Path $BackupPath -Force | Out-Null
-    }
-
-    $applyList = $Tweaks | Where-Object { $_.id -in $SelectedIds }
-    $total = $applyList.Count
-    $i = 0
-
-    foreach ($t in $applyList) {
-        $i++
-        Set-Progress $ProgressBar $i $total
-        Write-Log "Apply tweak: $($t.id)"
-
-        switch ($t.type) {
-
-            # ---------------- REGISTRY ----------------
-            "registry" {
-                if (-not (Test-Path $t.path)) {
-                    New-Item -Path $t.path -Force | Out-Null
-                }
-
-                $bkFile = Join-Path $BackupPath "$($t.id).json"
-
-                if (-not (Test-Path $bkFile)) {
-                    try {
-                        $old = Get-ItemProperty `
-                            -Path $t.path `
-                            -Name $t.nameReg `
-                            -ErrorAction SilentlyContinue
-
-                        if ($old) {
-                            $old | ConvertTo-Json |
-                                Out-File $bkFile -Encoding UTF8
-                        }
-                    } catch {}
-                }
-
-                Set-ItemProperty `
-                    -Path $t.path `
-                    -Name $t.nameReg `
-                    -Value $t.value `
-                    -Type $t.regType
-            }
-
-            # ---------------- SERVICE ----------------
-            "service" {
-                $svc = Get-Service -Name $t.serviceName -ErrorAction SilentlyContinue
-                if ($svc) {
-                    sc.exe config $t.serviceName start= $t.startup | Out-Null
-                    if ($t.startup -eq "disabled") {
-                        Stop-Service $t.serviceName -Force -ErrorAction SilentlyContinue
-                    }
-                }
-            }
-
-            "service_multiple" {
-                foreach ($s in $t.services) {
-                    $svc = Get-Service -Name $s.name -ErrorAction SilentlyContinue
-                    if ($svc) {
-                        sc.exe config $s.name start= $s.startup | Out-Null
-                        if ($s.startup -eq "disabled") {
-                            Stop-Service $s.name -Force -ErrorAction SilentlyContinue
-                        }
-                    }
-                }
-            }
-
-            # ---------------- SCHEDULED TASK ----------------
-            "scheduled_task" {
-                if ($t.taskName) {
-                    Get-ScheduledTask -TaskName $t.taskName -ErrorAction SilentlyContinue |
-                        Disable-ScheduledTask | Out-Null
-                }
-
-                if ($t.tasks) {
-                    foreach ($name in $t.tasks) {
-                        Get-ScheduledTask -TaskName $name -ErrorAction SilentlyContinue |
-                            Disable-ScheduledTask | Out-Null
-                    }
-                }
-            }
-        }
-    }
-
-    Set-Progress $ProgressBar $total $total
-    Write-Log "System tweaks applied"
-}
-
-# ==========================================================
-# UNDO SYSTEM TWEAKS (REGISTRY ONLY - SAFE)
-# ==========================================================
-function Undo-SystemTweaks {
-    param([string]$BackupPath)
-
-    if (-not (Test-Path $BackupPath)) {
-        Write-Log "No backup found" "WARN"
+    if ($Tweak.type -ne "registry") {
+        Write-Host "Undo not supported for $($Tweak.id)" -ForegroundColor Yellow
         return
     }
 
-    Get-ChildItem $BackupPath -Filter "*.json" | ForEach-Object {
-        try {
-            $data = Get-Content $_.FullName -Raw | ConvertFrom-Json
-
-            if ($data.PSPath -and $data.PSChildName) {
-                Set-ItemProperty `
-                    -Path $data.PSPath `
-                    -Name $data.PSChildName `
-                    -Value $data.$($data.PSChildName)
-            }
-        } catch {
-            Write-Log "Undo failed: $($_.Name)" "WARN"
-        }
+    $bkFile = Join-Path $BackupPath "$($Tweak.id).json"
+    if (-not (Test-Path $bkFile)) {
+        Write-Host "No backup for $($Tweak.id)" -ForegroundColor Yellow
+        return
     }
 
-    Write-Log "Undo tweaks completed"
+    $data = Get-Content $bkFile -Raw | ConvertFrom-Json
+    if ($data.PSPath -and $data.PSChildName) {
+        Set-ItemProperty `
+            -Path $data.PSPath `
+            -Name $data.PSChildName `
+            -Value $data.$($data.PSChildName)
+    }
+}
+
+# ==========================================================
+# MAIN MENU (REQUIRED)
+# ==========================================================
+function Invoke-TweaksMenu {
+    param([object]$Config)
+
+    if (-not $Config -or -not $Config.tweaks) {
+        Write-Host "Invalid tweaks config" -ForegroundColor Red
+        return
+    }
+
+    $BackupPath = Join-Path $env:TEMP "PMK_Tweaks_Backup"
+    if (-not (Test-Path $BackupPath)) {
+        New-Item -ItemType Directory -Path $BackupPath | Out-Null
+    }
+
+    do {
+        Clear-Host
+        Write-Host "==============================="
+        Write-Host " WINDOWS TWEAKS"
+        Write-Host "==============================="
+        Write-Host ""
+
+        $vm = Build-TweakViewModel $Config.tweaks
+        $map = @{}
+        $i = 1
+
+        foreach ($t in $vm) {
+            $color = ($t.State -eq "ON") ? "Green" : "Yellow"
+            Write-Host ("[{0}] {1} [{2}]" -f $i, $t.Name, $t.State) -ForegroundColor $color
+            $map[$i] = $t
+            $i++
+        }
+
+        Write-Host ""
+        Write-Host "Enter number to TOGGLE (ON/OFF)"
+        Write-Host "Enter U<ID> to UNDO by ID (ex: U disable_telemetry)"
+        Write-Host "Press ENTER to return"
+        Write-Host ""
+
+        $input = Read-Host "Select"
+        if (-not $input) { break }
+
+        # UNDO BY ID
+        if ($input -match "^U\s*(.+)$") {
+            $id = $Matches[1]
+            $t = $Config.tweaks | Where-Object { $_.id -eq $id }
+            if ($t) {
+                Undo-Tweak $t $BackupPath
+                Write-Host "Undo completed for $id" -ForegroundColor Cyan
+            }
+            Start-Sleep 1
+            continue
+        }
+
+        # TOGGLE
+        $num = [int]$input
+        if ($map.ContainsKey($num)) {
+            $item = $map[$num]
+            $raw  = $item.Raw
+
+            if ($item.State -eq "ON") {
+                Undo-Tweak $raw $BackupPath
+                Write-Host "Tweak OFF: $($raw.name)" -ForegroundColor Yellow
+            }
+            else {
+                Apply-Tweak $raw $BackupPath
+                Write-Host "Tweak ON: $($raw.name)" -ForegroundColor Green
+            }
+            Start-Sleep 1
+        }
+
+    } while ($true)
 }
