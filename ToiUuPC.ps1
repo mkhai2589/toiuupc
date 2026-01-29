@@ -1,16 +1,19 @@
 # ==================================================
-# ToiUuPC.ps1 - FINAL STABLE VERSION
-# Windows Optimization Tool
+# ToiUuPC.ps1 - FINAL FULL VERSION
+# Windows 10/11 Optimization Tool
+# Author: PMK
 # ==================================================
 
-# ---------- UTF8 ----------
+# ---------------- UTF8 ----------------
 chcp 65001 | Out-Null
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 Set-StrictMode -Off
 $ErrorActionPreference = "Continue"
 
-# ---------- ADMIN CHECK ----------
+# ==================================================
+# ADMIN CHECK (EARLY)
+# ==================================================
 function Test-IsAdmin {
     $id = [Security.Principal.WindowsIdentity]::GetCurrent()
     $p  = New-Object Security.Principal.WindowsPrincipal($id)
@@ -18,12 +21,14 @@ function Test-IsAdmin {
 }
 
 if (-not (Test-IsAdmin)) {
-    Write-Host "❌ Vui long chay PowerShell bang quyen Administrator" -ForegroundColor Red
+    Write-Host "Vui long chay PowerShell bang quyen Administrator" -ForegroundColor Red
     pause
-    exit
+    exit 1
 }
 
-# ---------- GLOBAL PATH ----------
+# ==================================================
+# GLOBAL PATHS
+# ==================================================
 $RepoRaw = "https://raw.githubusercontent.com/mkhai2589/toiuupc/main"
 
 $ROOT = Join-Path $env:TEMP "ToiUuPC"
@@ -33,15 +38,23 @@ $RUN  = Join-Path $ROOT "runtime"
 $LOG  = Join-Path $RUN  "toiuupc.log"
 $BK   = Join-Path $RUN  "backup"
 
-# ---------- ENSURE DIR ----------
+# ==================================================
+# ENSURE DIRECTORIES
+# ==================================================
 foreach ($dir in @($ROOT,$FUNC,$CFG,$RUN,$BK)) {
     if (-not (Test-Path $dir)) {
         New-Item -ItemType Directory -Path $dir -Force | Out-Null
     }
 }
 
-# ---------- LOG ----------
-function Write-Log {
+if (-not (Test-Path $LOG)) {
+    New-Item -ItemType File -Path $LOG -Force | Out-Null
+}
+
+# ==================================================
+# BASIC LOG (BOOTSTRAP SAFE)
+# ==================================================
+function Write-BootLog {
     param(
         [string]$Message,
         [string]$Level = "INFO"
@@ -51,21 +64,28 @@ function Write-Log {
     Write-Host "[$Level] $Message"
 }
 
-# ---------- DOWNLOAD ----------
+Write-BootLog "ToiUuPC starting..."
+
+# ==================================================
+# DOWNLOAD HELPER
+# ==================================================
 function Download-File {
-    param($Url,$Out)
+    param(
+        [Parameter(Mandatory)][string]$Url,
+        [Parameter(Mandatory)][string]$OutFile
+    )
     try {
-        Invoke-WebRequest $Url -OutFile $Out -UseBasicParsing -ErrorAction Stop
-        Write-Log "Downloaded $(Split-Path $Out -Leaf)"
+        Invoke-WebRequest -Uri $Url -OutFile $OutFile -UseBasicParsing -ErrorAction Stop
+        Write-BootLog "Downloaded $(Split-Path $OutFile -Leaf)"
         return $true
     } catch {
-        Write-Log "Download failed: $Url" "ERROR"
+        Write-BootLog "Download failed: $Url" "ERROR"
         return $false
     }
 }
 
 # ==================================================
-# SYNC PROJECT
+# SYNC PROJECT FILES
 # ==================================================
 function Sync-ToiUuPC {
 
@@ -81,7 +101,9 @@ function Sync-ToiUuPC {
     )
 
     foreach ($f in $FunctionFiles) {
-        Download-File "$RepoRaw/functions/$f" (Join-Path $FUNC $f) | Out-Null
+        Download-File `
+            -Url "$RepoRaw/functions/$f" `
+            -OutFile (Join-Path $FUNC $f) | Out-Null
     }
 
     $ConfigFiles = @(
@@ -91,24 +113,27 @@ function Sync-ToiUuPC {
     )
 
     foreach ($c in $ConfigFiles) {
-        Download-File "$RepoRaw/config/$c" (Join-Path $CFG $c) | Out-Null
+        Download-File `
+            -Url "$RepoRaw/config/$c" `
+            -OutFile (Join-Path $CFG $c) | Out-Null
     }
 
     Write-Host "Dong bo hoan tat" -ForegroundColor Green
 }
 
 # ==================================================
-# LOAD FUNCTIONS
+# LOAD FUNCTION MODULES
 # ==================================================
 function Load-Functions {
+
     Write-Host "`nDang nap function modules..." -ForegroundColor Cyan
 
     Get-ChildItem $FUNC -Filter *.ps1 | ForEach-Object {
         try {
             . $_.FullName
-            Write-Log "Loaded $($_.Name)"
+            Write-BootLog "Loaded $($_.Name)"
         } catch {
-            Write-Log "Load failed $($_.Name)" "ERROR"
+            Write-BootLog "Load failed $($_.Name)" "ERROR"
         }
     }
 }
@@ -120,7 +145,9 @@ function New-RestorePoint-Safe {
     Write-Host "Dang tao Restore Point..." -ForegroundColor Yellow
     try {
         Enable-ComputerRestore -Drive "C:\" -ErrorAction SilentlyContinue
-        Checkpoint-Computer -Description "ToiUuPC Restore Point" -RestorePointType MODIFY_SETTINGS
+        Checkpoint-Computer `
+            -Description "ToiUuPC Restore Point" `
+            -RestorePointType "MODIFY_SETTINGS"
         Write-Log "Restore point created"
     } catch {
         Write-Log "Restore point skipped (service disabled)" "WARN"
@@ -128,12 +155,13 @@ function New-RestorePoint-Safe {
 }
 
 # ==================================================
-# MENU
+# MAIN MENU (CLI - GUI SE GOI HAM RIENG)
 # ==================================================
 function Show-MainMenu {
     Clear-Host
     Show-PMKLogo
 
+    Write-Host ""
     Write-Host "==============================="
     Write-Host "1. Apply Windows Tweaks"
     Write-Host "2. Install Applications"
@@ -145,13 +173,19 @@ function Show-MainMenu {
 }
 
 # ==================================================
-# MAIN
+# STARTUP
 # ==================================================
 Sync-ToiUuPC
 Load-Functions
 
-Write-Log "ToiUuPC Started"
+Initialize-ToiUuPCEnvironment
+Ensure-Admin
 
+Write-Log "ToiUuPC fully initialized"
+
+# ==================================================
+# MAIN LOOP
+# ==================================================
 do {
     Show-MainMenu
     $choice = Read-Host "Chon chuc nang"
@@ -159,19 +193,19 @@ do {
     switch ($choice) {
 
         "1" {
-            $cfg = Get-Content "$CFG\tweaks.json" -Raw | ConvertFrom-Json
+            $cfg = Get-Content (Join-Path $CFG "tweaks.json") -Raw | ConvertFrom-Json
             Invoke-TweaksMenu -Config $cfg
             pause
         }
 
         "2" {
-            $cfg = Get-Content "$CFG\applications.json" -Raw | ConvertFrom-Json
+            $cfg = Get-Content (Join-Path $CFG "applications.json") -Raw | ConvertFrom-Json
             Invoke-AppMenu -Config $cfg
             pause
         }
 
         "3" {
-            Invoke-DnsMenu
+            Invoke-DnsMenu -ConfigPath (Join-Path $CFG "dns.json")
             pause
         }
 
