@@ -3,152 +3,123 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     Title="PMK Performance Dashboard"
     Width="360"
-    Height="520"
-    WindowStyle="None"
-    ResizeMode="NoResize"
+    Height="260"
+    WindowStartupLocation="CenterScreen"
+    ResizeMode="CanResize"
+    WindowStyle="SingleBorderWindow"
     Background="#111111"
-    AllowsTransparency="True"
-    Topmost="True"
-    ShowInTaskbar="False">
+    Foreground="White"
+    FontFamily="Segoe UI"
+    FontSize="12">
 
-    <Border
-        CornerRadius="12"
-        BorderThickness="1"
-        BorderBrush="#2A2A2A"
-        Background="#111111"
-        Padding="14">
+    <Grid Margin="10">
 
-        <StackPanel Orientation="Vertical" VerticalAlignment="Top">
-
-            <!-- ================= HEADER ================= -->
+        <!-- ================= HEADER ================= -->
+        <DockPanel LastChildFill="True">
             <TextBlock
-                Text="PMK PERFORMANCE"
-                FontSize="16"
+                Text="PMK Performance Monitor"
+                FontSize="14"
                 FontWeight="Bold"
+                DockPanel.Dock="Left"
+                VerticalAlignment="Center"/>
+
+            <Button
+                x:Name="CloseButton"
+                Content="✕"
+                Width="28"
+                Height="28"
+                DockPanel.Dock="Right"
+                Background="#222"
                 Foreground="White"
-                HorizontalAlignment="Center"
-                Margin="0,0,0,10"/>
+                BorderBrush="#444"
+                FontWeight="Bold"
+                Cursor="Hand"/>
+        </DockPanel>
 
-            <!-- ================= CPU RING ================= -->
-            <Grid Width="130" Height="130" HorizontalAlignment="Center">
+        <!-- ================= CONTENT ================= -->
+        <Grid Margin="0,40,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="150"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
 
-                <!-- Background ring -->
-                <Ellipse
-                    Width="110"
-                    Height="110"
-                    Stroke="#2A2A2A"
-                    StrokeThickness="8"/>
+            <!-- ========== CPU RING ========== -->
+            <Grid Grid.Column="0" HorizontalAlignment="Center">
+                <Canvas Width="130" Height="130">
 
-                <!-- CPU Ring -->
-                <Path
-                    x:Name="CpuRing"
-                    Stroke="LimeGreen"
-                    StrokeThickness="8"
-                    StrokeStartLineCap="Round"
-                    StrokeEndLineCap="Round"/>
+                    <!-- Background ring -->
+                    <Ellipse
+                        Width="110"
+                        Height="110"
+                        Stroke="#333"
+                        StrokeThickness="10"
+                        Canvas.Left="10"
+                        Canvas.Top="10"/>
 
-                <!-- CPU Text -->
+                    <!-- CPU Ring -->
+                    <Path
+                        x:Name="CpuRing"
+                        Stroke="LimeGreen"
+                        StrokeThickness="10"
+                        StrokeStartLineCap="Round"
+                        StrokeEndLineCap="Round"/>
+
+                    <!-- CPU Text -->
+                    <TextBlock
+                        x:Name="CpuText"
+                        Text="0%"
+                        FontSize="20"
+                        FontWeight="Bold"
+                        Foreground="White"
+                        Canvas.Left="45"
+                        Canvas.Top="45"/>
+                </Canvas>
+
                 <TextBlock
-                    x:Name="CpuText"
-                    Text="0%"
-                    FontSize="22"
-                    FontWeight="Bold"
-                    Foreground="White"
+                    Text="CPU"
                     HorizontalAlignment="Center"
-                    VerticalAlignment="Center"/>
+                    Margin="0,5,0,0"
+                    Foreground="#AAA"/>
             </Grid>
 
-            <!-- CPU BAR -->
-            <ProgressBar
-                x:Name="CpuBar"
-                Height="10"
-                Margin="0,8,0,12"
-                Maximum="100"
-                Value="0"
-                Foreground="LimeGreen"
-                Background="#2A2A2A"/>
+            <!-- ========== RAM + DISK ========== -->
+            <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
 
-            <!-- ================= RAM ================= -->
-            <TextBlock
-                Text="RAM"
-                Foreground="#AAAAAA"
-                FontSize="12"/>
-
-            <Grid Margin="0,2,0,8">
+                <!-- RAM -->
+                <TextBlock Text="RAM Usage" Foreground="#AAA"/>
                 <ProgressBar
                     x:Name="RamBar"
-                    Height="10"
+                    Height="16"
                     Maximum="100"
-                    Value="0"
-                    Foreground="LimeGreen"
-                    Background="#2A2A2A"/>
+                    Background="#222"
+                    Foreground="LimeGreen"/>
                 <TextBlock
                     x:Name="RamText"
                     Text="0%"
-                    Foreground="White"
-                    FontSize="11"
-                    HorizontalAlignment="Right"
-                    Margin="0,0,4,0"/>
-            </Grid>
+                    Margin="0,2,0,8"/>
 
-            <!-- ================= DISK ================= -->
-            <TextBlock
-                Text="DISK C:"
-                Foreground="#AAAAAA"
-                FontSize="12"/>
-
-            <Grid Margin="0,2,0,4">
+                <!-- DISK -->
+                <TextBlock Text="Disk C:" Foreground="#AAA"/>
                 <ProgressBar
                     x:Name="DiskBar"
-                    Height="10"
+                    Height="16"
                     Maximum="100"
-                    Value="0"
-                    Foreground="LimeGreen"
-                    Background="#2A2A2A"/>
+                    Background="#222"
+                    Foreground="LimeGreen"/>
                 <TextBlock
                     x:Name="DiskText"
                     Text="0%"
-                    Foreground="White"
-                    FontSize="11"
-                    HorizontalAlignment="Right"
-                    Margin="0,0,4,0"/>
-            </Grid>
+                    Margin="0,2,0,0"/>
 
-            <!-- DISK WARNING -->
-            <TextBlock
-                x:Name="DiskWarn"
-                Text="⚠ Disk almost full"
-                Foreground="Red"
-                FontSize="12"
-                FontWeight="Bold"
-                Visibility="Collapsed"
-                HorizontalAlignment="Center"
-                Margin="0,4,0,8"/>
-
-            <!-- ================= CLEAN STATUS ================= -->
-            <Separator Margin="0,6,0,6"/>
-
-            <TextBlock
-                Text="SYSTEM CLEAN"
-                Foreground="#AAAAAA"
-                FontSize="12"/>
-
-            <ProgressBar
-                x:Name="CleanBar"
-                Height="10"
-                Maximum="100"
-                Value="0"
-                Foreground="DeepSkyBlue"
-                Background="#2A2A2A"
-                Margin="0,4,0,4"/>
-
-            <TextBlock
-                x:Name="CleanText"
-                Text="Idle"
-                Foreground="White"
-                FontSize="11"
-                HorizontalAlignment="Center"/>
-
-        </StackPanel>
-    </Border>
+                <!-- DISK WARNING -->
+                <TextBlock
+                    x:Name="DiskWarn"
+                    Text="⚠ Disk almost full"
+                    Foreground="OrangeRed"
+                    FontWeight="Bold"
+                    Visibility="Collapsed"
+                    Margin="0,6,0,0"/>
+            </StackPanel>
+        </Grid>
+    </Grid>
 </Window>
