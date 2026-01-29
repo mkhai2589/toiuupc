@@ -1,6 +1,7 @@
 # ==========================================================
 # install-apps.ps1
-# PMK Toolbox - Application Installer (WinUtil Pro)
+# PMK Toolbox - Application Installer (WinUtil compatible)
+# PowerShell 5.1 SAFE
 # ==========================================================
 
 Set-StrictMode -Off
@@ -25,8 +26,12 @@ function Test-AppInstalled {
 
     try {
         $result = winget list --id $PackageId -e 2>$null
-        return ($result -match $PackageId)
-    } catch {
+        if ($result -match $PackageId) {
+            return $true
+        }
+        return $false
+    }
+    catch {
         return $false
     }
 }
@@ -53,7 +58,7 @@ function Invoke-AppInstaller {
         return
     }
 
-    $total = $apps.Count
+    $total   = $apps.Count
     $current = 0
     $results = @()
 
@@ -74,7 +79,10 @@ function Invoke-AppInstaller {
         # ==========================
         if (Test-AppInstalled $app.packageId) {
             Write-Host "Da cai: $($app.name)" -ForegroundColor DarkGray
-            $results += [PSCustomObject]@{ App = $app.name; Status = "SKIPPED" }
+            $results += [PSCustomObject]@{
+                App    = $app.name
+                Status = "SKIPPED"
+            }
             continue
         }
 
@@ -107,14 +115,21 @@ function Invoke-AppInstaller {
 
             if ($p.ExitCode -eq 0) {
                 Write-Host "OK: $($app.name)" -ForegroundColor Green
-                $results += [PSCustomObject]@{ App = $app.name; Status = "OK" }
-            } else {
+                $results += [PSCustomObject]@{
+                    App    = $app.name
+                    Status = "OK"
+                }
+            }
+            else {
                 throw "ExitCode $($p.ExitCode)"
             }
-
-        } catch {
+        }
+        catch {
             Write-Host "FAIL: $($app.name)" -ForegroundColor Red
-            $results += [PSCustomObject]@{ App = $app.name; Status = "FAIL" }
+            $results += [PSCustomObject]@{
+                App    = $app.name
+                Status = "FAIL"
+            }
         }
     }
 
@@ -136,7 +151,7 @@ function Invoke-AppInstaller {
 }
 
 # ==========================================================
-# MENU WRAPPER (REQUIRED)
+# MENU WRAPPER (REQUIRED BY ToiUuPC.ps1)
 # ==========================================================
 function Invoke-AppMenu {
     param([object]$Config)
@@ -146,25 +161,37 @@ function Invoke-AppMenu {
         return
     }
 
-    $apps = $Config.applications
+    $apps     = $Config.applications
     $selected = @{}
 
-    do {
+    while ($true) {
         Clear-Host
         Write-Host "==============================="
         Write-Host " INSTALL APPLICATIONS"
         Write-Host "==============================="
         Write-Host ""
 
-        $i = 1
+        $i   = 1
         $map = @{}
 
         foreach ($app in $apps) {
+
             $checked = $selected.ContainsKey($app.id)
             $status  = Test-AppInstalled $app.packageId
 
-            $flag = $checked ? "[X]" : "[ ]"
-            $inst = $status ? "(Installed)" : ""
+            if ($checked) {
+                $flag = "[X]"
+            }
+            else {
+                $flag = "[ ]"
+            }
+
+            if ($status) {
+                $inst = "(Installed)"
+            }
+            else {
+                $inst = ""
+            }
 
             Write-Host ("[{0}] {1} {2} {3}" -f $i, $flag, $app.name, $inst)
             $map[$i] = $app
@@ -193,10 +220,10 @@ function Invoke-AppMenu {
             $id = $map[$num].id
             if ($selected.ContainsKey($id)) {
                 $selected.Remove($id)
-            } else {
+            }
+            else {
                 $selected[$id] = $true
             }
         }
-
-    } while ($true)
+    }
 }
