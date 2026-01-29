@@ -1,7 +1,7 @@
-# ToiUuPC.ps1 - PMK Toolbox v3.2
+# ToiUuPC.ps1 - PMK Toolbox v3.3
 # Run: irm https://raw.githubusercontent.com/mkhai2589/toiuupc/main/ToiUuPC.ps1 | iex
 # Author: Minh Khải (PMK) - https://www.facebook.com/khaiitcntt
-# Version: 3.2 - Fixed STT input, added OS build + disk + RAM bus, fixed console size, progress bar
+# Version: 3.3 - Fixed input, added OS build + disks + RAM bus + FB, progress bar, auto-update, fixed console
 
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 Clear-Host
@@ -20,11 +20,11 @@ $ProgressPreference = 'SilentlyContinue'
 
 # ===== COLOR PALETTE =====
 $TEXT_COLOR    = "White"
-$ACCENT_COLOR  = "White"
+$ACCENT_COLOR  = "White"         # Tiêu đề, STT, dòng nhập, progress
 $SUCCESS_COLOR = "Green"
 $ERROR_COLOR   = "Red"
 $BORDER_COLOR  = "DarkGray"
-$CYAN_COLOR    = "Cyan"  # Dùng cho STT và tiêu đề
+$WARNING_COLOR = "Yellow"
 
 # Reset console
 function Reset-ConsoleStyle {
@@ -33,42 +33,80 @@ function Reset-ConsoleStyle {
     Clear-Host
 }
 
-# Kiểm tra hệ thống trước khi chạy
+# Loading animation
+function Show-Loading {
+    param($Message)
+    $chars = @('|', '/', '-', '\')
+    $pos = 0
+    $endTime = (Get-Date).AddSeconds(3)  # giả lập 3s
+    while ((Get-Date) -lt $endTime) {
+        Write-Host "`r$Message $($chars[$pos])" -NoNewline -ForegroundColor $ACCENT_COLOR
+        $pos = ($pos + 1) % $chars.Length
+        Start-Sleep -Milliseconds 100
+    }
+    Write-Host "`r$Message ✓                  " -ForegroundColor $SUCCESS_COLOR
+}
+
+# Kiểm tra hệ thống
 function Test-SystemRequirements {
+    Show-Loading "Kiểm tra hệ thống"
+    
     $os = Get-CimInstance Win32_OperatingSystem
     $build = (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion").ReleaseId
     $ram = [math]::Round((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1GB, 2)
-    $disk = Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='C:'"
-    $freeSpaceGB = [math]::Round($disk.FreeSpace / 1GB, 2)
-
-    Write-Host "Kiểm tra hệ thống:" -ForegroundColor $CYAN_COLOR
-    Write-Host " - Windows: $($os.Caption) | Build: $build" -ForegroundColor $TEXT_COLOR
-    Write-Host " - RAM: $ram GB" -ForegroundColor $TEXT_COLOR
-
-    # RAM bus speed
+    
+    # RAM bus
     $ramSpeed = Get-CimInstance Win32_PhysicalMemory | Select-Object -First 1 -ExpandProperty Speed
-    if ($ramSpeed) {
-        Write-Host " - RAM Bus: $ramSpeed MHz" -ForegroundColor $TEXT_COLOR
-    } else {
-        Write-Host " - RAM Bus: Không lấy được" -ForegroundColor $ERROR_COLOR
+    
+    # All disks
+    $disks = Get-CimInstance Win32_LogicalDisk -Filter "DriveType=3" | Select DeviceID, @{Name="TotalGB";Expression={[math]::Round($_.Size/1GB,2)}}, @{Name="FreeGB";Expression={[math]::Round($_.FreeSpace/1GB,2)}}
+    
+    Write-Host "Hệ thống:" -ForegroundColor $ACCENT_COLOR
+    Write-Host " - Windows: $($os.Caption) | Build: $build" -ForegroundColor $TEXT_COLOR
+    Write-Host " - RAM: $ram GB" -NoNewline -ForegroundColor $TEXT_COLOR
+    if ($ramSpeed) { Write-Host " | Bus: $ramSpeed MHz" } else { Write-Host " | Bus: Không lấy được" -ForegroundColor $ERROR_COLOR }
+    
+    Write-Host "Ổ cứng:" -ForegroundColor $ACCENT_COLOR
+    foreach ($d in $disks) {
+        Write-Host " - $($d.DeviceID) : Free $($d.FreeGB) GB / Total $($d.TotalGB) GB" -ForegroundColor $TEXT_COLOR
     }
-
-    Write-Host " - Disk C: Free $freeSpaceGB GB / Total $([math]::Round($disk.Size / 1GB, 2)) GB" -ForegroundColor $TEXT_COLOR
-
+    
     if ([version]$os.Version -lt [version]"10.0.18362") {
         Write-Host "Yêu cầu Windows 10 1903 trở lên!" -ForegroundColor $ERROR_COLOR
         exit
     }
-    if ($ram -lt 4) {
-        Write-Host "Cảnh báo: RAM thấp (<4GB)" -ForegroundColor Yellow
-    }
-    if ($freeSpaceGB -lt 5) {
-        Write-Host "Cảnh báo: Disk C: sắp đầy!" -ForegroundColor $ERROR_COLOR
-    }
+    if ($ram -lt 4) { Write-Host "Cảnh báo: RAM thấp (<4GB)" -ForegroundColor $WARNING_COLOR }
+    
+    $cFree = ($disks | Where DeviceID -eq 'C:').FreeGB
+    if ($cFree -lt 5) { Write-Host "Cảnh báo: Disk C: sắp đầy!" -ForegroundColor $ERROR_COLOR }
+    
     Write-Host ""
 }
 
-# Header system info
+# Auto-update
+function Update-Script {
+    $currentVersion = "3.3"
+    try {
+        $latest = Invoke-WebRequest -Uri "https://raw.githubusercontent.com/mkhai2589/toiuupc/main/ToiUuPC.ps1" -UseBasicParsing
+        $latestVersion = [regex]::Match($latest.Content, 'Version: (\d+\.\d+)').Groups[1].Value
+        
+        if ([version]$latestVersion -gt [version]$currentVersion) {
+            Write-Host "Có bản cập nhật mới: v$latestVersion" -ForegroundColor $ACCENT_COLOR
+            $update = Read-Host "Cập nhật ngay? (Y/N)"
+            if ($update -eq "Y" -or $update -eq "y") {
+                $latest.Content | Out-File $PSCommandPath -Encoding UTF8
+                Write-Host "Đã cập nhật! Khởi động lại..." -ForegroundColor $SUCCESS_COLOR
+                Start-Sleep 2
+                & $PSCommandPath
+                exit
+            }
+        }
+    } catch {
+        Write-Host "Không thể kiểm tra cập nhật" -ForegroundColor $WARNING_COLOR
+    }
+}
+
+# Header
 function Show-SystemHeader {
     $os = Get-CimInstance Win32_OperatingSystem
     $cpu = Get-CimInstance Win32_Processor | Select-Object -First 1
@@ -77,10 +115,10 @@ function Show-SystemHeader {
     $build = (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion").ReleaseId
 
     Write-Host "==================================================================================" -ForegroundColor $BORDER_COLOR
-    Write-Host "PMK TOOLBOX v3.2" -ForegroundColor $ACCENT_COLOR
+    Write-Host "PMK TOOLBOX v3.3" -ForegroundColor $ACCENT_COLOR
     Write-Host "User: $($env:USERNAME) | PC: $($env:COMPUTERNAME) | OS: $($os.Caption) Build $build" -ForegroundColor $TEXT_COLOR
     Write-Host "CPU: $($cpu.Name.Split('@')[0].Trim()) | RAM: $ram GB" -ForegroundColor $TEXT_COLOR
-    Write-Host "Author: Minh Khải (PMK) - https://www.facebook.com/khaiitcntt" -ForegroundColor $CYAN_COLOR
+    Write-Host "Author: Minh Khải (PMK) - https://www.facebook.com/khaiitcntt" -ForegroundColor $ACCENT_COLOR
     Write-Host "==================================================================================" -ForegroundColor $BORDER_COLOR
     Write-Host ""
 }
@@ -88,17 +126,17 @@ function Show-SystemHeader {
 # Logo
 $logo = @"
 ╔══════════════════════════════════════════════════════════════════════════╗
-║ ██████╗ ███╗   ███╗██╗  ██╗      ████████╗ ██████╗  ██████╗ ██╗     ║
-║ ██╔══██╗████╗ ████║██║ ██╔╝      ╚══██╔══╝██╔═══██╗██╔═══██╗██║     ║
-║ ██████╔╝██╔████╔██║█████╔╝          ██║   ██║   ██║██║   ██║██║     ║
-║ ██╔═══╝ ██║╚██╔╝██║██╔═██╗          ██║   ██║   ██║██║   ██║██║     ║
-║ ██║     ██║ ╚═╝ ██║██║  ██╗         ██║   ╚██████╔╝╚██████╔╝███████╗ ║
-║ ╚═╝     ╚═╝     ╚═╝╚═╝  ╚═╝         ╚═╝    ╚═════╝  ╚═════╝ ╚══════╝ ║
-║                 PMK Toolbox - Tối ưu Windows                         ║
+║ ██████╗ ███╗   ███╗██╗  ██╗      ████████╗ ██████╗  ██████╗ ██╗          ║
+║ ██╔══██╗████╗ ████║██║ ██╔╝      ╚══██╔══╝██╔═══██╗██╔═══██╗██║          ║
+║ ██████╔╝██╔████╔██║█████╔╝          ██║   ██║   ██║██║   ██║██║          ║
+║ ██╔═══╝ ██║╚██╔╝██║██╔═██╗          ██║   ██║   ██║██║   ██║██║          ║
+║ ██║     ██║ ╚═╝ ██║██║  ██╗         ██║   ╚██████╔╝╚██████╔╝███████╗     ║
+║ ╚═╝     ╚═╝     ╚═╝╚═╝  ╚═╝         ╚═╝    ╚═════╝  ╚═════╝ ╚══════╝     ║
+║                 PMK Toolbox - Tối ưu Windows                             ║
 ╚══════════════════════════════════════════════════════════════════════════╝
 "@
 
-# App categories (giữ nguyên như bản bạn)
+# App categories (giữ nguyên)
 $AppCategories = @{
     "TRÌNH DUYỆT" = @(
         @{STT=1; Name="Brave"; ID="Brave.Brave"},
@@ -112,7 +150,7 @@ $AppCategories = @{
         @{STT=9; Name="Thorium (AVX2)"; ID="Alex313031.Thorium.AVX2"},
         @{STT=10; Name="Zen Browser"; ID="Zen-Team.Zen-Browser"}
     )
-        "TIỆN ÍCH" = @(
+    "TIỆN ÍCH" = @(
         @{STT=11; Name="7-Zip"; ID="7zip.7zip"},
         @{STT=12; Name="WinRAR"; ID="RARLab.WinRAR"},
         @{STT=13; Name="PowerToys"; ID="Microsoft.PowerToys"},
@@ -193,7 +231,7 @@ $AppCategories = @{
     )
 }
 
-# Progress bar khi cài nhiều app
+# Progress bar
 function Show-Progress {
     param($Current, $Total, $AppName)
     $percent = [math]::Round(($Current / $Total) * 100)
@@ -201,22 +239,22 @@ function Show-Progress {
     $bars = [math]::Round(($percent / 100) * $barLength)
     $spaces = $barLength - $bars
     
-    Write-Host "`r[$('#' * $bars)$(' ' * $spaces)] $percent% - $AppName" -NoNewline -ForegroundColor $CYAN_COLOR
+    Write-Host "`r[$('#' * $bars)$(' ' * $spaces)] $percent% - $AppName" -NoNewline -ForegroundColor $ACCENT_COLOR
 }
 
 # Show app list
 function Show-AppList {
     Reset-ConsoleStyle
     Show-SystemHeader
-    Write-Host $logo -ForegroundColor $CYAN_COLOR
+    Write-Host $logo -ForegroundColor $ACCENT_COLOR
     Write-Host ""
-    Write-Host "DANH SÁCH ỨNG DỤNG CÓ THỂ CÀI NHANH" -ForegroundColor $CYAN_COLOR
+    Write-Host "DANH SÁCH ỨNG DỤNG CÓ THỂ CÀI NHANH" -ForegroundColor $ACCENT_COLOR
     Write-Host "====================================" -ForegroundColor $BORDER_COLOR
     Write-Host ""
 
     foreach ($category in $AppCategories.Keys) {
         $apps = $AppCategories[$category]
-        Write-Host $category -ForegroundColor $CYAN_COLOR
+        Write-Host $category -ForegroundColor $ACCENT_COLOR
         Write-Host "------------------------------------" -ForegroundColor $BORDER_COLOR
 
         $half = [Math]::Ceiling($apps.Count / 2)
@@ -248,7 +286,7 @@ function Show-AppList {
     Write-Host " - Nhấn ESC để thoát về menu chính" -ForegroundColor $TEXT_COLOR
     Write-Host ""
 
-    Write-Host "Nhập lựa chọn của bạn (hoặc ESC để thoát): " -NoNewline -ForegroundColor $CYAN_COLOR
+    Write-Host "Nhập lựa chọn của bạn (hoặc ESC để thoát): " -NoNewline -ForegroundColor $ACCENT_COLOR
     $input = Read-Host
 
     if ([Console]::KeyAvailable -and [Console]::ReadKey($true).Key -eq "Escape") {
@@ -258,7 +296,7 @@ function Show-AppList {
     return $input
 }
 
-# Install apps with progress bar
+# Install apps with progress
 function Install-AppQuick {
     $input = Show-AppList
     if (-not $input) { return }
@@ -266,7 +304,7 @@ function Install-AppQuick {
     Reset-ConsoleStyle
     Show-SystemHeader
 
-    Write-Host "ĐANG CÀI ĐẶT ỨNG DỤNG" -ForegroundColor $CYAN_COLOR
+    Write-Host "ĐANG CÀI ĐẶT ỨNG DỤNG" -ForegroundColor $ACCENT_COLOR
     Write-Host "======================" -ForegroundColor $BORDER_COLOR
     Write-Host ""
 
@@ -305,35 +343,33 @@ function Install-AppQuick {
     Write-Host "`n======================" -ForegroundColor $BORDER_COLOR
     Write-Host "Kết quả: $success thành công, $fail thất bại" -ForegroundColor $(if ($fail -eq 0) { $SUCCESS_COLOR } else { $ERROR_COLOR })
     Write-Host ""
-    Write-Host "Nhấn phím bất kỳ để tiếp tục..." -ForegroundColor $CYAN_COLOR
+    Write-Host "Nhấn phím bất kỳ để tiếp tục..." -ForegroundColor $ACCENT_COLOR
     $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
 }
 
-# Các hàm khác (giữ nguyên, bạn copy từ code cũ nếu cần)
-
-# Main menu (đơn giản, fix input)
+# Main menu
 do {
     Reset-ConsoleStyle
     Show-SystemHeader
-    Write-Host $logo -ForegroundColor $CYAN_COLOR
+    Write-Host $logo -ForegroundColor $ACCENT_COLOR
 
-    Write-Host "MENU CHÍNH - PMK TOOLBOX" -ForegroundColor $CYAN_COLOR
+    Write-Host "MENU CHÍNH - PMK TOOLBOX" -ForegroundColor $ACCENT_COLOR
     Write-Host "=========================" -ForegroundColor $BORDER_COLOR
     Write-Host ""
 
-    Write-Host " [1] Cài đặt ứng dụng nhanh" -ForegroundColor $CYAN_COLOR
-    Write-Host " [2] Vô hiệu hóa Telemetry" -ForegroundColor $CYAN_COLOR
-    Write-Host " [3] Dọn dẹp file tạm" -ForegroundColor $CYAN_COLOR
-    Write-Host " [4] Tắt dịch vụ không cần thiết" -ForegroundColor $CYAN_COLOR
-    Write-Host " [5] Thoát" -ForegroundColor $CYAN_COLOR
+    Write-Host " [1] Cài đặt ứng dụng nhanh" -ForegroundColor $ACCENT_COLOR
+    Write-Host " [2] Vô hiệu hóa Telemetry" -ForegroundColor $ACCENT_COLOR
+    Write-Host " [3] Dọn dẹp file tạm" -ForegroundColor $ACCENT_COLOR
+    Write-Host " [4] Tắt dịch vụ không cần thiết" -ForegroundColor $ACCENT_COLOR
+    Write-Host " [5] Thoát" -ForegroundColor $ACCENT_COLOR
 
     Write-Host ""
-    Write-Host "Nhập số lựa chọn (1-5) rồi nhấn Enter (hoặc ESC để thoát): " -NoNewline -ForegroundColor $CYAN_COLOR
+    Write-Host "Nhập số lựa chọn (1-5) rồi nhấn Enter (hoặc ESC để thoát): " -NoNewline -ForegroundColor $ACCENT_COLOR
 
     $input = Read-Host
 
     if ([Console]::KeyAvailable -and [Console]::ReadKey($true).Key -eq "Escape") {
-        Write-Host "`nThoát chương trình..." -ForegroundColor $CYAN_COLOR
+        Write-Host "`nThoát chương trình..." -ForegroundColor $BORDER_COLOR
         exit
     }
 
@@ -342,7 +378,7 @@ do {
         "2" { Disable-TelemetryQuick }
         "3" { Clean-TempFiles }
         "4" { Disable-UnneededServices }
-        "5" { Write-Host "Tạm biệt! Cảm ơn đã sử dụng PMK Toolbox!" -ForegroundColor $CYAN_COLOR; exit }
+        "5" { Write-Host "Tạm biệt! Cảm ơn đã sử dụng PMK Toolbox!" -ForegroundColor $ACCENT_COLOR; exit }
         default { Write-Host "Lựa chọn không hợp lệ! Vui lòng chọn 1-5" -ForegroundColor $ERROR_COLOR; Start-Sleep 1 }
     }
 } while ($true)
