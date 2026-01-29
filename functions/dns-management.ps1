@@ -1,56 +1,49 @@
-# ===============================
-# DNS Management - SAFE VERSION
-# ===============================
+# functions/dns-management.ps1
 
-function Start-DnsManager {
+function Get-DnsProfiles {
+    param([string]$ConfigPath)
+    Get-Content $ConfigPath | ConvertFrom-Json
+}
 
+function Apply-DnsProfile {
     param(
-        [string]$ConfigPath
+        [string[]]$IPv4
     )
 
-    Clear-Host
-    Write-Host "=== DNS Manager ===" -ForegroundColor Cyan
-
-    if (-not (Test-Path $ConfigPath)) {
-        Write-Host "Khong tim thay file dns.json" -ForegroundColor Red
-        Pause
-        return
-    }
-
-    $dnsList = Get-Content $ConfigPath | ConvertFrom-Json
-
-    $i = 1
-    foreach ($dns in $dnsList) {
-        Write-Host "$i. $($dns.name)"
-        $i++
-    }
-    Write-Host "0. Thoat"
-
-    $choice = Read-Host "Chon DNS"
-
-    if ($choice -eq "0") { return }
-
-    if ($choice -notmatch '^\d+$') {
-        Write-Host "Lua chon khong hop le" -ForegroundColor Red
-        Pause
-        return
-    }
-
-    $index = [int]$choice - 1
-    if ($index -lt 0 -or $index -ge $dnsList.Count) {
-        Write-Host "Lua chon ngoai pham vi" -ForegroundColor Red
-        Pause
-        return
-    }
-
-    $selected = $dnsList[$index]
-
-    Get-NetAdapter | Where-Object { $_.Status -eq "Up" } | ForEach-Object {
+    Get-NetAdapter | Where-Object Status -eq "Up" | ForEach-Object {
         Set-DnsClientServerAddress `
             -InterfaceIndex $_.InterfaceIndex `
-            -ServerAddresses $selected.ipv4
+            -ServerAddresses $IPv4
+    }
+}
+
+function Start-DnsManager {
+    param([string]$ConfigPath)
+
+    $dns = Get-DnsProfiles $ConfigPath
+
+    Clear-Host
+    Write-Host "=== DNS Manager ==="
+
+    for ($i=0; $i -lt $dns.Count; $i++) {
+        Write-Host "$($i+1). $($dns[$i].name)"
+    }
+    Write-Host "0. Exit"
+
+    $c = Read-Host "Select"
+
+    if ($c -eq "0") { return }
+
+    if (-not [int]::TryParse($c,[ref]$null)) {
+        Write-Host "Invalid choice"; Pause; return
     }
 
-    Write-Host "Da ap dung DNS: $($selected.name)" -ForegroundColor Green
+    $i = [int]$c - 1
+    if ($i -lt 0 -or $i -ge $dns.Count) {
+        Write-Host "Out of range"; Pause; return
+    }
+
+    Apply-DnsProfile -IPv4 $dns[$i].ipv4
+    Write-Host "DNS applied: $($dns[$i].name)"
     Pause
 }
