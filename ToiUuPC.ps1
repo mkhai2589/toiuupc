@@ -25,7 +25,7 @@ $UI   = Join-Path $ScriptRoot "ui"
 # LOAD FUNCTIONS
 # ==================================================
 if (-not (Test-Path $FUNC)) {
-    Write-Host "❌ Khong tim thay thu muc functions" -ForegroundColor Red
+    Write-Host "Khong tim thay thu muc functions" -ForegroundColor Red
     exit 1
 }
 
@@ -50,7 +50,7 @@ function Show-Dashboard {
 
     $XamlPath = Join-Path $UI "Dashboard.xaml"
     if (-not (Test-Path $XamlPath)) {
-        Write-Host "❌ Khong tim thay Dashboard.xaml" -ForegroundColor Red
+        Write-Host "Khong tim thay Dashboard.xaml" -ForegroundColor Red
         return
     }
 
@@ -194,7 +194,7 @@ do {
                 $cfg = Get-Content $path -Raw | ConvertFrom-Json
                 Invoke-TweaksMenu -Config $cfg
             } else {
-                Write-Host "❌ Khong tim thay tweaks.json" -ForegroundColor Red
+                Write-Host "Khong tim thay tweaks.json" -ForegroundColor Red
             }
             pause
         }
@@ -205,7 +205,7 @@ do {
                 $cfg = Get-Content $path -Raw | ConvertFrom-Json
                 Invoke-AppMenu -Config $cfg
             } else {
-                Write-Host "❌ Khong tim thay applications.json" -ForegroundColor Red
+                Write-Host "Khong tim thay applications.json" -ForegroundColor Red
             }
             pause
         }
@@ -215,7 +215,7 @@ do {
             if (Test-Path $path) {
                 Invoke-DnsMenu -ConfigPath $path
             } else {
-                Write-Host "❌ Khong tim thay dns.json" -ForegroundColor Red
+                Write-Host "Khong tim thay dns.json" -ForegroundColor Red
             }
             pause
         }
