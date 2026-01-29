@@ -1,15 +1,14 @@
 # =========================================================
-# ToiUuPC – Main Controller
-# Windows 10 / 11 Optimization Toolkit
+# ToiUuPC – Windows 10 / 11 Optimization Toolkit
+# Main Controller + Bootstrap
 # Author: PMK
 # =========================================================
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
 
-# ---------------------------------------------------------
-# ADMIN CHECK
-# ---------------------------------------------------------
+# ---------------- ADMIN CHECK ----------------
 function Test-Admin {
     $id = [Security.Principal.WindowsIdentity]::GetCurrent()
     $p  = New-Object Security.Principal.WindowsPrincipal($id)
@@ -18,30 +17,79 @@ function Test-Admin {
 
 if (-not (Test-Admin)) {
     Write-Host "❌ Vui lòng chạy PowerShell với quyền Administrator" -ForegroundColor Red
-    Pause
     exit 1
 }
 
-# ---------------------------------------------------------
-# PATHS
-# ---------------------------------------------------------
-$Root      = Split-Path -Parent $MyInvocation.MyCommand.Path
-$Assets    = Join-Path $Root "assets"
-$Config    = Join-Path $Root "config"
-$Functions = Join-Path $Root "functions"
-$Logs      = Join-Path $Root "logs"
-$Backup    = Join-Path $Root "backup"
+# ---------------- DETECT RUN MODE ----------------
+$IsRemote = (-not $PSScriptRoot) -and (-not $MyInvocation.MyCommand.Path)
 
-# Ensure dirs
-foreach ($dir in @($Logs, $Backup)) {
-    if (-not (Test-Path $dir)) {
-        New-Item -ItemType Directory -Path $dir | Out-Null
+if (-not $IsRemote) {
+    $Root = $PSScriptRoot ?? (Split-Path -Parent $MyInvocation.MyCommand.Path)
+}
+else {
+    $Root = Join-Path $env:TEMP "ToiUuPC"
+}
+
+# ---------------- PATHS ----------------
+$Functions = Join-Path $Root "functions"
+$Config    = Join-Path $Root "config"
+$Assets    = Join-Path $Root "assets"
+$Logs      = Join-Path $Root "logs"
+$Backups   = Join-Path $Root "backups"
+
+# ---------------- ENSURE FOLDERS ----------------
+$Folders = @($Functions, $Config, $Assets, $Logs, $Backups)
+foreach ($f in $Folders) {
+    if (-not (Test-Path $f)) {
+        New-Item -ItemType Directory -Path $f -Force | Out-Null
     }
 }
 
-# ---------------------------------------------------------
-# LOAD ENGINES
-# ---------------------------------------------------------
+# ---------------- GITHUB SOURCE ----------------
+$RepoRaw = "https://raw.githubusercontent.com/mkhai2589/toiuupc/main"
+
+$RequiredFiles = @{
+    "functions\utils.ps1"            = "functions/utils.ps1"
+    "functions\Show-PMKLogo.ps1"     = "functions/Show-PMKLogo.ps1"
+    "functions\tweaks.ps1"           = "functions/tweaks.ps1"
+    "functions\install-apps.ps1"     = "functions/install-apps.ps1"
+    "functions\dns-management.ps1"   = "functions/dns-management.ps1"
+    "functions\clean-system.ps1"     = "functions/clean-system.ps1"
+    "config\tweaks.json"             = "config/tweaks.json"
+    "config\applications.json"       = "config/applications.json"
+}
+
+# ---------------- UPDATE MODE ----------------
+if ($args -contains "--update") {
+    Write-Host "🔄 Đang cập nhật ToiUuPC..." -ForegroundColor Cyan
+    Remove-Item $Functions, $Config -Recurse -Force -ErrorAction SilentlyContinue
+}
+
+# ---------------- BOOTSTRAP DOWNLOAD ----------------
+if ($IsRemote -or ($args -contains "--update")) {
+
+    Write-Host "🌐 Đang đồng bộ thành phần ToiUuPC..." -ForegroundColor Cyan
+
+    foreach ($item in $RequiredFiles.GetEnumerator()) {
+
+        $localPath  = Join-Path $Root $item.Key
+        $remotePath = "$RepoRaw/$($item.Value)"
+
+        if (-not (Test-Path $localPath)) {
+            try {
+                Invoke-RestMethod $remotePath -OutFile $localPath -UseBasicParsing
+            }
+            catch {
+                Write-Host "❌ Không tải được: $remotePath" -ForegroundColor Red
+                exit 1
+            }
+        }
+    }
+}
+
+Write-Host "📁 Workspace: $Root" -ForegroundColor DarkGray
+
+# ---------------- LOAD FUNCTIONS ----------------
 $FunctionFiles = @(
     "utils.ps1"
     "Show-PMKLogo.ps1"
@@ -55,16 +103,14 @@ foreach ($file in $FunctionFiles) {
     $path = Join-Path $Functions $file
     if (Test-Path $path) {
         . $path
-    } else {
-        Write-Host "❌ Thiếu file bắt buộc: $file" -ForegroundColor Red
-        Pause
+    }
+    else {
+        Write-Host "❌ Thiếu file: $file" -ForegroundColor Red
         exit 1
     }
 }
 
-# ---------------------------------------------------------
-# MAIN MENU
-# ---------------------------------------------------------
+# ---------------- MAIN MENU ----------------
 function Show-MainMenu {
     Clear-Host
     if (Get-Command Show-PMKLogo -ErrorAction SilentlyContinue) {
@@ -75,84 +121,16 @@ function Show-MainMenu {
     Write-Host "  ToiUuPC – Tối ưu Windows 10 / 11" -ForegroundColor Cyan
     Write-Host "=================================================`n"
 
-    Write-Host "1. ⚙️  Tối ưu hệ thống (Tweaks)"
-    Write-Host "2. 📦 Cài đặt ứng dụng (Winget)"
-    Write-Host "3. 🌐 Thiết lập DNS"
-    Write-Host "4. 🧹 Dọn dẹp hệ thống"
-    Write-Host "5. ⏪ Rollback tweaks gần nhất"
-    Write-Host "0. ❌ Thoát`n"
+    Write-Host "1. Tối ưu hệ thống (Tweaks)"
+    Write-Host "2. Cài đặt ứng dụng (Winget)"
+    Write-Host "3. Thiết lập DNS"
+    Write-Host "4. Dọn dẹp hệ thống"
+    Write-Host "5. Rollback tweaks"
+    Write-Host "6. Cập nhật ToiUuPC"
+    Write-Host "0. Thoát`n"
 }
 
-# ---------------------------------------------------------
-# TWEAK SUB MENU
-# ---------------------------------------------------------
-function Show-TweakMenu {
-    Clear-Host
-    Write-Host "▶ TỐI ƯU HỆ THỐNG (TWEAKS)" -ForegroundColor Cyan
-    Write-Host "--------------------------------------"
-    Write-Host "1. Áp dụng preset"
-    Write-Host "2. Áp dụng theo category"
-    Write-Host "3. Áp dụng theo ID tweak"
-    Write-Host "0. Quay lại`n"
-}
-
-function Menu-TweakPreset {
-    Write-Host "`nChọn preset:"
-    Write-Host "1. Privacy  – Quyền riêng tư"
-    Write-Host "2. Gaming   – Hiệu năng / FPS"
-    Write-Host "3. Office   – Ổn định / bảo mật"
-
-    $c = Read-Host "👉 Lựa chọn"
-
-    switch ($c) {
-        "1" { Invoke-TweaksEngine -Preset "Privacy" }
-        "2" { Invoke-TweaksEngine -Preset "Gaming" }
-        "3" { Invoke-TweaksEngine -Preset "Office" }
-        default {
-            Write-Host "❌ Lựa chọn không hợp lệ" -ForegroundColor Yellow
-        }
-    }
-}
-
-function Menu-TweakCategory {
-    $file = Join-Path $Config "tweaks.json"
-    if (-not (Test-Path $file)) {
-        Write-Host "❌ Không tìm thấy tweaks.json" -ForegroundColor Red
-        return
-    }
-
-    $json = Get-Content $file -Raw | ConvertFrom-Json
-    $cats = $json.tweaks | Select-Object -ExpandProperty category -Unique | Sort-Object
-
-    Write-Host ""
-    for ($i = 0; $i -lt $cats.Count; $i++) {
-        Write-Host "$($i + 1). $($cats[$i])"
-    }
-
-    $sel = Read-Host "👉 Chọn category"
-    if ($sel -match '^\d+$') {
-        $cat = $cats[[int]$sel - 1]
-        if ($cat) {
-            $ids = $json.tweaks |
-                Where-Object { $_.category -eq $cat } |
-                Select-Object -ExpandProperty id
-
-            Invoke-TweaksEngine -Ids $ids
-        }
-    }
-}
-
-function Menu-TweakById {
-    $ids = Read-Host "Nhập ID tweak (phân tách bằng dấu ,)"
-    if ($ids) {
-        $arr = $ids.Split(",") | ForEach-Object { $_.Trim() }
-        Invoke-TweaksEngine -Ids $arr
-    }
-}
-
-# ---------------------------------------------------------
-# MAIN LOOP
-# ---------------------------------------------------------
+# ---------------- MAIN LOOP ----------------
 while ($true) {
 
     Show-MainMenu
@@ -161,49 +139,41 @@ while ($true) {
     switch ($choice) {
 
         "1" {
-            while ($true) {
-                Show-TweakMenu
-                $t = Read-Host "👉 Chọn"
-
-                switch ($t) {
-                    "1" { Menu-TweakPreset }
-                    "2" { Menu-TweakCategory }
-                    "3" { Menu-TweakById }
-                    "0" { break }
-                    default {
-                        Write-Host "❌ Lựa chọn không hợp lệ" -ForegroundColor Yellow
-                    }
-                }
-                Pause
-            }
+            Clear-Host
+            Invoke-Tweaks
+            Pause
         }
 
         "2" {
             Clear-Host
-            Write-Host "▶ CÀI ĐẶT ỨNG DỤNG" -ForegroundColor Cyan
             Invoke-InstallApps
             Pause
         }
 
         "3" {
             Clear-Host
-            Write-Host "▶ THIẾT LẬP DNS" -ForegroundColor Cyan
             Invoke-DNSManager
             Pause
         }
 
         "4" {
             Clear-Host
-            Write-Host "▶ DỌN DẸP HỆ THỐNG" -ForegroundColor Cyan
-            Invoke-CleanSystem -All
+            Invoke-SystemCleanup
             Pause
         }
 
         "5" {
             Clear-Host
-            Write-Host "▶ ROLLBACK TWEAKS" -ForegroundColor Yellow
-            Invoke-TweaksEngine -Rollback
+            Invoke-Tweaks -Rollback
             Pause
+        }
+
+        "6" {
+            Write-Host "🔄 Đang cập nhật..." -ForegroundColor Cyan
+            & powershell -NoProfile -Command {
+                irm https://raw.githubusercontent.com/mkhai2589/toiuupc/main/ToiUuPC.ps1 | iex --update
+            }
+            break
         }
 
         "0" {
