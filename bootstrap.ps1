@@ -1,7 +1,6 @@
 # ==================================================
 # bootstrap.ps1
 # PMK Toolbox - ToiUuPC Bootstrap Loader
-# Author: Minh Khai (PMK)
 # ==================================================
 
 chcp 65001 | Out-Null
@@ -28,8 +27,8 @@ function Test-IsAdmin {
 }
 
 if (-not (Test-IsAdmin)) {
-    Write-Host "Vui long chay PowerShell bang quyen Administrator" -ForegroundColor Red
-    Write-Host "➡ Right-click → Run as administrator"
+    Write-Host "Vui lòng chạy PowerShell bằng quyền Administrator" -ForegroundColor Red
+    Write-Host "➡ Right-click → Run as Administrator"
     pause
     exit 1
 }
@@ -55,11 +54,7 @@ function Download-File {
         [string]$Out
     )
 
-    Invoke-WebRequest `
-        -Uri $Url `
-        -OutFile $Out `
-        -UseBasicParsing `
-        -Headers @{ "Cache-Control" = "no-cache" }
+    Invoke-WebRequest -Uri $Url -OutFile $Out -UseBasicParsing -Headers @{ "Cache-Control" = "no-cache" }
 }
 
 # ==================================================
@@ -79,30 +74,22 @@ Write-Host ""
 if (Test-Git) {
 
     if (Test-Path (Join-Path $TargetDir ".git")) {
-        Write-Host "Dang cap nhat ToiUuPC (git pull)..."
+        Write-Host "Updating ToiUuPC..."
         Push-Location $TargetDir
         git pull --rebase
         Pop-Location
-    }
-    else {
-        Write-Host "⬇ Dang clone ToiUuPC..."
+    } else {
+        Write-Host "Cloning ToiUuPC..."
         git clone $RepoUrl $TargetDir
     }
 
-}
-else {
-    Write-Host "⚠ Git khong ton tai → fallback RAW mode" -ForegroundColor Yellow
+} else {
 
-    $folders = @(
-        "functions",
-        "config",
-        "ui"
-    )
+    Write-Host "Git not found — fallback RAW download" -ForegroundColor Yellow
 
+    $folders = @("functions","config","ui")
     foreach ($f in $folders) {
-        New-Item -ItemType Directory `
-            -Path (Join-Path $TargetDir $f) `
-            -Force | Out-Null
+        New-Item -ItemType Directory -Path (Join-Path $TargetDir $f) -Force | Out-Null
     }
 
     $files = @(
@@ -124,12 +111,11 @@ else {
     foreach ($file in $files) {
         $out = Join-Path $TargetDir $file
         $url = "$RepoRaw/$file"
-
         try {
-            Write-Host "⬇ $file"
+            Write-Host "Downloading $file"
             Download-File $url $out
         } catch {
-            Write-Host "Loi tai: $file" -ForegroundColor Red
+            Write-Host "Failed to download $file" -ForegroundColor Red
         }
     }
 }
@@ -138,7 +124,7 @@ else {
 # VERIFY MAIN FILE
 # ==================================================
 if (-not (Test-Path $MainFile)) {
-    Write-Host "Khong tim thay ToiUuPC.ps1" -ForegroundColor Red
+    Write-Host "ToiUuPC.ps1 not found" -ForegroundColor Red
     pause
     exit 1
 }
@@ -147,11 +133,8 @@ if (-not (Test-Path $MainFile)) {
 # RUN TOOL
 # ==================================================
 Write-Host ""
-Write-Host "Khoi dong PMK Toolbox..." -ForegroundColor Green
+Write-Host "Launching PMK Toolbox..." -ForegroundColor Green
 Write-Host ""
 
 Set-Location $TargetDir
-powershell `
-    -ExecutionPolicy Bypass `
-    -NoProfile `
-    -File $MainFile
+powershell -ExecutionPolicy Bypass -NoProfile -File $MainFile
