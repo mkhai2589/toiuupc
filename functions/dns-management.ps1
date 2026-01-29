@@ -122,7 +122,7 @@ function Start-DnsManager {
 
         Apply-Dns -Name $selected -Dns $config.$selected
 
-        Write-Host "`n✅ Hoàn tất. Nhấn phím bất kỳ để tiếp tục..." -ForegroundColor Green
+        Write-Host "`n✅ Hoàn tat. Nhan phim bat ky de tiep tuc..." -ForegroundColor Green
         [void][System.Console]::ReadKey($true)
     }
 }
