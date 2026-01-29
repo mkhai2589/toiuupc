@@ -60,6 +60,6 @@ function Remove-WindowsApp {
         Get-AppxPackage "*$Pattern*" -AllUsers | Remove-AppxPackage -AllUsers -ErrorAction Stop
         Write-Verbose "Removed apps matching $Pattern"
     } catch {
-        Write-Warning "Failed to remove $Pattern: $($_.Exception.Message)"
+       Write-Warning "Failed to remove ${Pattern}: $($_.Exception.Message)"
     }
 }
