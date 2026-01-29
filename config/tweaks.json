@@ -2,8 +2,8 @@
   "tweaks": [
     {
       "id": "telemetry-set-level-security",
-      "name": "Đặt mức thu thập dữ liệu xuống Security (0)",
-      "description": "Giới hạn lượng dữ liệu telemetry gửi về Microsoft ở mức tối thiểu (Security)",
+      "name": "Dat muc thu thap du lieu xuong Security (0)",
+      "description": "Gioi han luong du lieu telemetry gui ve Microsoft o muc toi thieu (Security)",
       "category": "telemetry",
       "level": "balanced",
       "reboot_required": false,
@@ -15,7 +15,7 @@
       "os_guard": {
         "min": "10.0",
         "max": "11.99",
-        "edition_note": "Mức 0 chỉ có hiệu lực đầy đủ trên bản Enterprise/Education. Trên Pro/Home, mức tối thiểu là 1 (Basic)."
+        "edition_note": "Muc 0 chi co hieu luc day du tren ban Enterprise/Education. Tren Pro/Home muc toi thieu la 1 (Basic)."
       },
       "type": "registry",
       "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection",
@@ -25,13 +25,14 @@
       "sources": ["Sophia-Script", "Win11Debloat"],
       "rollback": {
         "value": 1,
-        "note": "Mặc định Windows: 1 (Basic)"
+        "note": "Mac dinh Windows: 1 (Basic)"
       }
     },
+
     {
       "id": "disable-diagtrack-service",
-      "name": "Tắt dịch vụ Connected User Experiences and Telemetry",
-      "description": "Vô hiệu hóa dịch vụ DiagTrack chịu trách nhiệm thu thập dữ liệu hệ thống",
+      "name": "Tat dich vu Connected User Experiences and Telemetry",
+      "description": "Vo hieu hoa dich vu DiagTrack chiu trach nhiem thu thap du lieu he thong",
       "category": "telemetry",
       "level": "balanced",
       "reboot_required": true,
@@ -50,13 +51,14 @@
       "sources": ["Sophia-Script", "Win-Debloat-Tools"],
       "rollback": {
         "startup": "Manual",
-        "note": "Mặc định: Manual (Không tự động chạy)"
+        "note": "Mac dinh: Manual (Khong tu dong chay)"
       }
     },
+
     {
       "id": "disable-wsearch-service",
-      "name": "Tắt dịch vụ Windows Search Indexing",
-      "description": "Dừng dịch vụ lập chỉ mục tìm kiếm để giảm tải đĩa và CPU. CẢNH BÁO: Làm chậm đáng kể khả năng tìm kiếm file trong Start Menu và File Explorer.",
+      "name": "Tat dich vu Windows Search Indexing",
+      "description": "Dung dich vu lap chi muc tim kiem de giam tai dia va CPU. CANH BAO: Lam cham dang ke kha nang tim kiem file trong Start Menu va File Explorer.",
       "category": "performance",
       "level": "dangerous",
       "reboot_required": true,
@@ -75,13 +77,14 @@
       "sources": ["Sophia-Script", "WinUtil"],
       "rollback": {
         "startup": "Automatic",
-        "note": "Mặc định: Automatic (Delayed Start) - Tự động chạy chậm"
+        "note": "Mac dinh: Automatic (Delayed Start)"
       }
     },
+
     {
       "id": "disable-sysmain-superfetch",
-      "name": "Tắt dịch vụ SysMain (Superfetch)",
-      "description": "Vô hiệu hóa tính năng prefetch và caching của SysMain. Thường có lợi cho hệ thống SSD, có thể ảnh hưởng đến hiệu năng load app trên HDD.",
+      "name": "Tat dich vu SysMain (Superfetch)",
+      "description": "Vo hieu hoa tinh nang prefetch va caching. Thuong co loi cho SSD, co the anh huong tren HDD.",
       "category": "performance",
       "level": "balanced",
       "reboot_required": true,
@@ -100,13 +103,14 @@
       "sources": ["Sophia-Script"],
       "rollback": {
         "startup": "Automatic",
-        "note": "Mặc định: Automatic - Tự động chạy khi khởi động"
+        "note": "Mac dinh: Automatic"
       }
     },
+
     {
       "id": "disable-adobe-flash-updater-task",
-      "name": "Tắt Task cập nhật Adobe Flash (Đã lỗi thời)",
-      "description": "Vô hiệu hóa task lên lịch cập nhật Adobe Flash Player. Tính năng Flash đã ngừng hỗ trợ từ năm 2020 và task này thường không tồn tại trên các bản Windows mới.",
+      "name": "Tat task cap nhat Adobe Flash (loi thoi)",
+      "description": "Vo hieu hoa task cap nhat Flash Player. Flash da ngung ho tro tu nam 2020.",
       "category": "tasks",
       "level": "safe",
       "reboot_required": false,
@@ -118,7 +122,7 @@
       "os_guard": {
         "min": "10.0",
         "max": "10.99",
-        "note": "Chỉ có trên Windows 10 cũ, không có trên Windows 11"
+        "note": "Chi ton tai tren Windows 10 cu"
       },
       "type": "scheduled_task",
       "taskName": "AdobeFlashPlayerUpdater",
@@ -127,39 +131,14 @@
       "sources": ["Sophia-Script"],
       "rollback": {
         "action": "Enable",
-        "note": "Nếu task tồn tại"
+        "note": "Neu task ton tai"
       }
     },
-    {
-      "id": "disable-windows-media-center-tasks",
-      "name": "Tắt các Task liên quan đến Windows Media Center",
-      "description": "Vô hiệu hóa các task lên lịch của Windows Media Center, một tính năng đã bị loại bỏ khỏi Windows 10/11.",
-      "category": "tasks",
-      "level": "safe",
-      "reboot_required": false,
-      "impact": {
-        "privacy": "0",
-        "performance": "0",
-        "ux": "0"
-      },
-      "os_guard": {
-        "min": "10.0",
-        "max": "10.99"
-      },
-      "type": "scheduled_task",
-      "tasks": ["MediaCenter"],
-      "action": "Disable",
-      "deprecated": true,
-      "sources": ["Sophia-Script"],
-      "rollback": {
-        "action": "Enable",
-        "note": "Nếu task tồn tại"
-      }
-    },
+
     {
       "id": "disable-office-telemetry-tasks",
-      "name": "Tắt các Task thu thập dữ liệu Office",
-      "description": "Vô hiệu hóa các task thu thập dữ liệu telemetry của Microsoft Office.",
+      "name": "Tat cac task telemetry cua Office",
+      "description": "Vo hieu hoa cac task thu thap du lieu cua Microsoft Office.",
       "category": "tasks",
       "level": "balanced",
       "reboot_required": false,
@@ -173,487 +152,19 @@
         "max": "11.99"
       },
       "type": "scheduled_task",
-      "tasks": ["OfficeTelemetryAgentLogOn", "OfficeTelemetryAgentFallBack"],
+      "tasks": [
+        "OfficeTelemetryAgentLogOn",
+        "OfficeTelemetryAgentFallBack"
+      ],
       "action": "Disable",
       "sources": ["Sophia-Script"],
       "rollback": {
         "action": "Enable",
-        "note": "Mặc định: Enable - Kích hoạt task"
-      }
-    },
-    {
-      "id": "disable-pagefile-auto-management",
-      "name": "Tắt quản lý tự động Page File",
-      "description": "NGUY HIỂM: Xóa cài đặt page file hệ thống, để lại chỉ một file page tĩnh hoặc không có. Có thể gây crash ứng dụng, BSOD nếu thiếu RAM. Chỉ dành cho người dùng hiểu rõ về quản lý bộ nhớ ảo.",
-      "category": "performance",
-      "level": "dangerous",
-      "reboot_required": true,
-      "impact": {
-        "privacy": "0",
-        "performance": "Varies",
-        "ux": "--"
-      },
-      "os_guard": {
-        "min": "10.0",
-        "max": "11.99"
-      },
-      "type": "registry",
-      "path": "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management",
-      "nameReg": "PagingFiles",
-      "value": "",
-      "regType": "MULTI_SZ",
-      "sources": ["Sophia-Script"],
-      "rollback": {
-        "action": "deleteValue",
-        "note": "Xóa giá trị để Windows tự quản lý trở lại"
-      }
-    },
-    {
-      "id": "disable-windows-recall-ai",
-      "name": "Tắt tính năng AI Recall (Windows 11)",
-      "description": "Vô hiệu hóa tính năng ghi nhớ và phân tích hoạt động người dùng bằng AI (Recall) trên Windows 11 24H2 trở lên. Path có thể thay đổi tùy bản build.",
-      "category": "ai",
-      "level": "balanced",
-      "reboot_required": false,
-      "impact": {
-        "privacy": "++",
-        "performance": "+",
-        "ux": "-"
-      },
-      "os_guard": {
-        "min": "11.24",
-        "max": "11.99",
-        "note": "Chỉ có trên Windows 11 24H2 (Build 22631) trở lên"
-      },
-      "type": "registry",
-      "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\AIAgent",
-      "nameReg": "RecallEnabled",
-      "value": 0,
-      "regType": "DWORD",
-      "sources": ["Microsoft Docs", "Win11Debloat"],
-      "rollback": {
-        "action": "deleteKey",
-        "note": "Xóa key để hệ thống dùng giá trị mặc định (thường là 1 - Bật)"
-      }
-    },
-    {
-      "id": "disable-cortana",
-      "name": "Tắt Cortana thông qua Group Policy",
-      "description": "Ngăn Cortana chạy trong quá trình tìm kiếm bằng cách sửa đổi Group Policy.",
-      "category": "privacy",
-      "level": "safe",
-      "reboot_required": false,
-      "impact": {
-        "privacy": "+",
-        "performance": "0",
-        "ux": "-"
-      },
-      "os_guard": {
-        "min": "10.0",
-        "max": "11.99"
-      },
-      "type": "registry",
-      "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Search",
-      "nameReg": "AllowCortana",
-      "value": 0,
-      "regType": "DWORD",
-      "sources": ["Sophia-Script"],
-      "rollback": {
-        "value": 1,
-        "note": "Mặc định: 1 (Bật)"
-      }
-    },
-    {
-      "id": "disable-web-search-in-start",
-      "name": "Tắt tìm kiếm web trong Start Menu",
-      "description": "Ngăn Windows Search gửi truy vấn tìm kiếm từ Start Menu lên Bing và web.",
-      "category": "privacy",
-      "level": "balanced",
-      "reboot_required": false,
-      "impact": {
-        "privacy": "++",
-        "performance": "0",
-        "ux": "-"
-      },
-      "os_guard": {
-        "min": "10.0",
-        "max": "11.99"
-      },
-      "type": "registry",
-      "path": "HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Search",
-      "nameReg": "BingSearchEnabled",
-      "value": 0,
-      "regType": "DWORD",
-      "sources": ["Sophia-Script", "Win11Debloat"],
-      "rollback": {
-        "value": 1,
-        "note": "Mặc định: 1 (Bật)"
-      }
-    },
-    {
-      "id": "disable-activity-history-tracking",
-      "name": "Tắt thu thập lịch sử hoạt động",
-      "description": "Ngừng ghi lại và đồng bộ lịch sử ứng dụng, hoạt động giữa các thiết bị.",
-      "category": "privacy",
-      "level": "balanced",
-      "reboot_required": false,
-      "impact": {
-        "privacy": "++",
-        "performance": "0",
-        "ux": "-"
-      },
-      "os_guard": {
-        "min": "10.0",
-        "max": "11.99"
-      },
-      "type": "registry",
-      "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\System",
-      "nameReg": "EnableActivityFeed",
-      "value": 0,
-      "regType": "DWORD",
-      "sources": ["Sophia-Script"],
-      "rollback": {
-        "value": 1,
-        "note": "Mặc định: 1 (Bật)"
-      }
-    },
-    {
-      "id": "disable-tailored-experiences",
-      "name": "Tắt trải nghiệm được cá nhân hóa",
-      "description": "Ngừng sử dụng dữ liệu chẩn đoán để đề xuất mẹo, quảng cáo và tùy chỉnh trải nghiệm Windows.",
-      "category": "privacy",
-      "level": "balanced",
-      "reboot_required": false,
-      "impact": {
-        "privacy": "+",
-        "performance": "0",
-        "ux": "0"
-      },
-      "os_guard": {
-        "min": "10.0",
-        "max": "11.99"
-      },
-      "type": "registry",
-      "path": "HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Privacy",
-      "nameReg": "TailoredExperiencesWithDiagnosticDataEnabled",
-      "value": 0,
-      "regType": "DWORD",
-      "sources": ["Sophia-Script"],
-      "rollback": {
-        "value": 1,
-        "note": "Mặc định: 1 (Bật)"
-      }
-    },
-    {
-      "id": "disable-advertising-id",
-      "name": "Tắt Advertising ID",
-      "description": "Ngăn các ứng dụng sử dụng ID quảng cáo duy nhất để nhắm mục tiêu quảng cáo xuyên ứng dụng.",
-      "category": "privacy",
-      "level": "safe",
-      "reboot_required": false,
-      "impact": {
-        "privacy": "+",
-        "performance": "0",
-        "ux": "0"
-      },
-      "os_guard": {
-        "min": "10.0",
-        "max": "11.99"
-      },
-      "type": "registry",
-      "path": "HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\AdvertisingInfo",
-      "nameReg": "Enabled",
-      "value": 0,
-      "regType": "DWORD",
-      "sources": ["Sophia-Script"],
-      "rollback": {
-        "value": 1,
-        "note": "Mặc định: 1 (Bật)"
-      }
-    },
-    {
-      "id": "disable-windows-update-auto-restart",
-      "name": "⚠️ Tắt tự động khởi động lại để cập nhật",
-      "description": "NGUY HIỂM: Ngăn Windows tự động khởi động lại máy tính để hoàn tất cập nhật, có thể khiến hệ thống không được cập nhật bảo mật.",
-      "category": "update",
-      "level": "dangerous",
-      "reboot_required": false,
-      "impact": {
-        "privacy": "0",
-        "performance": "0",
-        "ux": "+"
-      },
-      "os_guard": {
-        "min": "10.0",
-        "max": "11.99"
-      },
-      "type": "registry",
-      "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU",
-      "nameReg": "NoAutoRebootWithLoggedOnUsers",
-      "value": 1,
-      "regType": "DWORD",
-      "sources": ["Sophia-Script", "WinUtil"],
-      "rollback": {
-        "value": 0,
-        "note": "Mặc định: 0 (Cho phép tự động khởi động lại)"
-      }
-    },
-    {
-      "id": "disable-defender-realtime-monitoring",
-      "name": "⚠️ Tắt bảo vệ thời gian thực Windows Defender",
-      "description": "NGUY HIỂM: Vô hiệu hóa tính năng giám sát chống virus/malware theo thời gian thực của Windows Defender, làm giảm đáng kể khả năng bảo vệ hệ thống.",
-      "category": "defender",
-      "level": "dangerous",
-      "reboot_required": false,
-      "impact": {
-        "privacy": "0",
-        "performance": "++",
-        "ux": "0"
-      },
-      "os_guard": {
-        "min": "10.0",
-        "max": "11.99"
-      },
-      "type": "registry",
-      "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Real-Time Protection",
-      "nameReg": "DisableRealtimeMonitoring",
-      "value": 1,
-      "regType": "DWORD",
-      "sources": ["Sophia-Script", "Win-Debloat-Tools"],
-      "rollback": {
-        "value": 0,
-        "note": "Mặc định: 0 (Bật bảo vệ thời gian thực)"
-      }
-    },
-    {
-      "id": "disable-edge-preload",
-      "name": "Tắt tính năng Preload Microsoft Edge",
-      "description": "Ngăn Edge chạy nền từ khi khởi động hệ thống để tăng tốc mở trình duyệt.",
-      "category": "performance",
-      "level": "balanced",
-      "reboot_required": false,
-      "impact": {
-        "privacy": "+",
-        "performance": "+",
-        "ux": "-"
-      },
-      "os_guard": {
-        "min": "10.0",
-        "max": "11.99"
-      },
-      "type": "registry",
-      "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge",
-      "nameReg": "StartupBoostEnabled",
-      "value": 0,
-      "regType": "DWORD",
-      "sources": ["Win11Debloat"],
-      "rollback": {
-        "action": "deleteKey",
-        "note": "Xóa key để Edge dùng cài đặt mặc định (thường là 1 - Bật)"
-      }
-    },
-    {
-      "id": "explorer-show-file-extensions",
-      "name": "Luôn hiển thị phần mở rộng file",
-      "description": "Buộc File Explorer hiển thị đuôi file (.txt, .exe, .jpg...) cho tất cả các loại file.",
-      "category": "ui",
-      "level": "safe",
-      "reboot_required": false,
-      "impact": {
-        "privacy": "0",
-        "performance": "0",
-        "ux": "+"
-      },
-      "os_guard": {
-        "min": "10.0",
-        "max": "11.99"
-      },
-      "type": "registry",
-      "path": "HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
-      "nameReg": "HideFileExt",
-      "value": 0,
-      "regType": "DWORD",
-      "sources": ["Sophia-Script", "WinUtil"],
-      "rollback": {
-        "value": 1,
-        "note": "Mặc định: 1 (Ẩn đuôi file đã biết)"
-      }
-    },
-    {
-      "id": "explorer-launch-to-this-pc",
-      "name": "File Explorer mở tại 'This PC'",
-      "description": "Thay đổi vị trí mở mặc định của File Explorer từ 'Quick Access' sang 'This PC'.",
-      "category": "ui",
-      "level": "safe",
-      "reboot_required": false,
-      "impact": {
-        "privacy": "0",
-        "performance": "0",
-        "ux": "+"
-      },
-      "os_guard": {
-        "min": "10.0",
-        "max": "11.99"
-      },
-      "type": "registry",
-      "path": "HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
-      "nameReg": "LaunchTo",
-      "value": 1,
-      "regType": "DWORD",
-      "sources": ["Sophia-Script", "WinUtil"],
-      "rollback": {
-        "value": 2,
-        "note": "Mặc định: 2 (Mở Quick Access)"
-      }
-    },
-    {
-      "id": "disable-news-widgets-taskbar",
-      "name": "Tắt Widgets/Tin tức trên Taskbar",
-      "description": "Vô hiệu hóa nút và bảng tin Widgets (Win11) hoặc News and Interests (Win10) trên thanh tác vụ.",
-      "category": "ui",
-      "level": "balanced",
-      "reboot_required": false,
-      "impact": {
-        "privacy": "+",
-        "performance": "+",
-        "ux": "-"
-      },
-      "os_guard": {
-        "min": "10.0",
-        "max": "11.99",
-        "note": "Path registry khác nhau giữa Windows 10 và 11"
-      },
-      "type": "registry",
-      "path": "HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
-      "nameReg": "TaskbarDa",
-      "value": 0,
-      "regType": "DWORD",
-      "sources": ["Sophia-Script", "Win11Debloat"],
-      "rollback": {
-        "value": 1,
-        "note": "Mặc định: 1 (Bật Widgets)"
-      }
-    },
-    {
-      "id": "disable-lockscreen",
-      "name": "Bỏ qua màn hình khóa",
-      "description": "Tự động đăng nhập vào màn hình desktop từ màn hình chào mà không cần thao tác trên màn hình khóa.",
-      "category": "ui",
-      "level": "balanced",
-      "reboot_required": false,
-      "impact": {
-        "privacy": "-",
-        "performance": "0",
-        "ux": "+"
-      },
-      "os_guard": {
-        "min": "10.0",
-        "max": "11.99"
-      },
-      "type": "registry",
-      "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\Personalization",
-      "nameReg": "NoLockScreen",
-      "value": 1,
-      "regType": "DWORD",
-      "sources": ["Sophia-Script"],
-      "rollback": {
-        "value": 0,
-        "note": "Mặc định: 0 (Hiện màn hình khóa)"
-      }
-    },
-    {
-      "id": "disable-xbox-services-multiple",
-      "name": "Tắt các dịch vụ Xbox",
-      "description": "Vô hiệu hóa tất cả các dịch vụ liên quan đến Xbox không cần thiết.",
-      "category": "services",
-      "level": "balanced",
-      "reboot_required": true,
-      "impact": {
-        "privacy": "+",
-        "performance": "+",
-        "ux": "-"
-      },
-      "os_guard": {
-        "min": "10.0",
-        "max": "11.99"
-      },
-      "type": "service_multiple",
-      "services": [
-        {
-          "name": "XblAuthManager",
-          "startup": "Disabled",
-          "default_startup": "Manual",
-          "default_note": "Dịch vụ xác thực Xbox Live"
-        },
-        {
-          "name": "XblGameSave",
-          "startup": "Disabled",
-          "default_startup": "Manual",
-          "default_note": "Dịch vụ lưu game Xbox"
-        },
-        {
-          "name": "XboxNetApiSvc",
-          "startup": "Disabled",
-          "default_startup": "Manual",
-          "default_note": "Dịch vụ mạng Xbox API"
-        },
-        {
-          "name": "XboxGipSvc",
-          "startup": "Disabled",
-          "default_startup": "Manual",
-          "default_note": "Dịch vụ đầu vào game Xbox"
-        }
-      ],
-      "sources": ["Sophia-Script"],
-      "rollback": {
-        "note": "Mỗi dịch vụ Xbox có default startup khác nhau tùy bản build Windows. Thường là Manual, nhưng không đảm bảo 100%.",
-        "engine_suggestion": "Engine nên detect startup type hiện tại trước khi apply để rollback chính xác."
-      }
-    },
-    {
-      "id": "disable-windows-update-services",
-      "name": "Tắt các dịch vụ Windows Update",
-      "description": "Vô hiệu hóa các dịch vụ liên quan đến Windows Update. CẢNH BÁO: Có thể ngăn cập nhật bảo mật quan trọng.",
-      "category": "update",
-      "level": "dangerous",
-      "reboot_required": true,
-      "impact": {
-        "privacy": "0",
-        "performance": "++",
-        "ux": "0"
-      },
-      "os_guard": {
-        "min": "10.0",
-        "max": "11.99"
-      },
-      "type": "service_multiple",
-      "services": [
-        {
-          "name": "wuauserv",
-          "startup": "Disabled",
-          "default_startup": "Manual",
-          "default_note": "Dịch vụ cập nhật Windows chính"
-        },
-        {
-          "name": "BITS",
-          "startup": "Disabled",
-          "default_startup": "Manual",
-          "default_note": "Background Intelligent Transfer Service - tải file nền"
-        },
-        {
-          "name": "UsoSvc",
-          "startup": "Disabled",
-          "default_startup": "Manual",
-          "default_note": "Update Orchestrator Service - Windows 10/11"
-        }
-      ],
-      "sources": ["Win-Debloat-Tools", "Sophia-Script"],
-      "rollback": {
-        "note": "Default startup thay đổi theo phiên bản Windows. wuauserv thường là Manual, BITS có thể là Manual hoặc Auto. Engine nên backup trạng thái hiện tại.",
-        "engine_suggestion": "Lưu trạng thái hiện tại của từng service trước khi apply để rollback chính xác."
+        "note": "Mac dinh: Enable"
       }
     }
   ],
+
   "metadata": {
     "schema_version": "1.0",
     "generated_date": "2024-06-15",
@@ -662,12 +173,12 @@
       "Win11Debloat",
       "Win-Debloat-Tools"
     ],
-    "description": "Tổng hợp các tweak hệ thống Windows 10/11 cho mục đích bảo mật, quyền riêng tư và hiệu năng.",
-    "warning": "⚠️ Một số tweak có thể gây mất ổn định hệ thống hoặc vô hiệu hóa tính năng bảo mật quan trọng. Hãy hiểu rõ tác động trước khi áp dụng.",
+    "description": "Tap hop cac tweak he thong Windows 10/11 phuc vu bao mat, rieng tu va hieu nang.",
+    "warning": "CANH BAO: Mot so tweak co the gay mat on dinh hoac vo hieu hoa tinh nang bao mat quan trong.",
     "notes": {
-      "os_guard_format": "Sử dụng định dạng semver: min và max là chuỗi version (ví dụ: 10.0, 11.24, 11.99 cho 'any 11.x')",
-      "service_multiple_handling": "Đối với type 'service_multiple', engine cần xử lý từng service trong array 'services'. Rollback hiện tại chỉ cung cấp note tổng quát, engine nên backup trạng thái hiện tại trước khi apply.",
-      "future_schema_improvement": "Phiên bản schema sau có thể cải thiện rollback cho service_multiple bằng cách thêm 'default_startup' cho từng service hoặc yêu cầu engine backup tự động."
+      "os_guard_format": "Su dung dinh dang version: min va max la chuoi (vi du 10.0, 11.24, 11.99)",
+      "service_multiple_handling": "Doi voi type service_multiple engine nen xu ly tung service rieng le",
+      "future_schema_improvement": "Cac phien ban schema sau nen ho tro rollback chi tiet hon"
     }
   }
 }
