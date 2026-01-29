@@ -1,10 +1,8 @@
 # ==================================================
-# ToiUuPC.ps1 - FINAL FULL VERSION
+# ToiUuPC.ps1 - FINAL FULL VERSION (FIXED)
 # Windows 10/11 Optimization Tool
-# Author: PMK
 # ==================================================
 
-# ---------------- UTF8 ----------------
 chcp 65001 | Out-Null
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
@@ -12,7 +10,7 @@ Set-StrictMode -Off
 $ErrorActionPreference = "Continue"
 
 # ==================================================
-# ADMIN CHECK (EARLY)
+# ADMIN CHECK
 # ==================================================
 function Test-IsAdmin {
     $id = [Security.Principal.WindowsIdentity]::GetCurrent()
@@ -27,7 +25,7 @@ if (-not (Test-IsAdmin)) {
 }
 
 # ==================================================
-# GLOBAL PATHS
+# PATHS
 # ==================================================
 $RepoRaw = "https://raw.githubusercontent.com/mkhai2589/toiuupc/main"
 
@@ -38,27 +36,20 @@ $RUN  = Join-Path $ROOT "runtime"
 $LOG  = Join-Path $RUN  "toiuupc.log"
 $BK   = Join-Path $RUN  "backup"
 
-# ==================================================
-# ENSURE DIRECTORIES
-# ==================================================
-foreach ($dir in @($ROOT,$FUNC,$CFG,$RUN,$BK)) {
-    if (-not (Test-Path $dir)) {
-        New-Item -ItemType Directory -Path $dir -Force | Out-Null
+foreach ($d in @($ROOT,$FUNC,$CFG,$RUN,$BK)) {
+    if (-not (Test-Path $d)) {
+        New-Item -ItemType Directory -Path $d -Force | Out-Null
     }
 }
-
 if (-not (Test-Path $LOG)) {
     New-Item -ItemType File -Path $LOG -Force | Out-Null
 }
 
 # ==================================================
-# BASIC LOG (BOOTSTRAP SAFE)
+# BASIC LOG
 # ==================================================
 function Write-BootLog {
-    param(
-        [string]$Message,
-        [string]$Level = "INFO"
-    )
+    param([string]$Message,[string]$Level="INFO")
     $ts = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     "$ts [$Level] $Message" | Out-File $LOG -Append -Encoding UTF8
     Write-Host "[$Level] $Message"
@@ -67,28 +58,24 @@ function Write-BootLog {
 Write-BootLog "ToiUuPC starting..."
 
 # ==================================================
-# DOWNLOAD HELPER
+# DOWNLOAD
 # ==================================================
 function Download-File {
-    param(
-        [Parameter(Mandatory)][string]$Url,
-        [Parameter(Mandatory)][string]$OutFile
-    )
+    param([string]$Url,[string]$OutFile)
     try {
-        Invoke-WebRequest -Uri $Url -OutFile $OutFile -UseBasicParsing -ErrorAction Stop
+        Invoke-WebRequest $Url -OutFile $OutFile -UseBasicParsing -ErrorAction Stop
         Write-BootLog "Downloaded $(Split-Path $OutFile -Leaf)"
         return $true
     } catch {
-        Write-BootLog "Download failed: $Url" "ERROR"
+        Write-BootLog "Download failed $Url" "ERROR"
         return $false
     }
 }
 
 # ==================================================
-# SYNC PROJECT FILES
+# SYNC
 # ==================================================
 function Sync-ToiUuPC {
-
     Write-Host "`nDang dong bo ToiUuPC..." -ForegroundColor Cyan
 
     $FunctionFiles = @(
@@ -101,33 +88,20 @@ function Sync-ToiUuPC {
     )
 
     foreach ($f in $FunctionFiles) {
-        Download-File `
-            -Url "$RepoRaw/functions/$f" `
-            -OutFile (Join-Path $FUNC $f) | Out-Null
+        Download-File "$RepoRaw/functions/$f" (Join-Path $FUNC $f) | Out-Null
     }
 
-    $ConfigFiles = @(
-        "tweaks.json",
-        "applications.json",
-        "dns.json"
-    )
-
-    foreach ($c in $ConfigFiles) {
-        Download-File `
-            -Url "$RepoRaw/config/$c" `
-            -OutFile (Join-Path $CFG $c) | Out-Null
+    foreach ($c in @("tweaks.json","applications.json","dns.json")) {
+        Download-File "$RepoRaw/config/$c" (Join-Path $CFG $c) | Out-Null
     }
 
     Write-Host "Dong bo hoan tat" -ForegroundColor Green
 }
 
 # ==================================================
-# LOAD FUNCTION MODULES
+# LOAD FUNCTIONS
 # ==================================================
 function Load-Functions {
-
-    Write-Host "`nDang nap function modules..." -ForegroundColor Cyan
-
     Get-ChildItem $FUNC -Filter *.ps1 | ForEach-Object {
         try {
             . $_.FullName
@@ -139,29 +113,61 @@ function Load-Functions {
 }
 
 # ==================================================
-# RESTORE POINT (SAFE)
+# MENU FUNCTIONS (FIX THIEU)
 # ==================================================
-function New-RestorePoint-Safe {
-    Write-Host "Dang tao Restore Point..." -ForegroundColor Yellow
+function Invoke-TweaksMenu {
+    param($Config)
+
+    Write-Host "`nDang ap dung tat ca Tweaks..." -ForegroundColor Yellow
+    $ids = $Config.tweaks | ForEach-Object { $_.id }
+
+    Invoke-SystemTweaks `
+        -Tweaks $Config.tweaks `
+        -SelectedIds $ids `
+        -BackupPath $BK `
+        -ProgressBar $null
+}
+
+function Invoke-AppMenu {
+    param($Config)
+
+    Write-Host "`nDang cai ung dung..." -ForegroundColor Yellow
+    $ids = $Config.applications | ForEach-Object { $_.id }
+
+    Invoke-AppInstaller `
+        -Config $Config `
+        -SelectedIds $ids `
+        -ProgressBar $null
+}
+
+function Invoke-DnsMenu {
+    param($ConfigPath)
+    Start-DnsManager -ConfigPath $ConfigPath
+}
+
+function Invoke-CleanMenu {
+    Invoke-CleanSystem -All
+}
+
+function New-RestorePoint {
     try {
         Enable-ComputerRestore -Drive "C:\" -ErrorAction SilentlyContinue
-        Checkpoint-Computer `
-            -Description "ToiUuPC Restore Point" `
-            -RestorePointType "MODIFY_SETTINGS"
+        Checkpoint-Computer -Description "ToiUuPC Restore Point" -RestorePointType MODIFY_SETTINGS
         Write-Log "Restore point created"
     } catch {
-        Write-Log "Restore point skipped (service disabled)" "WARN"
+        Write-Log "Restore point skipped" "WARN"
     }
 }
 
 # ==================================================
-# MAIN MENU (CLI - GUI SE GOI HAM RIENG)
+# MAIN MENU
 # ==================================================
 function Show-MainMenu {
     Clear-Host
-    Show-PMKLogo
+    if (Get-Command Show-PMKLogo -ErrorAction SilentlyContinue) {
+        Show-PMKLogo
+    }
 
-    Write-Host ""
     Write-Host "==============================="
     Write-Host "1. Apply Windows Tweaks"
     Write-Host "2. Install Applications"
@@ -173,61 +179,49 @@ function Show-MainMenu {
 }
 
 # ==================================================
-# STARTUP
+# START
 # ==================================================
 Sync-ToiUuPC
 Load-Functions
-
 Initialize-ToiUuPCEnvironment
 Ensure-Admin
 
-Write-Log "ToiUuPC fully initialized"
+Write-Log "ToiUuPC ready"
 
 # ==================================================
-# MAIN LOOP
+# LOOP
 # ==================================================
 do {
     Show-MainMenu
-    $choice = Read-Host "Chon chuc nang"
+    $c = Read-Host "Chon"
 
-    switch ($choice) {
-
+    switch ($c) {
         "1" {
-            $cfg = Get-Content (Join-Path $CFG "tweaks.json") -Raw | ConvertFrom-Json
-            Invoke-TweaksMenu -Config $cfg
+            $cfg = Get-Content "$CFG\tweaks.json" -Raw | ConvertFrom-Json
+            Invoke-TweaksMenu $cfg
             pause
         }
-
         "2" {
-            $cfg = Get-Content (Join-Path $CFG "applications.json") -Raw | ConvertFrom-Json
-            Invoke-AppMenu -Config $cfg
+            $cfg = Get-Content "$CFG\applications.json" -Raw | ConvertFrom-Json
+            Invoke-AppMenu $cfg
             pause
         }
-
         "3" {
-            Invoke-DnsMenu -ConfigPath (Join-Path $CFG "dns.json")
+            Invoke-DnsMenu "$CFG\dns.json"
             pause
         }
-
         "4" {
             Invoke-CleanMenu
             pause
         }
-
         "5" {
-            New-RestorePoint-Safe
+            New-RestorePoint
             pause
         }
-
-        "0" {
-            Write-Log "Exit ToiUuPC"
-            break
-        }
-
+        "0" { break }
         default {
             Write-Host "Lua chon khong hop le"
             Start-Sleep 1
         }
     }
-
 } while ($true)
