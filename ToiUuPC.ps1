@@ -21,7 +21,7 @@ $BK_DIR   = Join-Path $WORKDIR "runtime\backups"
 
 # ---------- Admin check ----------
 $IsAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-
+ 
 if (-not $IsAdmin) {
     Write-Host "❌ Vui lòng chạy PowerShell với quyền Administrator" -ForegroundColor Red
     exit 1
