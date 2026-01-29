@@ -1,8 +1,5 @@
 param([switch]$Update)
 
-chcp 65001 | Out-Null
-[Console]::OutputEncoding = [Text.Encoding]::UTF8
-
 Set-StrictMode -Off
 $ErrorActionPreference = "Stop"
 
@@ -12,18 +9,20 @@ $ROOT = Join-Path $env:TEMP "ToiUuPC"
 $FUNC = Join-Path $ROOT "functions"
 $CFG  = Join-Path $ROOT "config"
 
-$dirs = @($ROOT,$FUNC,$CFG)
-foreach ($d in $dirs) {
-    if (-not (Test-Path $d)) { New-Item -ItemType Directory -Path $d | Out-Null }
+foreach ($d in @($ROOT,$FUNC,$CFG)) {
+    if (-not (Test-Path $d)) {
+        New-Item -ItemType Directory -Path $d | Out-Null
+    }
 }
 
-function Get-File($url,$out) {
-    Invoke-WebRequest $url -OutFile $out -UseBasicParsing
+function Get-File {
+    param($Url,$Out)
+    Invoke-WebRequest $Url -OutFile $Out -UseBasicParsing
 }
 
 Write-Host "Dang dong bo ToiUuPC..."
 
-$functions = @(
+$FunctionFiles = @(
     "utils.ps1",
     "Show-PMKLogo.ps1",
     "tweaks.ps1",
@@ -32,16 +31,20 @@ $functions = @(
     "clean-system.ps1"
 )
 
-foreach ($f in $functions) {
+foreach ($f in $FunctionFiles) {
     Get-File "$RepoRaw/functions/$f" (Join-Path $FUNC $f)
 }
 
-$configs = @("tweaks.json","applications.json","dns.json")
-foreach ($c in $configs) {
+$ConfigFiles = @(
+    "tweaks.json",
+    "applications.json",
+    "dns.json"
+)
+
+foreach ($c in $ConfigFiles) {
     Get-File "$RepoRaw/config/$c" (Join-Path $CFG $c)
 }
 
-# SAFE dot-source
 Get-ChildItem $FUNC -Filter *.ps1 | ForEach-Object {
     . $_.FullName
 }
@@ -50,15 +53,22 @@ Clear-Host
 Show-PMKLogo
 
 while ($true) {
-    Write-Host "1. Tweaks"
-    Write-Host "2. Install apps"
-    Write-Host "0. Exit"
+    Write-Host ""
+    Write-Host "1. Toi uu Windows"
+    Write-Host "2. Cai ung dung"
+    Write-Host "3. Quan ly DNS"
+    Write-Host "4. Don dep he thong"
+    Write-Host "0. Thoat"
 
-    $c = Read-Host "Select"
+    $c = Read-Host "Chon chuc nang"
+
     switch ($c) {
         "1" { Invoke-SystemTweaks -ConfigPath "$CFG\tweaks.json" }
         "2" { Invoke-AppInstaller -ConfigPath "$CFG\applications.json" }
+        "3" { Start-DnsManager -ConfigPath "$CFG\dns.json" }
+        "4" { Invoke-CleanSystem -All }
         "0" { break }
     }
+
     pause
 }
