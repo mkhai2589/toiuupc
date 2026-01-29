@@ -26,5 +26,11 @@ All features are accessible via an **easy-to-use CLI menu** and an optional **gr
 
 Open **PowerShell as Administrator** and run:
 
+
+
+
 ```powershell
+irm https://raw.githubusercontent.com/mkhai2589/toiuupc/main/bootstrap.ps1 | iex
+
+
 irm https://raw.githubusercontent.com/mkhai2589/toiuupc/main/bootstrap.ps1 | iex
