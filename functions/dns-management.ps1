@@ -44,7 +44,7 @@ function Load-DnsConfig {
 }
 
 # ==========================================================
-# APPLY DNS (IPv4 + IPv6 SAFE – NO AddressFamily)
+# APPLY DNS (IPv4 + IPv6 SAFE)
 # ==========================================================
 function Apply-Dns {
     param(
@@ -52,34 +52,21 @@ function Apply-Dns {
         [object]$Dns
     )
 
-    # ---------- IPv4 ----------
-    $servers4 = @()
+    $servers = @()
 
-    if ($Dns.Primary -and $Dns.Primary.Trim() -ne "") {
-        $servers4 += $Dns.Primary
-    }
+    if ($Dns.Primary)   { $servers += $Dns.Primary }
+    if ($Dns.Secondary) { $servers += $Dns.Secondary }
 
-    if ($Dns.Secondary -and $Dns.Secondary.Trim() -ne "") {
-        $servers4 += $Dns.Secondary
-    }
-
-    if ($servers4.Count -gt 0) {
+    if ($servers.Count -gt 0) {
         Set-DnsClientServerAddress `
             -InterfaceAlias $InterfaceAlias `
-            -ServerAddresses $servers4 `
+            -ServerAddresses $servers `
             -ErrorAction SilentlyContinue
     }
 
-    # ---------- IPv6 ----------
     $servers6 = @()
-
-    if ($Dns.Primary6 -and $Dns.Primary6.Trim() -ne "") {
-        $servers6 += $Dns.Primary6
-    }
-
-    if ($Dns.Secondary6 -and $Dns.Secondary6.Trim() -ne "") {
-        $servers6 += $Dns.Secondary6
-    }
+    if ($Dns.Primary6)   { $servers6 += $Dns.Primary6 }
+    if ($Dns.Secondary6) { $servers6 += $Dns.Secondary6 }
 
     if ($servers6.Count -gt 0) {
         Set-DnsClientServerAddress `
@@ -90,7 +77,7 @@ function Apply-Dns {
 }
 
 # ==========================================================
-# RESTORE DHCP DNS
+# RESTORE DHCP
 # ==========================================================
 function Restore-Dhcp {
     param([string]$InterfaceAlias)
@@ -107,21 +94,28 @@ function Restore-Dhcp {
 function Show-CurrentDns {
     param([string]$InterfaceAlias)
 
-    try {
-        $dns = Get-DnsClientServerAddress `
-            -InterfaceAlias $InterfaceAlias `
-            -ErrorAction SilentlyContinue
+    $dns = Get-DnsClientServerAddress `
+        -InterfaceAlias $InterfaceAlias `
+        -ErrorAction SilentlyContinue
 
-        if (-not $dns.ServerAddresses -or $dns.ServerAddresses.Count -eq 0) {
-            Write-Host "Current DNS : DHCP" -ForegroundColor Green
-        }
-        else {
-            Write-Host "Current DNS : $($dns.ServerAddresses -join ', ')" -ForegroundColor Yellow
-        }
+    if (-not $dns.ServerAddresses -or $dns.ServerAddresses.Count -eq 0) {
+        Write-Host "Current DNS : DHCP" -ForegroundColor Green
     }
-    catch {
-        Write-Host "Current DNS : Unknown" -ForegroundColor Red
+    else {
+        Write-Host "Current DNS : $($dns.ServerAddresses -join ', ')" -ForegroundColor Yellow
     }
+}
+
+# ==========================================================
+# DRAW STATIC HEADER (NO REFRESH)
+# ==========================================================
+function Draw-DnsHeader {
+    param([string]$InterfaceAlias)
+
+    Clear-Host
+    Write-Host "DNS MANAGEMENT" -ForegroundColor Cyan
+    Write-Host "Adapter : $InterfaceAlias"
+    Write-Host ""
 }
 
 # ==========================================================
@@ -141,21 +135,18 @@ function Invoke-DnsMenu {
 
     $iface = $adapter.InterfaceAlias
 
-    while ($true) {
-        Clear-Host
+    # 👉 CLEAR + DRAW HEADER 1 LẦN DUY NHẤT
+    Draw-DnsHeader -InterfaceAlias $iface
 
-        Write-Host "DNS MANAGEMENT" -ForegroundColor Cyan
-        Write-Host "Adapter : $iface"
-        Write-Host ""
+    while ($true) {
 
         Show-CurrentDns -InterfaceAlias $iface
         Write-Host ""
 
-        $keys = $config.PSObject.Properties.Name
-        $map  = @{}
+        $map = @{}
         $i = 1
 
-        foreach ($k in $keys) {
+        foreach ($k in $config.PSObject.Properties.Name) {
             Write-Host ("[{0}] {1}" -f $i, $k)
             $map[$i] = $k
             $i++
@@ -185,6 +176,7 @@ function Invoke-DnsMenu {
             }
 
             Start-Sleep 1
+            Write-Host ""
         }
     }
 }
