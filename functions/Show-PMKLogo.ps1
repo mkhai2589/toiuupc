@@ -12,7 +12,7 @@ function Show-PMKLogo {
         "PP      MM    MM  KK   KK     TT     OOOOO   OOOOO   LLLLL",
         "",
         "PMK TOOLBOX - TOI UU WINDOWS",
-        "Author: MINH KHAI"
+        "Author : MINH KHAI - 0333090930"
 
 
         
