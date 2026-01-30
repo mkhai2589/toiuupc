@@ -1,25 +1,28 @@
-# install-apps.ps1 - Menu 2 cột và sửa logic
+# ============================================================
+# install-apps.ps1 - MENU 2 CỘT & LOGIC CHUẨN
+# ============================================================
 Set-StrictMode -Off
-$ErrorActionPreference = 'SilentlyContinue'
+$ErrorActionPreference = "SilentlyContinue"
 
 $Script:AppConfigPath = Join-Path $PSScriptRoot "..\config\applications.json"
 
 function Load-ApplicationConfig {
     if (-not (Test-Path $Script:AppConfigPath)) {
-        Write-Host "applications.json not found!" -ForegroundColor Red
+        Write-Host "LOI: Khong tim thay file applications.json!" -ForegroundColor Red
         return $null
     }
     try {
         return Get-Content $Script:AppConfigPath -Raw | ConvertFrom-Json
     } catch {
-        Write-Host "Invalid applications.json format!" -ForegroundColor Red
+        Write-Host "LOI: Dinh dang applications.json khong hop le!" -ForegroundColor Red
         return $null
     }
 }
 
 function Ensure-Winget {
     if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
-        Write-Host "winget not found. Please install App Installer from Microsoft Store." -ForegroundColor Red
+        Write-Host "LOI: Khong tim thay winget!" -ForegroundColor Red
+        Write-Host "Vui long cai dat 'App Installer' tu Microsoft Store." -ForegroundColor Yellow
         return $false
     }
     return $true
@@ -28,8 +31,9 @@ function Ensure-Winget {
 function Is-AppInstalled {
     param([string]$PackageId)
     try {
-        $out = winget list --id $PackageId --exact 2>$null | Select-String $PackageId
-        return ($out -ne $null)
+        # Sử dụng --exact để kiểm tra chính xác
+        $result = winget list --id $PackageId --exact 2>$null
+        return ($result -match $PackageId)
     } catch {
         return $false
     }
@@ -38,106 +42,132 @@ function Is-AppInstalled {
 function Install-Application {
     param([object]$App)
     if (-not $App.packageId) {
-        Write-Host "Invalid application config" -ForegroundColor Red
+        Write-Host "LOI: Cau hinh ung dung khong hop le!" -ForegroundColor Red
         return
     }
     if (Is-AppInstalled $App.packageId) {
-        Write-Host "[SKIP] $($App.name) already installed" -ForegroundColor Yellow
+        Write-Host "[SKIP] $($App.name) da duoc cai dat." -ForegroundColor Yellow
         return
     }
-    Write-Host "[INSTALL] $($App.name)" -ForegroundColor Cyan
-    $args = @(
+    Write-Host "[CAI DAT] $($App.name)..." -ForegroundColor Cyan
+    $arguments = @(
         "install",
         "--id", $App.packageId,
         "--accept-package-agreements",
-        "--accept-source-agreements"
+        "--accept-source-agreements",
+        "--disable-interactivity"
     )
     if ($App.source) {
-        $args += @("--source", $App.source)
+        $arguments += @("--source", $App.source)
     }
     if ($App.silent -eq $true) {
-        $args += "--silent"
+        $arguments += "--silent"
     }
-    # Chạy winget trực tiếp, không dùng Start-Process để tránh treo
     try {
-        winget $args
+        # Chạy winget trực tiếp, bắt lỗi rõ ràng
+        winget @arguments 2>&1 | Out-Null
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "   => Thanh cong!" -ForegroundColor Green
+        } else {
+            Write-Host "   => That bai (Code: $LASTEXITCODE)." -ForegroundColor Red
+        }
     } catch {
-        Write-Host " Installation failed: $_" -ForegroundColor Red
+        Write-Host "   => Loi trong qua trinh cai dat: $_" -ForegroundColor Red
     }
 }
 
+# ============================================================
+# HÀM HIỂN THỊ MENU 2 CỘT (CẢI TIẾN)
+# ============================================================
 function Show-AppMenu {
     param([object]$Config)
     Clear-Host
-    Write-Host "====== INSTALL APPLICATIONS ======" -ForegroundColor Cyan
+    Write-Host "========================================" -ForegroundColor Cyan
+    Write-Host "       CAI DAT UNG DUNG (2 COT)        " -ForegroundColor White
+    Write-Host "========================================" -ForegroundColor Cyan
     Write-Host ""
-    $menuMap = @{}
-    $i = 1
-    $appsByCategory = @{}
+    # Nhóm ứng dụng theo category
+    $categories = @{}
     foreach ($app in $Config.applications) {
-        if (-not $appsByCategory.ContainsKey($app.category)) {
-            $appsByCategory[$app.category] = @()
+        if (-not $categories.ContainsKey($app.category)) {
+            $categories[$app.category] = @()
         }
-        $appsByCategory[$app.category] += $app
+        $categories[$app.category] += $app
     }
-    # Tính toán để hiển thị 2 cột
-    $totalCategories = $appsByCategory.Keys.Count
-    $half = [math]::Ceiling($totalCategories / 2)
-    $leftCategories = $appsByCategory.Keys | Select-Object -First $half
-    $rightCategories = $appsByCategory.Keys | Select-Object -Skip $half
-    # In header 2 cột
-    Write-Host ("{0,-40}{1}" -f "Left Column", "Right Column") -ForegroundColor Gray
-    Write-Host ("{0,-40}{1}" -f "-----------", "------------")
-    # In từng dòng cho mỗi category
-    for ($row=0; $row -lt $half; $row++) {
-        $leftCat = if ($row -lt $leftCategories.Count) { $leftCategories[$row] } else { $null }
-        $rightCat = if ($row -lt $rightCategories.Count) { $rightCategories[$row] } else { $null }
-        $leftText = if ($leftCat) { "[$leftCat]" } else { "" }
-        $rightText = if ($rightCat) { "[$rightCat]" } else { "" }
-        Write-Host ("{0,-40}{1}" -f $leftText, $rightText) -ForegroundColor Green
-        # Lấy danh sách ứng dụng cho category bên trái và bên phải
-        $leftApps = if ($leftCat) { $appsByCategory[$leftCat] } else { @() }
-        $rightApps = if ($rightCat) { $appsByCategory[$rightCat] } else { @() }
-        $maxRows = [math]::Max($leftApps.Count, $rightApps.Count)
-        for ($appRow=0; $appRow -lt $maxRows; $appRow++) {
-            $leftApp = if ($appRow -lt $leftApps.Count) { $leftApps[$appRow] } else { $null }
-            $rightApp = if ($appRow -lt $rightApps.Count) { $rightApps[$appRow] } else { $null }
-            $leftKey = if ($leftApp) { "{0:00}" -f $i } else { "" }
-            $leftName = if ($leftApp) { $leftApp.name } else { "" }
-            $leftStr = if ($leftApp) { " $leftKey. $leftName" } else { "" }
-            $menuMap[$leftKey] = $leftApp
-            if ($leftApp) { $i++ }
-            $rightKey = if ($rightApp) { "{0:00}" -f $i } else { "" }
-            $rightName = if ($rightApp) { $rightApp.name } else { "" }
-            $rightStr = if ($rightApp) { " $rightKey. $rightName" } else { "" }
-            $menuMap[$rightKey] = $rightApp
-            if ($rightApp) { $i++ }
-            Write-Host ("{0,-40}{1}" -f $leftStr, $rightStr)
+    # Chia danh sách category thành 2 cột
+    $categoryNames = $categories.Keys | Sort-Object
+    $midIndex = [Math]::Ceiling($categoryNames.Count / 2)
+    $leftCol = $categoryNames[0..($midIndex-1)]
+    $rightCol = $categoryNames[$midIndex..($categoryNames.Count-1)]
+    $maxRows = [Math]::Max($leftCol.Count, $rightCol.Count)
+    $menuMap = @{}
+    $itemNumber = 1
+    # Hiển thị tiêu đề cột
+    Write-Host ("{0,-35} {1,-35}" -f "[COT TRAI]", "[COT PHAI]") -ForegroundColor Gray
+    Write-Host ("{0,-35} {1,-35}" -f "---------", "----------")
+    # Duyệt và in từng dòng
+    for ($i = 0; $i -lt $maxRows; $i++) {
+        $leftCat = if ($i -lt $leftCol.Count) { $leftCol[$i] } else { $null }
+        $rightCat = if ($i -lt $rightCol.Count) { $rightCol[$i] } else { $null }
+        # In tên category
+        $leftHeader = if ($leftCat) { "== $leftCat ==" } else { "" }
+        $rightHeader = if ($rightCat) { "== $rightCat ==" } else { "" }
+        Write-Host ("{0,-35} {1,-35}" -f $leftHeader, $rightHeader) -ForegroundColor Green
+        # Lấy danh sách app cho mỗi category ở dòng này
+        $leftApps = if ($leftCat) { $categories[$leftCat] } else { @() }
+        $rightApps = if ($rightCat) { $categories[$rightCat] } else { @() }
+        $maxAppsInRow = [Math]::Max($leftApps.Count, $rightApps.Count)
+        # In từng ứng dụng trong category
+        for ($j = 0; $j -lt $maxAppsInRow; $j++) {
+            $leftApp = if ($j -lt $leftApps.Count) { $leftApps[$j] } else { $null }
+            $rightApp = if ($j -lt $rightApps.Count) { $rightApps[$j] } else { $null }
+            $leftText = if ($leftApp) { ("  [{0:00}] {1}" -f $itemNumber, $leftApp.name) } else { "" }
+            $menuMap["{0:00}" -f $itemNumber] = $leftApp
+            if ($leftApp) { $itemNumber++ }
+            $rightText = if ($rightApp) { ("  [{0:00}] {1}" -f $itemNumber, $rightApp.name) } else { "" }
+            $menuMap["{0:00}" -f $itemNumber] = $rightApp
+            if ($rightApp) { $itemNumber++ }
+            Write-Host ("{0,-35} {1,-35}" -f $leftText, $rightText)
         }
-        Write-Host ""
+        Write-Host "" # Khoảng cách giữa các category
     }
-    Write-Host "00. Back"
+    Write-Host "----------------------------------------" -ForegroundColor DarkGray
+    Write-Host "  [00] Quay lai Menu Chinh" -ForegroundColor Yellow
     Write-Host ""
     return $menuMap
 }
 
+# ============================================================
+# HÀM CHÍNH (ĐƯỢC GỌI TỪ ToiUuPC.ps1) - TÊN CHUẨN
+# ============================================================
 function Invoke-AppMenu {
     param([object]$Config)
-    if (-not (Ensure-Winget)) { return }
+    if (-not (Ensure-Winget)) {
+        Write-Host "Kiem tra winget that bai. Tro ve menu chinh..." -ForegroundColor Red
+        Pause
+        return
+    }
     if (-not $Config) {
         $Config = Load-ApplicationConfig
+        if (-not $Config) {
+            Pause
+            return
+        }
     }
-    if (-not $Config) { return }
     while ($true) {
         $menuMap = Show-AppMenu -Config $Config
-        $choice = Read-Host "Select"
-        if ($choice -eq "00") { return }
-        if ($menuMap.ContainsKey($choice)) {
+        $choice = Read-Host "Nhap so ung dung de cai dat (hoac 00 de quay lai)"
+        if ($choice -eq "00") {
+            return # Thoát sạch về menu chính
+        }
+        if ($menuMap.ContainsKey($choice) -and $menuMap[$choice] -ne $null) {
+            Clear-Host
             Install-Application $menuMap[$choice]
-            Read-Host "`nPress Enter"
+            Write-Host ""
+            Pause
         } else {
-            Write-Host "Invalid selection!" -ForegroundColor Red
-            Start-Sleep 1
+            Write-Host "Lua chon khong hop le! Vui long thu lai." -ForegroundColor Red
+            Start-Sleep -Seconds 1
         }
     }
 }
