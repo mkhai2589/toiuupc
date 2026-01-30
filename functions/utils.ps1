@@ -1,5 +1,5 @@
 # =====================================================
-# utils.ps1 - CORE UI ENGINE & UTILITIES (FINAL IMPROVED)
+# utils.ps1 - CORE UI ENGINE & UTILITIES (FIXED VERSION)
 # =====================================================
 
 Set-StrictMode -Off
@@ -27,7 +27,56 @@ $global:UI_Colors = @{
 # UI CONSTANTS
 # =====================================================
 $global:UI_Width = 85
-$global:UI_ColumnWidth = 42  # Tăng rộng hơn để tránh dính
+$global:UI_ColumnWidth = 42
+
+# =====================================================
+# ADMIN CHECK FUNCTION (ĐẶT ĐẦU TIÊN)
+# =====================================================
+function Test-IsAdmin {
+    try {
+        $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+        $principal = New-Object Security.Principal.WindowsPrincipal($identity)
+        return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+    } catch {
+        return $false
+    }
+}
+
+function Ensure-Admin {
+    if (-not (Test-IsAdmin)) {
+        Write-Status "Vui long chay voi quyen Administrator!" -Type 'ERROR'
+        Write-Host "Chuong trinh se dong trong 3 giay..." -ForegroundColor Yellow
+        Start-Sleep -Seconds 3
+        exit 1
+    }
+}
+
+# =====================================================
+# STATUS MESSAGES (FIXED)
+# =====================================================
+function Write-Status {
+    param(
+        [string]$Message,
+        [ValidateSet('INFO', 'SUCCESS', 'WARNING', 'ERROR')]
+        [string]$Type = 'INFO'
+    )
+    
+    $color = switch ($Type) {
+        'SUCCESS' { $global:UI_Colors.Success }
+        'WARNING' { $global:UI_Colors.Warning }
+        'ERROR'   { $global:UI_Colors.Error }
+        default   { $global:UI_Colors.Info }
+    }
+    
+    $prefix = switch ($Type) {
+        'SUCCESS' { '[OK]' }
+        'WARNING' { '[!]' }
+        'ERROR'   { '[X]' }
+        default   { '[...]' }
+    }
+    
+    Write-Host "$prefix $Message" -ForegroundColor $color
+}
 
 # =====================================================
 # SYSTEM INFORMATION (ADVANCED - REAL-TIME)
@@ -53,17 +102,11 @@ function Get-FormattedSystemInfo {
         $info.Version = "N/A"
     }
     
-    # Network Status với tốc độ chính xác
+    # Network Status
     try {
         $adapters = Get-NetAdapter -Physical -ErrorAction SilentlyContinue | Where-Object { $_.Status -eq 'Up' }
         if ($adapters) {
-            $mainAdapter = $adapters | Sort-Object InterfaceMetric | Select-Object -First 1
-            $speed = if ($mainAdapter.LinkSpeed) { 
-                $mainAdapter.LinkSpeed -replace 'bps', '' 
-            } else { 
-                "Connected" 
-            }
-            $info.Network = "OK ($speed)"
+            $info.Network = "Connected"
         } else {
             $info.Network = "No Internet"
         }
@@ -80,9 +123,6 @@ function Get-FormattedSystemInfo {
         $city = if ($tz) { 
             switch ($tz.Id) {
                 "SE Asia Standard Time" { "Hanoi" }
-                "Tokyo Standard Time" { "Tokyo" }
-                "Central European Time" { "Berlin" }
-                "Eastern Standard Time" { "New York" }
                 default { $tz.Id }
             }
         } else { "Hanoi" }
@@ -132,7 +172,7 @@ function Get-FormattedSystemInfo {
         $info.Disks = "N/A"
     }
     
-    # GPU Information (đơn giản)
+    # GPU Information
     try {
         $gpu = Get-CimInstance Win32_VideoController -ErrorAction SilentlyContinue | Select-Object -First 1
         $info.GPU = if ($gpu -and $gpu.Name) { 
@@ -147,77 +187,37 @@ function Get-FormattedSystemInfo {
     return $info
 }
 
-function Test-IsAdmin {
-    try {
-        $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
-        $principal = New-Object Security.Principal.WindowsPrincipal($identity)
-        return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-    } catch {
-        return $false
-    }
-}
-
 # =====================================================
-# HEADER RENDERING (ADVANCED DASHBOARD)
+# HEADER RENDERING (SIMPLE VERSION)
 # =====================================================
 function Show-Header {
     param([string]$Title = "TOI UU PC - PMK TOOLBOX")
     
     Clear-Host
-    Show-PMKLogo
+    
+    # Simple header without box-drawing characters
+    Write-Host "==================================================" -ForegroundColor Cyan
+    Write-Host "           PMK TOOLBOX v1.0                      " -ForegroundColor Cyan
+    Write-Host "      Toi Uu He Thong Windows                    " -ForegroundColor Cyan
+    Write-Host "==================================================" -ForegroundColor Cyan
+    Write-Host "Tac gia: Minh Khai - 0333090930" -ForegroundColor DarkGray
+    Write-Host ""
     
     $info = Get-FormattedSystemInfo
     
-    # Build status lines
-    $line1Parts = @(
-        "USER: $($info.User)",
-        "PC: $($info.Computer)",
-        "OS: $($info.OS) $($info.Arch)",
-        "NET: $($info.Network)"
-    )
-    
-    $line2Parts = @(
-        "ADMIN: $($info.IsAdmin)",
-        "CPU: $($info.CPU)",
-        "RAM: $($info.RAM)",
-        "GPU: $($info.GPU)"
-    )
-    
-    $line3Parts = @(
-        "TIME: $($info.LocalTime)",
-        "ZONE: $($info.TimeZone)",
-        "DISK: $($info.Disks)",
-        "BUILD: $($info.Build)"
-    )
-    
-    $border = "+" + ("=" * ($global:UI_Width - 2)) + "+"
-    
-    Write-Host $border -ForegroundColor $global:UI_Colors.Border
-    
-    # Line 1
-    Write-Host "|" -NoNewline -ForegroundColor $global:UI_Colors.Border
-    $line1 = (" " + ($line1Parts -join " | ")).PadRight($global:UI_Width - 1)
-    Write-Host $line1 -NoNewline -ForegroundColor $global:UI_Colors.Header
-    Write-Host "|" -ForegroundColor $global:UI_Colors.Border
-    
-    # Line 2
-    Write-Host "|" -NoNewline -ForegroundColor $global:UI_Colors.Border
-    $line2 = (" " + ($line2Parts -join " | ")).PadRight($global:UI_Width - 1)
-    Write-Host $line2 -NoNewline -ForegroundColor $global:UI_Colors.Header
-    Write-Host "|" -ForegroundColor $global:UI_Colors.Border
-    
-    # Line 3
-    Write-Host "|" -NoNewline -ForegroundColor $global:UI_Colors.Border
-    $line3 = (" " + ($line3Parts -join " | ")).PadRight($global:UI_Width - 1)
-    Write-Host $line3 -NoNewline -ForegroundColor $global:UI_Colors.Header
-    Write-Host "|" -ForegroundColor $global:UI_Colors.Border
-    
-    Write-Host $border -ForegroundColor $global:UI_Colors.Border
+    # System info in simple format
+    Write-Host "SYSTEM STATUS:" -ForegroundColor White
+    Write-Host "  User: $($info.User) | PC: $($info.Computer) | Admin: $($info.IsAdmin)" -ForegroundColor Gray
+    Write-Host "  OS: $($info.OS) $($info.Arch) | Build: $($info.Build)" -ForegroundColor Gray
+    Write-Host "  CPU: $($info.CPU) | RAM: $($info.RAM) | GPU: $($info.GPU)" -ForegroundColor Gray
+    Write-Host "  Disk: $($info.Disks)" -ForegroundColor Gray
+    Write-Host "  Network: $($info.Network) | Time: $($info.LocalTime) $($info.TimeZone)" -ForegroundColor Gray
+    Write-Host "--------------------------------------------------" -ForegroundColor DarkGray
     Write-Host ""
 }
 
 # =====================================================
-# MENU RENDERING (IMPROVED SPACING)
+# MENU RENDERING (SIMPLE VERSION)
 # =====================================================
 function Show-Menu {
     param(
@@ -230,72 +230,37 @@ function Show-Menu {
     
     Show-Header -Title $Title
     
-    # Title với khoảng cách
-    Write-Host $Title.ToUpper() -ForegroundColor $global:UI_Colors.Title
-    Write-Host ("-" * [Math]::Min($Title.Length, $global:UI_Width - 10)) -ForegroundColor $global:UI_Colors.Border
+    Write-Host $Title.ToUpper() -ForegroundColor White
+    Write-Host ("-" * [Math]::Min($Title.Length, $global:UI_Width - 10)) -ForegroundColor DarkGray
     Write-Host ""
     
     if ($TwoColumn) {
-        # Two-column layout với khoảng cách lớn hơn
         $mid = [Math]::Ceiling($MenuItems.Count / 2)
         
         for ($i = 0; $i -lt $mid; $i++) {
             $left = $MenuItems[$i]
             $right = if (($i + $mid) -lt $MenuItems.Count) { $MenuItems[$i + $mid] } else { $null }
             
-            # Left column
             $leftText = "  [$($left.Key)] $($left.Text)".PadRight($global:UI_ColumnWidth)
-            Write-Host $leftText -NoNewline -ForegroundColor $global:UI_Colors.Menu
+            Write-Host $leftText -NoNewline -ForegroundColor Gray
             
-            # Right column
             if ($right) {
-                $rightText = "[$($right.Key)] $($right.Text)".PadRight($global:UI_ColumnWidth)
-                Write-Host $rightText -ForegroundColor $global:UI_Colors.Menu
+                $rightText = "[$($right.Key)] $($right.Text)"
+                Write-Host $rightText -ForegroundColor Gray
             } else {
                 Write-Host ""
             }
-            
-            Write-Host ""  # Empty line for spacing
         }
     } else {
-        # Single column with better spacing
         foreach ($item in $MenuItems) {
-            Write-Host "  [$($item.Key)] $($item.Text)" -ForegroundColor $global:UI_Colors.Menu
-            Write-Host ""  # Empty line between items
+            Write-Host "  [$($item.Key)] $($item.Text)" -ForegroundColor Gray
         }
     }
     
     Write-Host ""
-    Write-Host "─" * ($global:UI_Width - 20) -ForegroundColor $global:UI_Colors.Border
+    Write-Host "--------------------------------------------------" -ForegroundColor DarkGray
     Write-Host ""
-    Write-Host $Prompt -ForegroundColor $global:UI_Colors.Active -NoNewline
-}
-
-# =====================================================
-# STATUS MESSAGES (FIXED EMOJI)
-# =====================================================
-function Write-Status {
-    param(
-        [string]$Message,
-        [ValidateSet('INFO', 'SUCCESS', 'WARNING', 'ERROR')]
-        [string]$Type = 'INFO'
-    )
-    
-    $color = switch ($Type) {
-        'SUCCESS' { $global:UI_Colors.Success }
-        'WARNING' { $global:UI_Colors.Warning }
-        'ERROR'   { $global:UI_Colors.Error }
-        default   { $global:UI_Colors.Info }
-    }
-    
-    $prefix = switch ($Type) {
-        'SUCCESS' { '[OK]' }
-        'WARNING' { '[!]' }
-        'ERROR'   { '[X]' }
-        default   { '[...]' }
-    }
-    
-    Write-Host "$prefix $Message" -ForegroundColor $color
+    Write-Host $Prompt -ForegroundColor Green -NoNewline
 }
 
 # =====================================================
@@ -303,8 +268,8 @@ function Write-Status {
 # =====================================================
 function Pause {
     Write-Host ""
-    Write-Host "Nhan Enter de tiep tuc..." -ForegroundColor $global:UI_Colors.Warning -NoNewline
-    Read-Host
+    Write-Host "Nhan Enter de tiep tuc..." -ForegroundColor Yellow -NoNewline
+    Read-Host | Out-Null
 }
 
 function Load-JsonFile {
@@ -324,17 +289,12 @@ function Load-JsonFile {
     }
 }
 
-function Ensure-Admin {
-    if (-not (Test-IsAdmin)) {
-        Write-Status "Vui long chay voi quyen Administrator!" -Type 'ERROR'
-        Write-Host "Chuong trinh se dong trong 3 giay..." -ForegroundColor $global:UI_Colors.Warning
-        Start-Sleep -Seconds 3
-        exit 1
-    }
-}
-
 # =====================================================
 # INITIALIZATION
 # =====================================================
-[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-chcp 65001 | Out-Null
+try {
+    [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+    chcp 65001 | Out-Null
+} catch {
+    # Ignore encoding errors
+}
