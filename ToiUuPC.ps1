@@ -6,7 +6,6 @@
 
 chcp 65001 | Out-Null
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-
 Set-StrictMode -Off
 $ErrorActionPreference = "Continue"
 
@@ -16,19 +15,18 @@ $ErrorActionPreference = "Continue"
 $ScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 # ==========================================================
-# LOAD CORE UTILS FIRST
+# LOAD CORE UTILS
 # ==========================================================
 $utilsPath = Join-Path $ScriptRoot "functions\utils.ps1"
 if (-not (Test-Path $utilsPath)) {
-    Write-Host "ERROR: utils.ps1 not found" -ForegroundColor Red
+    Write-Host "ERROR: functions\utils.ps1 not found" -ForegroundColor Red
     exit 1
 }
 . $utilsPath
-
 Ensure-Admin
 
 # ==========================================================
-# LOAD ALL FUNCTION MODULES
+# LOAD FUNCTION MODULES (EXACT FILE NAMES)
 # ==========================================================
 $FunctionFiles = @(
     "Show-PMKLogo.ps1",
@@ -40,16 +38,15 @@ $FunctionFiles = @(
 
 foreach ($file in $FunctionFiles) {
     $path = Join-Path $ScriptRoot "functions\$file"
-    if (Test-Path $path) {
-        . $path
-    } else {
-        Write-Host "ERROR: Missing function file: $file" -ForegroundColor Red
+    if (-not (Test-Path $path)) {
+        Write-Host "ERROR: Missing $file" -ForegroundColor Red
         exit 1
     }
+    . $path
 }
 
 # ==========================================================
-# LOAD CONFIG FILES
+# LOAD JSON CONFIG (EXACT PATHS)
 # ==========================================================
 $ConfigDir = Join-Path $ScriptRoot "config"
 
@@ -57,9 +54,34 @@ $TweaksConfig = Load-JsonFile (Join-Path $ConfigDir "tweaks.json")
 $AppsConfig   = Load-JsonFile (Join-Path $ConfigDir "applications.json")
 $DnsConfig    = Load-JsonFile (Join-Path $ConfigDir "dns.json")
 
+if (-not $TweaksConfig -or -not $AppsConfig -or -not $DnsConfig) {
+    Write-Host "ERROR: Failed to load JSON config" -ForegroundColor Red
+    exit 1
+}
+
 # ==========================================================
-# HEADER STATUS (NO MENU REDRAW)
+# HEADER (FIXED WIDTH 100 COL)
 # ==========================================================
+$HeaderWidth = 100
+
+function Get-CPUUsage {
+    (Get-CimInstance Win32_Processor |
+        Measure-Object LoadPercentage -Average).Average
+}
+
+function Get-RAMUsage {
+    $os = Get-CimInstance Win32_OperatingSystem
+    [math]::Round((($os.TotalVisibleMemorySize - $os.FreePhysicalMemory) / $os.TotalVisibleMemorySize) * 100)
+}
+
+function Get-CPUTemp {
+    try {
+        $t = Get-WmiObject MSAcpi_ThermalZoneTemperature -ErrorAction Stop | Select-Object -First 1
+        if ($t) { return [math]::Round(($t.CurrentTemperature / 10) - 273.15) }
+    } catch {}
+    return "N/A"
+}
+
 function Draw-Header {
 
     $user = $env:USERNAME
@@ -70,26 +92,28 @@ function Draw-Header {
         ([Security.Principal.WindowsIdentity]::GetCurrent())
 
     $mode = if ($principal.IsInRole(
-        [Security.Principal.WindowsBuiltInRole]::Administrator)) {
-        "ADMIN"
-    } else {
-        "USER"
-    }
+        [Security.Principal.WindowsBuiltInRole]::Administrator)) { "ADMIN" } else { "USER" }
 
-    $net = if (Get-NetAdapter | Where-Object Status -eq "Up") {
-        "ONLINE"
-    } else {
-        "OFFLINE"
-    }
+    $net = if (Get-NetAdapter | Where-Object Status -eq "Up") { "ONLINE" } else { "OFFLINE" }
+
+    $cpu  = Get-CPUUsage
+    $ram  = Get-RAMUsage
+    $temp = Get-CPUTemp
+
+    $l1 = " USER:$user | MODE:$mode | NET:$net | TIME:$time "
+    $l2 = " OS:$os | CPU:$cpu% | RAM:$ram% | TEMP:$temp°C "
+
+    $l1 = $l1.PadRight($HeaderWidth).Substring(0,$HeaderWidth)
+    $l2 = $l2.PadRight($HeaderWidth).Substring(0,$HeaderWidth)
 
     [Console]::SetCursorPosition(0,0)
-    Write-Host (" USER:{0} | OS:{1}" -f $user, $os) -ForegroundColor Cyan
-    Write-Host (" NET:{0} | MODE:{1} | TIME:{2}" -f $net, $mode, $time) -ForegroundColor DarkGray
-    Write-Host ""
+    Write-Host $l1 -ForegroundColor Cyan
+    Write-Host $l2 -ForegroundColor DarkGray
+    Write-Host ("".PadRight($HeaderWidth,"─")) -ForegroundColor DarkGray
 }
 
 # ==========================================================
-# MENU DATA
+# MENU DATA (MATCH JSON FLOW)
 # ==========================================================
 $MenuItems = @(
     @{ Key="01"; Text="Windows Tweaks"; Action={ Invoke-TweaksMenu -Config $TweaksConfig } },
@@ -105,10 +129,10 @@ $MenuItems = @(
 )
 
 # ==========================================================
-# RENDER MENU (FIXED POSITION)
+# RENDER MENU
 # ==========================================================
 function Render-MainMenu {
-    param ($SelectedIndex)
+    param($SelectedIndex)
 
     [Console]::SetCursorPosition(0,4)
 
@@ -119,7 +143,6 @@ function Render-MainMenu {
     for ($i=0; $i -lt $MenuItems.Count; $i++) {
         $item = $MenuItems[$i]
         $line = "| [{0}] {1,-22} |                              |" -f $item.Key, $item.Text
-
         if ($i -eq $SelectedIndex) {
             Write-Host $line -ForegroundColor Black -BackgroundColor Cyan
         } else {
@@ -132,7 +155,7 @@ function Render-MainMenu {
 }
 
 # ==========================================================
-# MAIN LOOP
+# MAIN LOOP (REAL-TIME, HEADER AUTO REFRESH)
 # ==========================================================
 Clear-Host
 $SelectedIndex = 0
