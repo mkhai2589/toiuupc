@@ -1,8 +1,7 @@
 # =====================================================
 # utils.ps1
-# PMK TOOLBOX – Core Utilities (FINAL)
+# PMK TOOLBOX – Core Utilities (FINAL – INVOKE FLOW SAFE)
 # Author: Minh Khai
-# Compatible: Windows 10 / Windows 11 (PowerShell 5.1)
 # =====================================================
 
 Set-StrictMode -Off
@@ -21,7 +20,7 @@ $Global:LogFile_Tweak = Join-Path $Global:LogDir "tweaks.log"
 $Global:LogFile_App   = Join-Path $Global:LogDir "apps.log"
 
 # =====================================================
-# UI CONFIG (FIXED WIDTH + COLOR RULE)
+# UI CONFIG
 # =====================================================
 $Global:UI = @{
     Width   = 70
@@ -33,6 +32,13 @@ $Global:UI = @{
     Warn    = 'Yellow'
     Error   = 'Red'
     Value   = 'Green'
+}
+
+# =====================================================
+# UI STATE (ANTI-FLICKER CORE)
+# =====================================================
+$Global:UIState = @{
+    HeaderRendered = $false
 }
 
 # =====================================================
@@ -74,64 +80,7 @@ function Initialize-ToiUuPCEnvironment {
 }
 
 # =====================================================
-# ADMIN CHECK
-# =====================================================
-function Test-IsAdmin {
-    try {
-        $id = [Security.Principal.WindowsIdentity]::GetCurrent()
-        $p  = New-Object Security.Principal.WindowsPrincipal($id)
-        return $p.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-    } catch {
-        return $false
-    }
-}
-
-function Ensure-Admin {
-    if (-not (Test-IsAdmin)) {
-        Write-Host "ERROR: Please run PowerShell as Administrator." -ForegroundColor Red
-        exit 1
-    }
-}
-
-# =====================================================
-# LOGGING
-# =====================================================
-function Write-Log {
-    param(
-        [Parameter(Mandatory)][string]$Message,
-        [ValidateSet("INFO","WARN","ERROR")]
-        [string]$Level = "INFO",
-        [ValidateSet("MAIN","TWEAK","APP")]
-        [string]$Channel = "MAIN"
-    )
-
-    Initialize-ToiUuPCEnvironment
-
-    $ts = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
-
-    switch ($Channel) {
-        "TWEAK" { $file = $Global:LogFile_Tweak }
-        "APP"   { $file = $Global:LogFile_App }
-        default { $file = $Global:LogFile_Main }
-    }
-
-    "$ts [$Level] $Message" |
-        Out-File -FilePath $file -Append -Encoding UTF8
-}
-
-# =====================================================
-# NETWORK CHECK
-# =====================================================
-function Test-Network {
-    try {
-        Test-Connection -ComputerName 8.8.8.8 -Count 1 -Quiet -ErrorAction Stop
-    } catch {
-        return $false
-    }
-}
-
-# =====================================================
-# SYSTEM INFO (USED BY HEADER)
+# SYSTEM INFO
 # =====================================================
 function Get-SystemInfo {
 
@@ -151,9 +100,13 @@ function Get-SystemInfo {
 }
 
 # =====================================================
-# HEADER RENDER (FIXED WIDTH – NO SIDE EFFECT)
+# HEADER (RENDER ONCE)
 # =====================================================
 function Show-Header {
+
+    if ($Global:UIState.HeaderRendered) {
+        return
+    }
 
     $i = Get-SystemInfo
     $w = $Global:UI.Width
@@ -171,18 +124,70 @@ function Show-Header {
     Write-Host ("|{0,-$w}|" -f $text) -ForegroundColor $Global:UI.Header
     Write-Host $line -ForegroundColor $Global:UI.Border
     Write-Host ""
+
+    $Global:UIState.HeaderRendered = $true
 }
 
 # =====================================================
-# SAFE CLEAR (HEADER AWARE)
+# UI FLOW CONTROLLER (CORE FIX)
 # =====================================================
-function Clear-Screen {
+function Invoke-UI {
+    param(
+        [Parameter(Mandatory)]
+        [ScriptBlock]$Body
+    )
+
     Clear-Host
+    $Global:UIState.HeaderRendered = $false
+    Show-Header
+
+    & $Body
+}
+
+# =====================================================
+# SAFE CLEAR (SCREEN CHANGE ONLY)
+# =====================================================
+function Reset-UI {
+    Clear-Host
+    $Global:UIState.HeaderRendered = $false
     Show-Header
 }
 
 # =====================================================
-# JSON LOADER (USED BY ALL MODULES)
+# PAUSE / INPUT
+# =====================================================
+function Pause {
+    Write-Host ""
+    Read-Host "Press ENTER to continue"
+}
+
+function Read-Key {
+    return [Console]::ReadKey($true)
+}
+
+# =====================================================
+# ADMIN / NETWORK
+# =====================================================
+function Test-IsAdmin {
+    try {
+        $id = [Security.Principal.WindowsIdentity]::GetCurrent()
+        $p  = New-Object Security.Principal.WindowsPrincipal($id)
+        return $p.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+    } catch {
+        return $false
+    }
+}
+
+function Test-Network {
+    try {
+        Test-Connection -ComputerName 8.8.8.8 -Count 1 -Quiet -ErrorAction Stop
+    } catch {
+        return $false
+    }
+}
+
+# =====================================================
+# JSON LOADER
 # =====================================================
 function Load-JsonFile {
     param([Parameter(Mandatory)][string]$Path)
@@ -201,18 +206,6 @@ function Load-JsonFile {
 }
 
 # =====================================================
-# INPUT / KEY / PAUSE
-# =====================================================
-function Pause {
-    Write-Host ""
-    Read-Host "Press ENTER to continue"
-}
-
-function Read-Key {
-    return [Console]::ReadKey($true)
-}
-
-# =====================================================
 # REGISTRY HELPER
 # =====================================================
 function Ensure-RegistryPath {
@@ -223,6 +216,6 @@ function Ensure-RegistryPath {
 }
 
 # =====================================================
-# BOOTSTRAP INIT
+# BOOTSTRAP
 # =====================================================
 Initialize-ToiUuPCEnvironment
