@@ -1,5 +1,5 @@
 # =====================================================
-# utils.ps1 - CORE UI ENGINE & UTILITIES (FINAL)
+# utils.ps1 - CORE UI ENGINE & UTILITIES (FINAL IMPROVED)
 # =====================================================
 
 Set-StrictMode -Off
@@ -9,20 +9,15 @@ $ErrorActionPreference = "SilentlyContinue"
 # COLOR SCHEME - PROFESSIONAL & CONSISTENT
 # =====================================================
 $global:UI_Colors = @{
-    # Core UI
     Border      = 'DarkGray'
     Header      = 'Cyan'
     Title       = 'White'
     Menu        = 'Gray'
     Active      = 'Green'
-    
-    # Status
     Success     = 'Green'
     Warning     = 'Yellow'
     Error       = 'Red'
     Info        = 'DarkCyan'
-    
-    # Data
     Label       = 'Gray'
     Value       = 'White'
     Highlight   = 'Magenta'
@@ -31,31 +26,43 @@ $global:UI_Colors = @{
 # =====================================================
 # UI CONSTANTS
 # =====================================================
-$global:UI_Width = 70
-$global:UI_ColumnWidth = 35
+$global:UI_Width = 85
+$global:UI_ColumnWidth = 42  # Tăng rộng hơn để tránh dính
 
 # =====================================================
-# SYSTEM INFORMATION (ADVANCED)
+# SYSTEM INFORMATION (ADVANCED - REAL-TIME)
 # =====================================================
 function Get-FormattedSystemInfo {
     $info = @{}
     
-    # User
+    # User và Computer Name
     $info.User = $env:USERNAME
+    $info.Computer = $env:COMPUTERNAME
     
     # OS Version (detailed)
-    $os = Get-CimInstance Win32_OperatingSystem
-    $info.OS = $os.Caption.Trim() -replace "Microsoft ", ""
-    $info.Arch = if ([Environment]::Is64BitOperatingSystem) { "x64" } else { "x86" }
-    $info.Build = $os.BuildNumber
-    $info.Version = (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion").DisplayVersion
-    
-    # Network Status with bandwidth check
     try {
-        $adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' }
+        $os = Get-CimInstance Win32_OperatingSystem -ErrorAction SilentlyContinue
+        $info.OS = if ($os) { $os.Caption.Trim() -replace "Microsoft ", "" } else { "Windows Unknown" }
+        $info.Arch = if ([Environment]::Is64BitOperatingSystem) { "x64" } else { "x86" }
+        $info.Build = if ($os) { $os.BuildNumber } else { "N/A" }
+        $info.Version = (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion" -ErrorAction SilentlyContinue).DisplayVersion
+    } catch {
+        $info.OS = "Windows"
+        $info.Arch = "N/A"
+        $info.Build = "N/A"
+        $info.Version = "N/A"
+    }
+    
+    # Network Status với tốc độ chính xác
+    try {
+        $adapters = Get-NetAdapter -Physical -ErrorAction SilentlyContinue | Where-Object { $_.Status -eq 'Up' }
         if ($adapters) {
-            $mainAdapter = $adapters | Select-Object -First 1
-            $speed = if ($mainAdapter.LinkSpeed) { "$($mainAdapter.LinkSpeed)" } else { "Connected" }
+            $mainAdapter = $adapters | Sort-Object InterfaceMetric | Select-Object -First 1
+            $speed = if ($mainAdapter.LinkSpeed) { 
+                $mainAdapter.LinkSpeed -replace 'bps', '' 
+            } else { 
+                "Connected" 
+            }
             $info.Network = "OK ($speed)"
         } else {
             $info.Network = "No Internet"
@@ -67,33 +74,75 @@ function Get-FormattedSystemInfo {
     # Admin Status
     $info.IsAdmin = if (Test-IsAdmin) { "YES" } else { "NO" }
     
-    # Time Zone with city
+    # Time Zone
     try {
-        $tz = Get-TimeZone
-        $tzName = $tz.Id
-        $city = switch ($tzName) {
-            "SE Asia Standard Time" { "Hanoi/Bangkok" }
-            "Tokyo Standard Time" { "Tokyo" }
-            "Central European Time" { "Berlin/Paris" }
-            "Eastern Standard Time" { "New York" }
-            "Pacific Standard Time" { "Los Angeles" }
-            default { $tzName }
-        }
-        $info.TimeZone = "UTC$($tz.BaseUtcOffset.Hours.ToString('+0;-0')) ($city)"
+        $tz = Get-TimeZone -ErrorAction SilentlyContinue
+        $city = if ($tz) { 
+            switch ($tz.Id) {
+                "SE Asia Standard Time" { "Hanoi" }
+                "Tokyo Standard Time" { "Tokyo" }
+                "Central European Time" { "Berlin" }
+                "Eastern Standard Time" { "New York" }
+                default { $tz.Id }
+            }
+        } else { "Hanoi" }
+        $info.TimeZone = "$city UTC$([System.TimeZoneInfo]::Local.BaseUtcOffset.Hours)"
     } catch {
-        $info.TimeZone = "UTC+7 (Hanoi)"
+        $info.TimeZone = "Hanoi UTC+7"
     }
     
     $info.LocalTime = Get-Date -Format "HH:mm:ss"
     
-    # System resources
-    $cpu = Get-CimInstance Win32_Processor | Measure-Object LoadPercentage -Average
-    $info.CPU = if ($cpu.Average) { "$([math]::Round($cpu.Average))%" } else { "N/A" }
+    # CPU Usage real-time
+    try {
+        $cpu = Get-WmiObject Win32_Processor -ErrorAction SilentlyContinue | Measure-Object LoadPercentage -Average
+        $info.CPU = if ($cpu.Average) { "$([math]::Round($cpu.Average))%" } else { "N/A" }
+    } catch {
+        $info.CPU = "N/A"
+    }
     
-    $os = Get-CimInstance Win32_OperatingSystem
-    $ramUsed = $os.TotalVisibleMemorySize - $os.FreePhysicalMemory
-    $ramPercent = [math]::Round(($ramUsed / $os.TotalVisibleMemorySize) * 100)
-    $info.RAM = "$ramPercent%"
+    # RAM Usage real-time
+    try {
+        $os = Get-CimInstance Win32_OperatingSystem -ErrorAction SilentlyContinue
+        if ($os) {
+            $ramUsed = $os.TotalVisibleMemorySize - $os.FreePhysicalMemory
+            $ramPercent = [math]::Round(($ramUsed / $os.TotalVisibleMemorySize) * 100)
+            $info.RAM = "$ramPercent%"
+        } else {
+            $info.RAM = "N/A"
+        }
+    } catch {
+        $info.RAM = "N/A"
+    }
+    
+    # Disk Information
+    try {
+        $drives = Get-PSDrive -PSProvider FileSystem -ErrorAction SilentlyContinue | 
+                  Where-Object { $_.Used -and $_.Free -and $_.Name -match '^[A-Z]$' }
+        $diskInfo = @()
+        foreach ($drive in $drives | Select-Object -First 3) {
+            $freeGB = [math]::Round($drive.Free / 1GB, 1)
+            $usedGB = [math]::Round($drive.Used / 1GB, 1)
+            $totalGB = $freeGB + $usedGB
+            $percent = [math]::Round(($usedGB / $totalGB) * 100)
+            $diskInfo += "$($drive.Name): ${percent}%"
+        }
+        $info.Disks = if ($diskInfo.Count -gt 0) { $diskInfo -join ' ' } else { "N/A" }
+    } catch {
+        $info.Disks = "N/A"
+    }
+    
+    # GPU Information (đơn giản)
+    try {
+        $gpu = Get-CimInstance Win32_VideoController -ErrorAction SilentlyContinue | Select-Object -First 1
+        $info.GPU = if ($gpu -and $gpu.Name) { 
+            ($gpu.Name -split '\(R\)' | Select-Object -First 1).Trim() 
+        } else { 
+            "N/A" 
+        }
+    } catch {
+        $info.GPU = "N/A"
+    }
     
     return $info
 }
@@ -108,73 +157,67 @@ function Test-IsAdmin {
     }
 }
 
-function Test-NetworkConnection {
-    try {
-        $test = Test-NetConnection -ComputerName "8.8.8.8" -InformationLevel Quiet -ErrorAction Stop
-        return $test
-    } catch {
-        return $false
-    }
-}
-
 # =====================================================
 # HEADER RENDERING (ADVANCED DASHBOARD)
 # =====================================================
 function Show-Header {
-    param(
-        [string]$Title = "TOI UU PC - PMK TOOLBOX",
-        [switch]$ShowLogo = $false
-    )
+    param([string]$Title = "TOI UU PC - PMK TOOLBOX")
     
     Clear-Host
+    Show-PMKLogo
     
-    # Show logo if requested
-    if ($ShowLogo) {
-        Show-PMKLogo
-    }
-    
-    # Get system info
     $info = Get-FormattedSystemInfo
     
-    # Build status lines with proper formatting
+    # Build status lines
     $line1Parts = @(
         "USER: $($info.User)",
+        "PC: $($info.Computer)",
         "OS: $($info.OS) $($info.Arch)",
         "NET: $($info.Network)"
     )
     
     $line2Parts = @(
         "ADMIN: $($info.IsAdmin)",
-        "TIME: $($info.LocalTime)",
-        "ZONE: $($info.TimeZone)"
+        "CPU: $($info.CPU)",
+        "RAM: $($info.RAM)",
+        "GPU: $($info.GPU)"
     )
     
-    # Calculate padding for centered display
-    $line1 = $line1Parts -join " | "
-    $line2 = $line2Parts -join " | "
+    $line3Parts = @(
+        "TIME: $($info.LocalTime)",
+        "ZONE: $($info.TimeZone)",
+        "DISK: $($info.Disks)",
+        "BUILD: $($info.Build)"
+    )
     
     $border = "+" + ("=" * ($global:UI_Width - 2)) + "+"
     
-    # Draw border
     Write-Host $border -ForegroundColor $global:UI_Colors.Border
     
     # Line 1
     Write-Host "|" -NoNewline -ForegroundColor $global:UI_Colors.Border
-    Write-Host (" " + $line1.PadRight($global:UI_Width - 3)) -NoNewline -ForegroundColor $global:UI_Colors.Header
+    $line1 = (" " + ($line1Parts -join " | ")).PadRight($global:UI_Width - 1)
+    Write-Host $line1 -NoNewline -ForegroundColor $global:UI_Colors.Header
     Write-Host "|" -ForegroundColor $global:UI_Colors.Border
     
     # Line 2
     Write-Host "|" -NoNewline -ForegroundColor $global:UI_Colors.Border
-    Write-Host (" " + $line2.PadRight($global:UI_Width - 3)) -NoNewline -ForegroundColor $global:UI_Colors.Header
+    $line2 = (" " + ($line2Parts -join " | ")).PadRight($global:UI_Width - 1)
+    Write-Host $line2 -NoNewline -ForegroundColor $global:UI_Colors.Header
     Write-Host "|" -ForegroundColor $global:UI_Colors.Border
     
-    # Border bottom
+    # Line 3
+    Write-Host "|" -NoNewline -ForegroundColor $global:UI_Colors.Border
+    $line3 = (" " + ($line3Parts -join " | ")).PadRight($global:UI_Width - 1)
+    Write-Host $line3 -NoNewline -ForegroundColor $global:UI_Colors.Header
+    Write-Host "|" -ForegroundColor $global:UI_Colors.Border
+    
     Write-Host $border -ForegroundColor $global:UI_Colors.Border
     Write-Host ""
 }
 
 # =====================================================
-# MENU RENDERING (SIMPLE NUMBER INPUT)
+# MENU RENDERING (IMPROVED SPACING)
 # =====================================================
 function Show-Menu {
     param(
@@ -187,42 +230,49 @@ function Show-Menu {
     
     Show-Header -Title $Title
     
-    # Title
+    # Title với khoảng cách
     Write-Host $Title.ToUpper() -ForegroundColor $global:UI_Colors.Title
-    Write-Host ("-" * $Title.Length) -ForegroundColor $global:UI_Colors.Border
+    Write-Host ("-" * [Math]::Min($Title.Length, $global:UI_Width - 10)) -ForegroundColor $global:UI_Colors.Border
     Write-Host ""
     
     if ($TwoColumn) {
-        # Two-column layout
+        # Two-column layout với khoảng cách lớn hơn
         $mid = [Math]::Ceiling($MenuItems.Count / 2)
         
         for ($i = 0; $i -lt $mid; $i++) {
             $left = $MenuItems[$i]
             $right = if (($i + $mid) -lt $MenuItems.Count) { $MenuItems[$i + $mid] } else { $null }
             
+            # Left column
             $leftText = "  [$($left.Key)] $($left.Text)".PadRight($global:UI_ColumnWidth)
             Write-Host $leftText -NoNewline -ForegroundColor $global:UI_Colors.Menu
             
+            # Right column
             if ($right) {
-                $rightText = "[$($right.Key)] $($right.Text)"
+                $rightText = "[$($right.Key)] $($right.Text)".PadRight($global:UI_ColumnWidth)
                 Write-Host $rightText -ForegroundColor $global:UI_Colors.Menu
             } else {
                 Write-Host ""
             }
+            
+            Write-Host ""  # Empty line for spacing
         }
     } else {
-        # Single column
+        # Single column with better spacing
         foreach ($item in $MenuItems) {
             Write-Host "  [$($item.Key)] $($item.Text)" -ForegroundColor $global:UI_Colors.Menu
+            Write-Host ""  # Empty line between items
         }
     }
     
     Write-Host ""
-    Write-Host $Prompt -ForegroundColor $global:UI_Colors.Label -NoNewline
+    Write-Host "─" * ($global:UI_Width - 20) -ForegroundColor $global:UI_Colors.Border
+    Write-Host ""
+    Write-Host $Prompt -ForegroundColor $global:UI_Colors.Active -NoNewline
 }
 
 # =====================================================
-# STATUS MESSAGES
+# STATUS MESSAGES (FIXED EMOJI)
 # =====================================================
 function Write-Status {
     param(
@@ -239,10 +289,10 @@ function Write-Status {
     }
     
     $prefix = switch ($Type) {
-        'SUCCESS' { '[✓]' }
+        'SUCCESS' { '[OK]' }
         'WARNING' { '[!]' }
-        'ERROR'   { '[✗]' }
-        default   { '[i]' }
+        'ERROR'   { '[X]' }
+        default   { '[...]' }
     }
     
     Write-Host "$prefix $Message" -ForegroundColor $color
@@ -253,14 +303,12 @@ function Write-Status {
 # =====================================================
 function Pause {
     Write-Host ""
-    Read-Host "Nhan Enter de tiep tuc"
+    Write-Host "Nhan Enter de tiep tuc..." -ForegroundColor $global:UI_Colors.Warning -NoNewline
+    Read-Host
 }
 
 function Load-JsonFile {
-    param(
-        [Parameter(Mandatory)]
-        [string]$Path
-    )
+    param([Parameter(Mandatory)][string]$Path)
     
     if (-not (Test-Path $Path)) {
         Write-Status "Khong tim thay file: $Path" -Type 'ERROR'
