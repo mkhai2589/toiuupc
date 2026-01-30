@@ -1,16 +1,11 @@
 {
-  "sources": [
-    { "name": "winget", "argument": "winget" },
-    { "name": "msstore", "argument": "msstore" }
-  ],
-
   "categories": [
-    "Browser",
-    "Communication",
-    "Development",
-    "Media",
-    "Utility",
-    "Gaming"
+    "browser",
+    "communication",
+    "development",
+    "media",
+    "utility",
+    "gaming"
   ],
 
   "applications": [
@@ -19,324 +14,329 @@
       "name": "Google Chrome",
       "packageId": "Google.Chrome",
       "source": "winget",
-      "category": "Browser",
-      "preset": ["Office", "Gaming"],
-      "silent": true
+      "category": "browser"
     },
     {
       "id": "firefox",
       "name": "Mozilla Firefox",
       "packageId": "Mozilla.Firefox",
       "source": "winget",
-      "category": "Browser",
-      "preset": ["Office"],
-      "silent": true
+      "category": "browser"
     },
     {
       "id": "edge",
       "name": "Microsoft Edge",
       "packageId": "Microsoft.Edge",
       "source": "winget",
-      "category": "Browser",
-      "preset": ["Office"],
-      "silent": true
+      "category": "browser"
     },
     {
       "id": "brave",
       "name": "Brave Browser",
       "packageId": "Brave.Brave",
       "source": "winget",
-      "category": "Browser",
-      "preset": ["Office", "Gaming"],
-      "silent": true
+      "category": "browser"
     },
     {
       "id": "vivaldi",
       "name": "Vivaldi",
       "packageId": "Vivaldi.Vivaldi",
       "source": "winget",
-      "category": "Browser",
-      "preset": ["Office"],
-      "silent": true
+      "category": "browser"
     },
     {
       "id": "opera",
       "name": "Opera",
       "packageId": "Opera.Opera",
       "source": "winget",
-      "category": "Browser",
-      "preset": ["Office"],
-      "silent": true
+      "category": "browser"
     },
     {
       "id": "coccoc",
       "name": "Coc Coc",
       "packageId": "CocCoc.CocCoc",
       "source": "winget",
-      "category": "Browser",
-      "preset": ["Office"],
-      "silent": true
+      "category": "browser"
     },
     {
       "id": "tor",
       "name": "Tor Browser",
       "packageId": "TorProject.TorBrowser",
       "source": "winget",
-      "category": "Browser",
-      "preset": ["Privacy"],
-      "silent": true
+      "category": "browser"
     },
     {
       "id": "zalo",
       "name": "Zalo",
       "packageId": "VNGCorp.Zalo",
       "source": "winget",
-      "category": "Communication",
-      "preset": ["Office"],
-      "silent": true
+      "category": "communication"
     },
     {
       "id": "telegram",
       "name": "Telegram Desktop",
       "packageId": "Telegram.TelegramDesktop",
       "source": "winget",
-      "category": "Communication",
-      "preset": ["Office", "Gaming"],
-      "silent": true
+      "category": "communication"
     },
     {
       "id": "whatsapp",
       "name": "WhatsApp",
       "packageId": "WhatsApp.WhatsApp",
-      "source": "msstore",
-      "category": "Communication",
-      "preset": ["Office"],
-      "silent": true
-    },
-    {
-      "id": "signal",
-      "name": "Signal",
-      "packageId": "OpenWhisperSystems.Signal",
       "source": "winget",
-      "category": "Communication",
-      "preset": ["Privacy"],
-      "silent": true
+      "category": "communication"
     },
     {
       "id": "discord",
       "name": "Discord",
       "packageId": "Discord.Discord",
       "source": "winget",
-      "category": "Communication",
-      "preset": ["Gaming"],
-      "silent": true
+      "category": "communication"
     },
     {
       "id": "teams",
       "name": "Microsoft Teams",
       "packageId": "Microsoft.Teams",
       "source": "winget",
-      "category": "Communication",
-      "preset": ["Office"],
-      "silent": true
-    },
-    {
-      "id": "slack",
-      "name": "Slack",
-      "packageId": "SlackTechnologies.Slack",
-      "source": "winget",
-      "category": "Communication",
-      "preset": ["Office"],
-      "silent": true
-    },
-    {
-      "id": "viber",
-      "name": "Viber",
-      "packageId": "Viber.Viber",
-      "source": "winget",
-      "category": "Communication",
-      "preset": ["Office"],
-      "silent": true
-    },
-    {
-      "id": "line",
-      "name": "LINE",
-      "packageId": "LINE.LINE",
-      "source": "winget",
-      "category": "Communication",
-      "preset": ["Office"],
-      "silent": true
+      "category": "communication"
     },
     {
       "id": "vscode",
       "name": "Visual Studio Code",
       "packageId": "Microsoft.VisualStudioCode",
       "source": "winget",
-      "category": "Development",
-      "preset": ["Office"],
-      "silent": true
+      "category": "development"
     },
     {
       "id": "git",
       "name": "Git",
       "packageId": "Git.Git",
       "source": "winget",
-      "category": "Development",
-      "preset": ["Office"],
-      "silent": true
+      "category": "development"
     },
     {
       "id": "githubcli",
       "name": "GitHub CLI",
       "packageId": "GitHub.cli",
       "source": "winget",
-      "category": "Development",
-      "preset": ["Office"],
-      "silent": true
+      "category": "development"
     },
     {
       "id": "python",
       "name": "Python 3",
       "packageId": "Python.Python.3",
       "source": "winget",
-      "category": "Development",
-      "preset": ["Office"],
-      "silent": true
+      "category": "development"
     },
     {
       "id": "nodejs",
-      "name": "Node.js LTS",
-      "packageId": "OpenJS.NodeJS.LTS",
+      "name": "Node.js",
+      "packageId": "OpenJS.NodeJS",
       "source": "winget",
-      "category": "Development",
-      "preset": ["Office"],
-      "silent": true
+      "category": "development"
     },
     {
       "id": "dotnet",
-      "name": ".NET SDK 8",
+      "name": ".NET SDK",
       "packageId": "Microsoft.DotNet.SDK.8",
       "source": "winget",
-      "category": "Development",
-      "preset": ["Office"],
-      "silent": true
+      "category": "development"
     },
     {
       "id": "java",
-      "name": "OpenJDK 21",
-      "packageId": "EclipseAdoptium.Temurin.21.JDK",
+      "name": "Java Runtime",
+      "packageId": "Oracle.JavaRuntimeEnvironment",
       "source": "winget",
-      "category": "Development",
-      "preset": ["Office"],
-      "silent": true
-    },
-    {
-      "id": "androidstudio",
-      "name": "Android Studio",
-      "packageId": "Google.AndroidStudio",
-      "source": "winget",
-      "category": "Development",
-      "preset": ["Office"],
-      "silent": true
-    },
-    {
-      "id": "docker",
-      "name": "Docker Desktop",
-      "packageId": "Docker.DockerDesktop",
-      "source": "winget",
-      "category": "Development",
-      "preset": ["Office"],
-      "silent": true
+      "category": "development"
     },
     {
       "id": "vlc",
       "name": "VLC Media Player",
       "packageId": "VideoLAN.VLC",
       "source": "winget",
-      "category": "Media",
-      "preset": ["Office", "Gaming"],
-      "silent": true
-    },
-    {
-      "id": "mpv",
-      "name": "MPV",
-      "packageId": "mpv.mpv",
-      "source": "winget",
-      "category": "Media",
-      "preset": ["Office"],
-      "silent": true
+      "category": "media"
     },
     {
       "id": "spotify",
       "name": "Spotify",
       "packageId": "Spotify.Spotify",
-      "source": "msstore",
-      "category": "Media",
-      "preset": ["Office", "Gaming"],
-      "silent": true
+      "source": "winget",
+      "category": "media"
     },
     {
       "id": "obs",
       "name": "OBS Studio",
       "packageId": "OBSProject.OBSStudio",
       "source": "winget",
-      "category": "Media",
-      "preset": ["Gaming"],
-      "silent": true
-    },
-    {
-      "id": "audacity",
-      "name": "Audacity",
-      "packageId": "Audacity.Audacity",
-      "source": "winget",
-      "category": "Media",
-      "preset": ["Office"],
-      "silent": true
+      "category": "media"
     },
     {
       "id": "7zip",
       "name": "7-Zip",
       "packageId": "7zip.7zip",
       "source": "winget",
-      "category": "Utility",
-      "preset": ["Office", "Gaming"],
-      "silent": true
+      "category": "utility"
     },
     {
       "id": "winrar",
       "name": "WinRAR",
       "packageId": "RARLab.WinRAR",
       "source": "winget",
-      "category": "Utility",
-      "preset": ["Office"],
-      "silent": true
+      "category": "utility"
     },
     {
       "id": "rufus",
       "name": "Rufus",
       "packageId": "Rufus.Rufus",
       "source": "winget",
-      "category": "Utility",
-      "preset": ["Office"],
-      "silent": true
+      "category": "utility"
     },
     {
       "id": "notepadpp",
       "name": "Notepad++",
       "packageId": "Notepad++.Notepad++",
       "source": "winget",
-      "category": "Utility",
-      "preset": ["Office"],
-      "silent": true
+      "category": "utility"
     },
     {
       "id": "powertoys",
       "name": "PowerToys",
       "packageId": "Microsoft.PowerToys",
       "source": "winget",
-      "category": "Utility",
-      "preset": ["Office"],
-      "silent": true
+      "category": "utility"
+    },
+    {
+      "id": "ccleaner",
+      "name": "CCleaner",
+      "packageId": "Piriform.CCleaner",
+      "source": "winget",
+      "category": "utility"
+    },
+    {
+      "id": "irfanview",
+      "name": "IrfanView",
+      "packageId": "IrfanSkiljan.IrfanView",
+      "source": "winget",
+      "category": "utility"
+    },
+    {
+      "id": "sumatrapdf",
+      "name": "Sumatra PDF",
+      "packageId": "SumatraPDF.SumatraPDF",
+      "source": "winget",
+      "category": "utility"
+    },
+    {
+      "id": "greenshot",
+      "name": "Greenshot",
+      "packageId": "Greenshot.Greenshot",
+      "source": "winget",
+      "category": "utility"
+    },
+    {
+      "id": "qbittorrent",
+      "name": "qBittorrent",
+      "packageId": "qBittorrent.qBittorrent",
+      "source": "winget",
+      "category": "utility"
+    },
+    {
+      "id": "audacity",
+      "name": "Audacity",
+      "packageId": "Audacity.Audacity",
+      "source": "winget",
+      "category": "media"
+    },
+    {
+      "id": "gimp",
+      "name": "GIMP",
+      "packageId": "GIMP.GIMP",
+      "source": "winget",
+      "category": "media"
+    },
+    {
+      "id": "inkscape",
+      "name": "Inkscape",
+      "packageId": "Inkscape.Inkscape",
+      "source": "winget",
+      "category": "media"
+    },
+    {
+      "id": "krita",
+      "name": "Krita",
+      "packageId": "KDE.Krita",
+      "source": "winget",
+      "category": "media"
+    },
+    {
+      "id": "blender",
+      "name": "Blender",
+      "packageId": "BlenderFoundation.Blender",
+      "source": "winget",
+      "category": "media"
+    },
+    {
+      "id": "handbrake",
+      "name": "HandBrake",
+      "packageId": "HandBrake.HandBrake",
+      "source": "winget",
+      "category": "media"
+    },
+    {
+      "id": "winmerge",
+      "name": "WinMerge",
+      "packageId": "WinMerge.WinMerge",
+      "source": "winget",
+      "category": "development"
+    },
+    {
+      "id": "winscp",
+      "name": "WinSCP",
+      "packageId": "WinSCP.WinSCP",
+      "source": "winget",
+      "category": "development"
+    },
+    {
+      "id": "putty",
+      "name": "PuTTY",
+      "packageId": "PuTTY.PuTTY",
+      "source": "winget",
+      "category": "development"
+    },
+    {
+      "id": "wireshark",
+      "name": "Wireshark",
+      "packageId": "WiresharkFoundation.Wireshark",
+      "source": "winget",
+      "category": "development"
+    },
+    {
+      "id": "virtualbox",
+      "name": "VirtualBox",
+      "packageId": "Oracle.VirtualBox",
+      "source": "winget",
+      "category": "development"
+    },
+    {
+      "id": "vmware",
+      "name": "VMware Workstation Player",
+      "packageId": "VMware.WorkstationPlayer",
+      "source": "winget",
+      "category": "development"
+    },
+    {
+      "id": "msstore",
+      "name": "Microsoft Store",
+      "packageId": "9WZDNCRFJBMP",
+      "source": "msstore",
+      "category": "utility"
+    },
+    {
+      "id": "office",
+      "name": "Microsoft Office",
+      "packageId": "9WZDNCRFHV9V",
+      "source": "msstore",
+      "category": "utility"
     }
   ]
 }
