@@ -1,6 +1,6 @@
 # =====================================================
 # utils.ps1
-# PMK TOOLBOX – Core Utilities
+# PMK TOOLBOX – Core Utilities (FINAL)
 # Author: Minh Khai
 # =====================================================
 
@@ -20,9 +20,35 @@ $Global:LogFile_Tweak = Join-Path $Global:LogDir "tweaks.log"
 $Global:LogFile_App   = Join-Path $Global:LogDir "apps.log"
 
 # =====================================================
+# UI CONFIG (FIXED WIDTH + COLOR RULE)
+# =====================================================
+$Global:UI = @{
+    Width   = 70
+    Border  = 'DarkGray'
+    Header  = 'Gray'
+    Title   = 'Cyan'
+    Menu    = 'Gray'
+    Active  = 'Green'
+    Warn    = 'Yellow'
+    Error   = 'Red'
+    Value   = 'Green'
+}
+
+# =====================================================
 # INITIALIZE ENVIRONMENT
 # =====================================================
 function Initialize-ToiUuPCEnvironment {
+
+    chcp 65001 | Out-Null
+    [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+
+    try {
+        $size = $Host.UI.RawUI.WindowSize
+        if ($size.Width -lt $Global:UI.Width) {
+            $size.Width = $Global:UI.Width
+            $Host.UI.RawUI.WindowSize = $size
+        }
+    } catch {}
 
     foreach ($dir in @(
         $Global:ToiUuPC_Root,
@@ -93,60 +119,63 @@ function Write-Log {
 }
 
 # =====================================================
-# SYSTEM INFO (HEADER)
+# NETWORK CHECK
 # =====================================================
-function Get-SystemHeaderInfo {
-
-    $user     = $env:USERNAME
-    $computer = $env:COMPUTERNAME
-
-    $os = Get-CimInstance Win32_OperatingSystem
-    $osName = $os.Caption.Trim()
-    $osVer  = $os.Version
-
-    $isAdmin = if (Test-IsAdmin) { "YES" } else { "NO" }
-
-    $netOk = try {
+function Test-Network {
+    try {
         Test-Connection -ComputerName 8.8.8.8 -Count 1 -Quiet -ErrorAction Stop
-    } catch { $false }
-
-    $netStatus = if ($netOk) { "OK" } else { "NO" }
-
-    $tz = (Get-TimeZone).BaseUtcOffset.TotalHours
-    if ($tz -ge 0) {
-        $tzText = "UTC+$tz"
-    } else {
-        $tzText = "UTC$tz"
-    }
-
-    return [PSCustomObject]@{
-        User       = $user
-        Computer  = $computer
-        OS        = "$osName ($osVer)"
-        Net       = $netStatus
-        Admin     = $isAdmin
-        TimeZone  = $tzText
+    } catch {
+        return $false
     }
 }
 
 # =====================================================
-# HEADER RENDER
+# SYSTEM INFO
+# =====================================================
+function Get-SystemInfo {
+
+    $os = Get-CimInstance Win32_OperatingSystem
+    $ver = Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion"
+
+    return @{
+        User     = $env:USERNAME
+        Computer = $env:COMPUTERNAME
+        OS       = $os.Caption.Trim()
+        Version  = $ver.DisplayVersion
+        Build    = $os.BuildNumber
+        Admin    = if (Test-IsAdmin) { "YES" } else { "NO" }
+        Net      = if (Test-Network) { "OK" } else { "OFF" }
+        TZ       = "UTC$([int](Get-TimeZone).BaseUtcOffset.TotalHours)"
+    }
+}
+
+# =====================================================
+# HEADER RENDER (STATUS DASHBOARD)
 # =====================================================
 function Show-Header {
 
-    $info = Get-SystemHeaderInfo
+    $i = Get-SystemInfo
 
-    $line = "+======================================================================+"
-    Write-Host $line -ForegroundColor DarkGray
-    Write-Host ("| USER: {0,-10} | PC: {1,-12} | OS: {2,-22} | ADMIN: {3,-3} | {4,-7} |" -f `
-        $info.User,
-        $info.Computer,
-        $info.OS.Substring(0,[Math]::Min(22,$info.OS.Length)),
-        $info.Admin,
-        $info.TimeZone
-    ) -ForegroundColor Gray
-    Write-Host $line -ForegroundColor DarkGray
+    $line = "+" + ("=" * $Global:UI.Width) + "+"
+
+    Write-Host $line -ForegroundColor $Global:UI.Border
+
+    $text = "USER: $($i.User) | PC: $($i.Computer) | OS: $($i.OS) $($i.Version) ($($i.Build)) | NET: $($i.Net) | ADMIN: $($i.Admin) | TIME: $($i.TZ)"
+    if ($text.Length -gt $Global:UI.Width) {
+        $text = $text.Substring(0, $Global:UI.Width)
+    }
+
+    Write-Host ("|{0,-$($Global:UI.Width)}|" -f $text) -ForegroundColor $Global:UI.Header
+    Write-Host $line -ForegroundColor $Global:UI.Border
     Write-Host ""
+}
+
+# =====================================================
+# SAFE CLEAR
+# =====================================================
+function Clear-Screen {
+    Clear-Host
+    Show-Header
 }
 
 # =====================================================
@@ -169,29 +198,28 @@ function Load-JsonFile {
 }
 
 # =====================================================
-# MENU HELPERS
+# INPUT / PAUSE / KEY
 # =====================================================
 function Pause {
     Write-Host ""
     Read-Host "Press ENTER to continue"
 }
 
-function Read-Choice {
-    param([string]$Prompt = "Select option")
-
-    Write-Host ""
-    return Read-Host $Prompt
+function Read-Key {
+    return [Console]::ReadKey($true)
 }
 
 # =====================================================
-# SAFE CLEAR
+# REGISTRY HELPER
 # =====================================================
-function Clear-Screen {
-    Clear-Host
-    Show-Header
+function Ensure-RegistryPath {
+    param([string]$Path)
+    if (-not (Test-Path $Path)) {
+        New-Item -Path $Path -Force | Out-Null
+    }
 }
 
 # =====================================================
-# BOOTSTRAP CALL
+# BOOTSTRAP INIT
 # =====================================================
 Initialize-ToiUuPCEnvironment
