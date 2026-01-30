@@ -37,7 +37,53 @@
 
 ## 🚀 Cách sử dụng
 
-### 📥 Phương pháp 1: Bootstrap (Khuyên dùng)
-```powershell
-# Chạy trong PowerShell với quyền Administrator
-irm https://cdn.jsdelivr.net/gh/mkhai2589/toiuupc@main/bootstrap.ps1 | iex
+
+🛠️ Biên dịch thành EXE
+powershell
+# Chạy script biên dịch
+.\Compile.ps1
+
+# File EXE sẽ được tạo: ToiUuPC.exe
+# Có thể chạy trực tiếp mà không cần PowerShell
+⚠️ Lưu ý quan trọng
+Luôn chạy với quyền Administrator - Cần cho các thao tác hệ thống
+
+Sao lưu dữ liệu - Khuyến nghị trước khi thực hiện tweak mạnh
+
+Đọc kỹ mô tả - Mỗi tweak có mức độ rủi ro (Safe/Balanced/Dangerous)
+
+Mạng ổn định - Cần để tải ứng dụng qua Winget
+
+Windows mới nhất - Đảm bảo tính tương thích tốt nhất
+
+🤝 Đóng góp
+Mọi đóng góp đều được chào đón! Cách tham gia:
+
+Fork repository
+
+Tạo nhánh tính năng (git checkout -b feature/AmazingFeature)
+
+Commit thay đổi (git commit -m 'Add some AmazingFeature')
+
+Push lên nhánh (git push origin feature/AmazingFeature)
+
+Tạo Pull Request
+
+📄 Giấy phép
+Dự án được phân phối theo giấy phép MIT. Xem file LICENSE để biết thêm chi tiết.
+
+👤 Tác giả
+Minh Khai - Nhà phát triển chính
+
+GitHub: @mkhai2589
+
+Số điện thoại: 0333090930
+
+🙏 Cảm ơn
+Cảm ơn đã sử dụng ToiUuPC! Nếu bạn thấy công cụ hữu ích, hãy:
+
+⭐ Star repository này trên GitHub
+
+🔄 Chia sẻ với bạn bè và đồng nghiệp
+
+🐛 Báo cáo lỗi hoặc đề xuất tính năng mới
