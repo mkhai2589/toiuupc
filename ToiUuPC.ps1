@@ -117,7 +117,7 @@ function Draw-Header {
 # ==========================================================
 $MenuItems = @(
     @{ Key="01"; Text="Windows Tweaks"; Action={ Invoke-TweaksMenu -Config $TweaksConfig } },
-    @{ Key="02"; Text="DNS Management"; Action={ Invoke-DnsMenu -ConfigPath (Join-Path $ConfigDir "dns.json") } },
+    @{ Key="02"; Text="DNS Management"; Action={ Invoke-DnsMenu } },
     @{ Key="03"; Text="Clean System";   Action={ Invoke-CleanSystem } },
     @{ Key="51"; Text="Applications";   Action={ Invoke-AppMenu -Config $AppsConfig } },
     @{ Key="21"; Text="Reload Config";  Action={
