@@ -1,246 +1,145 @@
-# ==========================================================
-# tweaks.ps1
-# PMK Toolbox - Windows Tweaks Engine
-# Compatible with tweaks.json schema (FULL)
-# ==========================================================
+# ============================================================
+# PMK TOOLBOX - WINDOWS TWEAKS ENGINE
+# Author : Minh Khai
+# Schema  : tweaks.json v1.0
+# ============================================================
 
 Set-StrictMode -Off
 $ErrorActionPreference = "Continue"
 
-# ==========================================================
-# LOG
-# ==========================================================
-$Global:TweaksLog = Join-Path $Global:LogDir "tweaks.log"
-
-function Write-TweakLog {
-    param([string]$Message)
-    Write-Log -Message "[TWEAK] $Message"
-    "$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss")) $Message" |
-        Out-File -FilePath $Global:TweaksLog -Append -Encoding UTF8
-}
-
-# ==========================================================
-# OS GUARD
-# ==========================================================
-function Test-OsGuard {
-    param($Guard)
-
-    if (-not $Guard) { return $true }
+# ============================================================
+# REGISTRY
+# ============================================================
+function Apply-RegistryTweak {
+    param($t)
 
     try {
-        $ver = [System.Environment]::OSVersion.Version
-        $cur = [double]("{0}.{1}" -f $ver.Major, $ver.Minor)
+        if (-not (Test-Path $t.path)) {
+            New-Item -Path $t.path -Force | Out-Null
+        }
 
-        if ($Guard.min) {
-            if ($cur -lt [double]$Guard.min) { return $false }
-        }
-        if ($Guard.max) {
-            if ($cur -gt [double]$Guard.max) { return $false }
-        }
+        Set-ItemProperty `
+            -Path  $t.path `
+            -Name  $t.nameReg `
+            -Value $t.value `
+            -Type  $t.regType `
+            -Force
+
         return $true
-    }
-    catch {
-        return $true
-    }
+    } catch { return $false }
 }
 
-# ==========================================================
-# TWEAK STATE
-# ==========================================================
-function Get-TweakState {
-    param($Tweak)
+# ============================================================
+# SERVICE
+# ============================================================
+function Apply-ServiceTweak {
+    param($t)
 
     try {
-        switch ($Tweak.type) {
-
-            "registry" {
-                if (-not (Test-Path $Tweak.path)) { return "OFF" }
-
-                $val = Get-ItemProperty -Path $Tweak.path `
-                        -Name $Tweak.nameReg -ErrorAction SilentlyContinue
-
-                if ($null -eq $val) { return "OFF" }
-
-                if ($val.$($Tweak.nameReg) -eq $Tweak.value) {
-                    return "ON"
-                }
-                return "OFF"
-            }
-
-            "service" {
-                $svc = Get-Service -Name $Tweak.serviceName -ErrorAction Stop
-                if ($svc.StartType.ToString().ToLower() -eq $Tweak.startup.ToLower()) {
-                    return "ON"
-                }
-                return "OFF"
-            }
-
-            "scheduled_task" {
-                if ($Tweak.taskName) {
-                    $task = Get-ScheduledTask -TaskName $Tweak.taskName -ErrorAction Stop
-                    if ($task.Enabled -eq $false) { return "ON" }
-                    return "OFF"
-                }
-
-                if ($Tweak.tasks) {
-                    foreach ($t in $Tweak.tasks) {
-                        $task = Get-ScheduledTask -TaskName $t -ErrorAction Stop
-                        if ($task.Enabled) { return "OFF" }
-                    }
-                    return "ON"
-                }
-            }
-        }
-    }
-    catch {
-        return "UNKNOWN"
-    }
-
-    return "UNKNOWN"
+        Stop-Service $t.serviceName -Force -ErrorAction SilentlyContinue
+        Set-Service `
+            -Name $t.serviceName `
+            -StartupType $t.startup `
+            -ErrorAction SilentlyContinue
+        return $true
+    } catch { return $false }
 }
 
-# ==========================================================
-# APPLY TWEAK
-# ==========================================================
+# ============================================================
+# SCHEDULED TASK
+# ============================================================
+function Apply-ScheduledTaskTweak {
+    param($t)
+
+    try {
+        if ($t.taskName) {
+            Disable-ScheduledTask `
+                -TaskName $t.taskName `
+                -ErrorAction SilentlyContinue
+        }
+
+        if ($t.tasks) {
+            foreach ($task in $t.tasks) {
+                Disable-ScheduledTask `
+                    -TaskName $task `
+                    -ErrorAction SilentlyContinue
+            }
+        }
+        return $true
+    } catch { return $false }
+}
+
+# ============================================================
+# APPLY TWEAK ROUTER
+# ============================================================
 function Apply-Tweak {
-    param($Tweak)
+    param($t)
 
-    if (-not (Test-OsGuard $Tweak.os_guard)) {
-        Write-Host "OS not supported for this tweak" -ForegroundColor Yellow
-        return
+    Write-Host "`n[APPLY] $($t.name)" -ForegroundColor Cyan
+
+    $ok = $false
+
+    switch ($t.type) {
+        "registry"        { $ok = Apply-RegistryTweak       $t }
+        "service"         { $ok = Apply-ServiceTweak        $t }
+        "scheduled_task"  { $ok = Apply-ScheduledTaskTweak  $t }
+        default {
+            Write-Host "Unsupported type: $($t.type)" -ForegroundColor Red
+            return
+        }
     }
 
-    switch ($Tweak.type) {
+    if ($ok) {
+        Write-Host " ✔ Applied successfully" -ForegroundColor Green
+    } else {
+        Write-Host " ✖ Failed" -ForegroundColor Red
+    }
 
-        "registry" {
-            if (-not (Test-Path $Tweak.path)) {
-                New-Item -Path $Tweak.path -Force | Out-Null
-            }
-
-            Set-ItemProperty `
-                -Path  $Tweak.path `
-                -Name  $Tweak.nameReg `
-                -Value $Tweak.value `
-                -Type  $Tweak.regType `
-                -Force
-
-            Write-TweakLog "Registry ON: $($Tweak.id)"
-        }
-
-        "service" {
-            sc.exe config $Tweak.serviceName start= $Tweak.startup | Out-Null
-            if ($Tweak.startup -eq "Disabled") {
-                Stop-Service $Tweak.serviceName -Force -ErrorAction SilentlyContinue
-            }
-            Write-TweakLog "Service ON: $($Tweak.serviceName)"
-        }
-
-        "scheduled_task" {
-            if ($Tweak.taskName) {
-                Disable-ScheduledTask -TaskName $Tweak.taskName `
-                    -ErrorAction SilentlyContinue | Out-Null
-            }
-            if ($Tweak.tasks) {
-                foreach ($t in $Tweak.tasks) {
-                    Disable-ScheduledTask -TaskName $t `
-                        -ErrorAction SilentlyContinue | Out-Null
-                }
-            }
-            Write-TweakLog "Task ON: $($Tweak.id)"
-        }
+    if ($t.reboot_required) {
+        Write-Host " ⚠ Reboot required" -ForegroundColor Yellow
     }
 }
 
-# ==========================================================
-# UNDO TWEAK
-# ==========================================================
-function Undo-Tweak {
-    param($Tweak)
-
-    if (-not $Tweak.rollback) {
-        Write-Host "No rollback defined" -ForegroundColor Yellow
-        return
-    }
-
-    switch ($Tweak.type) {
-
-        "registry" {
-            if (-not (Test-Path $Tweak.path)) { return }
-
-            Set-ItemProperty `
-                -Path  $Tweak.path `
-                -Name  $Tweak.nameReg `
-                -Value $Tweak.rollback.value `
-                -Force
-
-            Write-TweakLog "Registry OFF: $($Tweak.id)"
-        }
-
-        "service" {
-            sc.exe config $Tweak.serviceName start= $Tweak.rollback.startup | Out-Null
-            Write-TweakLog "Service OFF: $($Tweak.serviceName)"
-        }
-
-        "scheduled_task" {
-            if ($Tweak.taskName) {
-                Enable-ScheduledTask -TaskName $Tweak.taskName `
-                    -ErrorAction SilentlyContinue | Out-Null
-            }
-            if ($Tweak.tasks) {
-                foreach ($t in $Tweak.tasks) {
-                    Enable-ScheduledTask -TaskName $t `
-                        -ErrorAction SilentlyContinue | Out-Null
-                }
-            }
-            Write-TweakLog "Task OFF: $($Tweak.id)"
-        }
-    }
-}
-
-# ==========================================================
+# ============================================================
 # MENU
-# ==========================================================
+# ============================================================
 function Invoke-TweaksMenu {
-    param([object]$Config)
+    param($Config)
 
-    $Tweaks = $Config.tweaks
+    if (-not $Config.tweaks) {
+        Write-Host "Invalid tweaks.json schema!" -ForegroundColor Red
+        Read-Host "Press Enter"
+        return
+    }
 
     while ($true) {
-        Clear-Screen
-        Write-Host "WINDOWS TWEAKS" -ForegroundColor Cyan
+        Clear-Host
+        Write-Host "====== WINDOWS TWEAKS ======" -ForegroundColor Cyan
         Write-Host ""
 
         $map = @{}
         $i = 1
 
-        foreach ($t in $Tweaks) {
-            $state = Get-TweakState $t
-            $color = if ($state -eq "ON") { "Green" } else { "Yellow" }
-
-            Write-Host ("[{0}] {1} [{2}]" -f $i, $t.name, $state) `
-                -ForegroundColor $color
-
-            $map[$i] = $t
+        foreach ($t in $Config.tweaks) {
+            $key = "{0:00}" -f $i
+            Write-Host " [$key] $($t.name)"
+            $map[$key] = $t
             $i++
         }
 
         Write-Host ""
-        Write-Host "[0] Back"
-        $sel = Read-Choice "Select"
+        Write-Host " [00] Back"
+        Write-Host ""
 
-        if ($sel -eq "0") { break }
+        $sel = Read-Host "Select"
 
-        if ($map.ContainsKey([int]$sel)) {
-            $item = $map[[int]$sel]
-            $state = Get-TweakState $item
+        if ($sel -eq "00") { return }
 
-            if ($state -eq "ON") {
-                Undo-Tweak $item
-            }
-            else {
-                Apply-Tweak $item
-            }
-
+        if ($map.ContainsKey($sel)) {
+            Apply-Tweak $map[$sel]
+            Read-Host "`nPress Enter"
+        } else {
+            Write-Host "Invalid selection" -ForegroundColor Red
             Start-Sleep 1
         }
     }
