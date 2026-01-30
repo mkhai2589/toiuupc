@@ -1,43 +1,68 @@
 # ==================================================
-# utils.ps1
-# Common helpers
+# utils.ps1 – CORE UTILITIES (FINAL)
 # ==================================================
 
-$Global:LogDir = Join-Path $PSScriptRoot "..\runtime\logs"
-if (-not (Test-Path $LogDir)) {
-    New-Item -ItemType Directory -Path $LogDir -Force | Out-Null
-}
+chcp 65001 | Out-Null
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
-$Global:LogFile = Join-Path $LogDir ("run_{0}.log" -f (Get-Date -Format "yyyyMMdd_HHmmss"))
+Set-StrictMode -Off
+$ErrorActionPreference = "Stop"
 
+# ---------- COLORS ----------
+$Global:COLOR_INFO  = "Cyan"
+$Global:COLOR_OK    = "Green"
+$Global:COLOR_WARN  = "Yellow"
+$Global:COLOR_ERR   = "Red"
+
+# ---------- LOG ----------
 function Write-Log {
     param([string]$Message)
-    Add-Content -Path $LogFile -Value "[{0}] {1}" -f (Get-Date), $Message
+    $ts = Get-Date -Format "HH:mm:ss"
+    Write-Host "[$ts] $Message"
 }
 
-function Step {
+function Write-Step {
     param(
-        [int]$Index,
+        [int]$Step,
         [string]$Text
     )
-    Write-Host ("[{0}] {1}" -f $Index, $Text) -ForegroundColor Cyan
-    Write-Log "$Index - $Text"
+    Write-Host "`n[$Step] $Text" -ForegroundColor $Global:COLOR_INFO
 }
 
-function Info {
+function Write-OK {
     param([string]$Text)
-    Write-Host "  $Text"
-    Write-Log $Text
+    Write-Host "  -> $Text" -ForegroundColor $Global:COLOR_OK
 }
 
-function Success {
+function Write-Warn {
     param([string]$Text)
-    Write-Host "  OK: $Text" -ForegroundColor Green
-    Write-Log "OK: $Text"
+    Write-Host "  !  $Text" -ForegroundColor $Global:COLOR_WARN
 }
 
-function Fail {
+function Write-Err {
     param([string]$Text)
-    Write-Host "  FAIL: $Text" -ForegroundColor Red
-    Write-Log "FAIL: $Text"
+    Write-Host "  X  $Text" -ForegroundColor $Global:COLOR_ERR
+}
+
+# ---------- PAUSE ----------
+function Pause-Tool {
+    Write-Host ""
+    Read-Host "Press ENTER to continue"
+}
+
+# ---------- CONFIRM ----------
+function Confirm-Action {
+    param([string]$Message)
+    $r = Read-Host "$Message (y/n)"
+    return ($r -eq "y")
+}
+
+# ---------- ADMIN ----------
+function Assert-Admin {
+    $id = [Security.Principal.WindowsIdentity]::GetCurrent()
+    $p  = New-Object Security.Principal.WindowsPrincipal($id)
+    if (-not $p.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+        Write-Err "Run PowerShell as Administrator"
+        exit 1
+    }
 }
