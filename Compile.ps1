@@ -1,62 +1,61 @@
 # =========================================================
-# ToiUuPC – Compile Script
-# Bundle PowerShell to EXE (WPF SAFE)
+# ToiUuPC – Compile Script (ADVANCED – FREEZE JSON)
 # Author: PMK
 # =========================================================
 
 Set-StrictMode -Off
 $ErrorActionPreference = "Stop"
 
-Write-Host "ToiUuPC Compile Tool"
+Write-Host "ToiUuPC Compile Tool – ADVANCED (Freeze JSON)"
 
 # =========================================================
 # CHECK POWERSHELL VERSION
 # =========================================================
 if ($PSVersionTable.PSVersion.Major -ne 5) {
-    Write-Host "ERROR: Please run this script using Windows PowerShell 5.1"
-    Write-Host "PowerShell 7 is not supported for WPF compilation"
+    Write-Host "ERROR: Please run using Windows PowerShell 5.1"
     exit 1
 }
 
 # =========================================================
-# PATH DEFINITIONS
+# PATHS
 # =========================================================
 $Root      = Split-Path -Parent $MyInvocation.MyCommand.Path
 $MainFile  = Join-Path $Root "ToiUuPC.ps1"
 $FuncDir   = Join-Path $Root "functions"
 $UiDir     = Join-Path $Root "ui"
+$ConfigDir = Join-Path $Root "config"
 
 $BundledPS = Join-Path $Root "ToiUuPC-Bundled.ps1"
 $OutputExe = Join-Path $Root "ToiUuPC.exe"
 
 # =========================================================
-# VALIDATION
+# VALIDATE
 # =========================================================
-if (-not (Test-Path $MainFile)) {
-    Write-Host "ERROR: Missing ToiUuPC.ps1"
-    exit 1
+$required = @(
+    $MainFile,
+    "$FuncDir",
+    "$UiDir",
+    "$ConfigDir\applications.json",
+    "$ConfigDir\dns.json",
+    "$ConfigDir\tweaks.json"
+)
+
+foreach ($r in $required) {
+    if (-not (Test-Path $r)) {
+        Write-Host "ERROR: Missing $r" -ForegroundColor Red
+        exit 1
+    }
 }
 
-if (-not (Test-Path $FuncDir)) {
-    Write-Host "ERROR: Missing functions directory"
-    exit 1
-}
-
-if (-not (Test-Path $UiDir)) {
-    Write-Host "ERROR: Missing ui directory"
-    exit 1
-}
-
 # =========================================================
-# BUILD BUNDLED SCRIPT
+# BUILD BUNDLE
 # =========================================================
-Write-Host "Bundling source files..."
+Write-Host "Bundling source..."
 
 $bundle = New-Object System.Collections.Generic.List[string]
 
 $bundle.Add("# =========================================================")
-$bundle.Add("# ToiUuPC – AUTO GENERATED BUNDLE")
-$bundle.Add("# DO NOT EDIT MANUALLY")
+$bundle.Add("# ToiUuPC – AUTO GENERATED BUNDLE (FREEZE JSON)")
 $bundle.Add("# =========================================================")
 $bundle.Add("")
 $bundle.Add("Set-StrictMode -Off")
@@ -64,8 +63,29 @@ $bundle.Add('$ErrorActionPreference = "Continue"')
 $bundle.Add("")
 
 # =========================================================
+# EMBED JSON
+# =========================================================
+Write-Host "Embedding JSON..."
+
+function Embed-Json {
+    param($Name, $Path)
+    Write-Host " + config\$Name"
+    $content = (Get-Content $Path -Raw) -replace "@","@@"
+    $bundle.Add("")
+    $bundle.Add("# ----- EMBED JSON: $Name -----")
+    $bundle.Add("`$Global:JSON_$($Name.Replace('.','_')) = @'")
+    $bundle.Add($content)
+    $bundle.Add("'@")
+}
+
+Embed-Json "applications.json" "$ConfigDir\applications.json"
+Embed-Json "dns.json"          "$ConfigDir\dns.json"
+Embed-Json "tweaks.json"       "$ConfigDir\tweaks.json"
+
+# =========================================================
 # EMBED FUNCTIONS
 # =========================================================
+$bundle.Add("")
 $bundle.Add("# ================= FUNCTIONS =================")
 
 Get-ChildItem $FuncDir -Filter "*.ps1" | Sort-Object Name | ForEach-Object {
@@ -77,65 +97,50 @@ Get-ChildItem $FuncDir -Filter "*.ps1" | Sort-Object Name | ForEach-Object {
 }
 
 # =========================================================
-# EMBED XAML FILES
+# EMBED UI
 # =========================================================
 $bundle.Add("")
 $bundle.Add("# ================= UI FILES =================")
 
 Get-ChildItem $UiDir -Filter "*.xaml" | Sort-Object Name | ForEach-Object {
     Write-Host " + ui\$($_.Name)"
-    $varName = "UI_" + ($_.Name -replace '\.', '_')
-    $content = (Get-Content $_ -Raw) -replace "@","@@"
+    $var = "UI_" + ($_.Name -replace '\.','_')
+    $xaml = (Get-Content $_ -Raw) -replace "@","@@"
     $bundle.Add("")
-    $bundle.Add("`$Global:$varName = @'")
-    $bundle.Add($content)
+    $bundle.Add("`$Global:$var = @'")
+    $bundle.Add($xaml)
     $bundle.Add("'@")
 }
 
 # =========================================================
-# MAIN SCRIPT
+# MAIN
 # =========================================================
 $bundle.Add("")
 $bundle.Add("# ================= MAIN SCRIPT =================")
 $bundle.Add((Get-Content $MainFile -Raw))
 
 # =========================================================
-# WRITE BUNDLE FILE
+# WRITE FILE
 # =========================================================
-Set-Content -Path $BundledPS -Value $bundle -Encoding UTF8
-Write-Host "Bundled script created: ToiUuPC-Bundled.ps1"
+Set-Content $BundledPS $bundle -Encoding UTF8
+Write-Host "Bundled script created."
 
 # =========================================================
-# ENSURE PS2EXE
+# COMPILE
 # =========================================================
-if (-not (Get-Module -ListAvailable -Name ps2exe)) {
-    Write-Host "Installing ps2exe module..."
+if (-not (Get-Module -ListAvailable ps2exe)) {
     Install-Module ps2exe -Scope CurrentUser -Force -AllowClobber
 }
 
-Import-Module ps2exe -ErrorAction Stop
-
-# =========================================================
-# COMPILE TO EXE
-# =========================================================
-Write-Host "Compiling EXE..."
+Import-Module ps2exe
 
 Invoke-ps2exe `
     -InputFile $BundledPS `
     -OutputFile $OutputExe `
     -RequireAdmin `
     -NoConsole:$false `
-    -Title "ToiUuPC - Windows Optimizer" `
-    -Description "Windows optimization and monitoring toolkit" `
+    -Title "ToiUuPC" `
     -Company "PMK" `
     -Product "ToiUuPC"
 
-# =========================================================
-# DONE
-# =========================================================
-if (Test-Path $OutputExe) {
-    Write-Host "BUILD SUCCESS"
-    Write-Host $OutputExe
-} else {
-    Write-Host "BUILD FAILED"
-}
+Write-Host "DONE"
