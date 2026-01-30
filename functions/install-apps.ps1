@@ -1,40 +1,65 @@
 # ============================================================
 # PMK TOOLBOX - INSTALL APPLICATIONS
 # Author : Minh Khai
+# Compatible: Windows 10 / Windows 11
 # ============================================================
 
 Set-StrictMode -Off
 $ErrorActionPreference = "Continue"
 
+# ============================================================
+# PATH
+# ============================================================
 $Script:AppConfigPath = Join-Path $PSScriptRoot "..\config\applications.json"
 
-# ------------------------------------------------------------
+# ============================================================
+# LOAD APPLICATION JSON
+# ============================================================
 function Load-ApplicationConfig {
+
     if (-not (Test-Path $Script:AppConfigPath)) {
         Write-Host "ERROR: applications.json not found!" -ForegroundColor Red
+        Read-Host "Press Enter"
         return $null
     }
+
     try {
         return Get-Content $Script:AppConfigPath -Raw | ConvertFrom-Json
-    } catch {
-        Write-Host "ERROR: Invalid JSON format!" -ForegroundColor Red
+    }
+    catch {
+        Write-Host "ERROR: Invalid applications.json format!" -ForegroundColor Red
+        Read-Host "Press Enter"
         return $null
     }
 }
 
-# ------------------------------------------------------------
+# ============================================================
+# CHECK APP INSTALLED (WINGET)
+# ============================================================
 function Is-AppInstalled {
     param([string]$PackageId)
+
     try {
-        return (winget list --id $PackageId 2>$null) -match $PackageId
-    } catch { return $false }
+        $result = winget list --id $PackageId 2>$null
+        return ($result -match $PackageId)
+    }
+    catch {
+        return $false
+    }
 }
 
-# ------------------------------------------------------------
+# ============================================================
+# INSTALL SINGLE APPLICATION
+# ============================================================
 function Install-Application {
     param([object]$App)
 
-    if (Is-AppInstalled $App.packageId) {
+    if (-not $App.packageId) {
+        Write-Host "Invalid app config!" -ForegroundColor Red
+        return
+    }
+
+    if (Is-AppInstalled -PackageId $App.packageId) {
         Write-Host "[SKIP] $($App.name) already installed" -ForegroundColor Yellow
         return
     }
@@ -44,61 +69,97 @@ function Install-Application {
     $args = @(
         "install",
         "--id", $App.packageId,
-        "--source", $App.source,
         "--accept-package-agreements",
         "--accept-source-agreements"
     )
 
-    if ($App.silent) { $args += "--silent" }
+    if ($App.source) {
+        $args += @("--source", $App.source)
+    }
 
-    Start-Process winget -ArgumentList $args -Wait -NoNewWindow
+    if ($App.silent -eq $true) {
+        $args += "--silent"
+    }
+
+    Start-Process -FilePath "winget" `
+        -ArgumentList $args `
+        -Wait `
+        -NoNewWindow
 }
 
-# ------------------------------------------------------------
-function Show-ApplicationsByCategory {
+# ============================================================
+# SHOW APPLICATION MENU (GROUP BY CATEGORY)
+# ============================================================
+function Show-AppMenu {
     param([object]$Config)
 
     Clear-Host
-    Write-Host "INSTALL APPLICATIONS" -ForegroundColor Cyan
-    Write-Host "---------------------------------------------"
+
+    Write-Host "+======================================================+" -ForegroundColor DarkGray
+    Write-Host "| INSTALL APPLICATIONS                                  |" -ForegroundColor White
+    Write-Host "+======================================================+" -ForegroundColor DarkGray
+    Write-Host ""
 
     $index = 1
-    $map = @{}
+    $menuMap = @{}
 
-    foreach ($cat in $Config.categories) {
-        Write-Host "`n[$cat]" -ForegroundColor Green
-        $apps = $Config.applications | Where-Object category -eq $cat
+    foreach ($category in $Config.categories) {
+
+        Write-Host "[$category]" -ForegroundColor Green
+
+        $apps = $Config.applications | Where-Object {
+            $_.category -eq $category
+        }
 
         foreach ($app in $apps) {
             $key = "{0:00}" -f $index
-            Write-Host " $key. $($app.name)"
-            $map[$key] = $app
+            Write-Host (" {0}. {1}" -f $key, $app.name)
+            $menuMap[$key] = $app
             $index++
         }
+
+        Write-Host ""
     }
 
-    Write-Host "`n[00] Back"
-    return $map
+    Write-Host "[00] Back"
+    Write-Host ""
+
+    return $menuMap
 }
 
-# ------------------------------------------------------------
+# ============================================================
+# MAIN APPLICATION MENU (CALLED FROM ToiUuPC.ps1)
+# ============================================================
 function Invoke-AppMenu {
-    param($Config)
+    param(
+        [object]$Config
+    )
 
     if (-not $Config) {
         $Config = Load-ApplicationConfig
-        if (-not $Config) { return }
     }
 
+    if (-not $Config) { return }
+
     while ($true) {
-        $map = Show-ApplicationsByCategory $Config
-        $choice = Read-Host "Select"
 
-        if ($choice -eq "00") { return }
+        $menuMap = Show-AppMenu -Config $Config
+        $choice = Read-Host "Select app number"
 
-        if ($map.ContainsKey($choice)) {
-            Install-Application $map[$choice]
-            Read-Host "Press Enter"
+        if ($choice -eq "00") {
+            return
+        }
+
+        if ($menuMap.ContainsKey($choice)) {
+
+            Install-Application -App $menuMap[$choice]
+
+            Write-Host ""
+            Read-Host "Press Enter to continue"
+        }
+        else {
+            Write-Host "Invalid selection!" -ForegroundColor Red
+            Start-Sleep 1
         }
     }
 }
