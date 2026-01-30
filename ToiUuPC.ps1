@@ -26,7 +26,7 @@ if (-not (Test-Path $utilsPath)) {
 Ensure-Admin
 
 # ==========================================================
-# LOAD FUNCTION MODULES (EXACT FILE NAMES)
+# LOAD FUNCTION MODULES (EXACT NAMES)
 # ==========================================================
 $FunctionFiles = @(
     "Show-PMKLogo.ps1",
@@ -46,7 +46,7 @@ foreach ($file in $FunctionFiles) {
 }
 
 # ==========================================================
-# LOAD JSON CONFIG (EXACT PATHS)
+# LOAD JSON CONFIG
 # ==========================================================
 $ConfigDir = Join-Path $ScriptRoot "config"
 
@@ -60,7 +60,7 @@ if (-not $TweaksConfig -or -not $AppsConfig -or -not $DnsConfig) {
 }
 
 # ==========================================================
-# HEADER (FIXED WIDTH 100 COL)
+# HEADER (FIXED WIDTH – SAFE ASCII)
 # ==========================================================
 $HeaderWidth = 100
 
@@ -101,7 +101,7 @@ function Draw-Header {
     $temp = Get-CPUTemp
 
     $l1 = " USER:$user | MODE:$mode | NET:$net | TIME:$time "
-    $l2 = " OS:$os | CPU:$cpu% | RAM:$ram% | TEMP:$temp°C "
+    $l2 = " OS:$os | CPU:$cpu% | RAM:$ram% | TEMP:$temp C "
 
     $l1 = $l1.PadRight($HeaderWidth).Substring(0,$HeaderWidth)
     $l2 = $l2.PadRight($HeaderWidth).Substring(0,$HeaderWidth)
@@ -109,7 +109,7 @@ function Draw-Header {
     [Console]::SetCursorPosition(0,0)
     Write-Host $l1 -ForegroundColor Cyan
     Write-Host $l2 -ForegroundColor DarkGray
-    Write-Host ("".PadRight($HeaderWidth,"─")) -ForegroundColor DarkGray
+    Write-Host ("".PadRight($HeaderWidth, '-')) -ForegroundColor DarkGray
 }
 
 # ==========================================================
@@ -129,7 +129,7 @@ $MenuItems = @(
 )
 
 # ==========================================================
-# RENDER MENU
+# RENDER MENU (SAFE ASCII)
 # ==========================================================
 function Render-MainMenu {
     param($SelectedIndex)
@@ -151,11 +151,11 @@ function Render-MainMenu {
     }
 
     Write-Host "+------------------------------+------------------------------+" -ForegroundColor DarkGray
-    Write-Host " ↑ ↓ Navigate | Enter Select | Number Direct" -ForegroundColor DarkGray
+    Write-Host " UP/DOWN Navigate | ENTER Select | Number Direct" -ForegroundColor DarkGray
 }
 
 # ==========================================================
-# MAIN LOOP (REAL-TIME, HEADER AUTO REFRESH)
+# MAIN LOOP (REAL-TIME HEADER)
 # ==========================================================
 Clear-Host
 $SelectedIndex = 0
