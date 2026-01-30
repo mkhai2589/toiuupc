@@ -1,6 +1,6 @@
 # ==================================================
 # bootstrap.ps1
-# PMK Toolbox – ToiUuPC Bootstrap (CLEAN VERSION)
+# PMK Toolbox – ToiUuPC Bootstrap FINAL
 # ==================================================
 
 chcp 65001 | Out-Null
@@ -26,9 +26,7 @@ function Test-IsAdmin {
         $id = [Security.Principal.WindowsIdentity]::GetCurrent()
         $p  = New-Object Security.Principal.WindowsPrincipal($id)
         return $p.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-    } catch {
-        return $false
-    }
+    } catch { return $false }
 }
 
 if (-not (Test-IsAdmin)) {
@@ -40,16 +38,12 @@ if (-not (Test-IsAdmin)) {
 # GIT CHECK
 # ==================================================
 function Test-Git {
-    try {
-        git --version *> $null
-        return $true
-    } catch {
-        return $false
-    }
+    try { git --version *> $null; return $true }
+    catch { return $false }
 }
 
 # ==================================================
-# PREPARE FOLDER
+# PREPARE DIR
 # ==================================================
 if (-not (Test-Path $TargetDir)) {
     New-Item -ItemType Directory -Path $TargetDir -Force | Out-Null
@@ -68,23 +62,20 @@ if (Test-Git) {
 
     if (Test-Path (Join-Path $TargetDir ".git")) {
         Push-Location $TargetDir
-        git pull --rebase
+        git pull --rebase *> $null
         Pop-Location
-    }
-    else {
-        git clone $RepoUrl $TargetDir
+    } else {
+        git clone $RepoUrl $TargetDir *> $null
     }
 
-}
-else {
+} else {
 
     Write-Host "Git not found – downloading ZIP..." -ForegroundColor Yellow
 
     $zipFile = Join-Path $env:TEMP "toiuupc.zip"
     $extract = Join-Path $env:TEMP "toiuupc_extract"
 
-    if (Test-Path $zipFile)  { Remove-Item $zipFile  -Force }
-    if (Test-Path $extract)  { Remove-Item $extract  -Recurse -Force }
+    Remove-Item $zipFile,$extract -Force -Recurse -ErrorAction SilentlyContinue
 
     Invoke-WebRequest -Uri $ZipUrl -OutFile $zipFile -UseBasicParsing
     Expand-Archive -Path $zipFile -DestinationPath $extract -Force
@@ -94,21 +85,15 @@ else {
 }
 
 # ==================================================
-# VERIFY MAIN SCRIPT
+# VERIFY & LAUNCH
 # ==================================================
 if (-not (Test-Path $MainFile)) {
     Write-Host "ERROR: ToiUuPC.ps1 not found!" -ForegroundColor Red
     exit 1
 }
 
-# ==================================================
-# LAUNCH
-# ==================================================
 Write-Host ""
 Write-Host "Launching PMK Toolbox..." -ForegroundColor Green
 Set-Location $TargetDir
 
-powershell.exe `
-    -NoProfile `
-    -ExecutionPolicy Bypass `
-    -File $MainFile
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File $MainFile
