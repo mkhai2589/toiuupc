@@ -70,26 +70,28 @@ function Show-MainMenu {
 
     Clear-Screen
 
-    Show-PMKLogo
+    if (Get-Command Show-PMKLogo -ErrorAction SilentlyContinue) {
+        Show-PMKLogo
+    }
 
-    Write-Host " PMK TOOLBOX - Toi Uu Windows" -ForegroundColor Cyan
+    Write-Host " PMK TOOLBOX – TOI UU WINDOWS" -ForegroundColor Cyan
     Write-Host " Author : MINH KHAI" -ForegroundColor DarkGray
     Write-Host ""
 
-    Write-Host "+---------------------------+---------------------------+" -ForegroundColor DarkGray
-    Write-Host "|  SYSTEM TWEAK             |  INSTALLER               |" -ForegroundColor Gray
-    Write-Host "|---------------------------|---------------------------|" -ForegroundColor DarkGray
-    Write-Host "| [01] Windows Tweaks       | [51] Applications        |" -ForegroundColor White
-    Write-Host "| [02] DNS Management       |                           |" -ForegroundColor White
-    Write-Host "| [03] Clean System         |                           |" -ForegroundColor White
-    Write-Host "+---------------------------+---------------------------+" -ForegroundColor DarkGray
+    Write-Host "+------------------------------+------------------------------+" -ForegroundColor DarkGray
+    Write-Host "|  SYSTEM / NETWORK            |  INSTALLER                  |" -ForegroundColor Gray
+    Write-Host "|------------------------------|------------------------------|" -ForegroundColor DarkGray
+    Write-Host "| [01] Windows Tweaks          | [51] Applications            |" -ForegroundColor White
+    Write-Host "| [02] DNS Management          |                              |" -ForegroundColor White
+    Write-Host "| [03] Clean System            |                              |" -ForegroundColor White
+    Write-Host "+------------------------------+------------------------------+" -ForegroundColor DarkGray
 
     Write-Host ""
-    Write-Host "+---------------------------+---------------------------+" -ForegroundColor DarkGray
-    Write-Host "|  OTHER / INFO             |  EXIT                    |" -ForegroundColor Gray
-    Write-Host "|---------------------------|---------------------------|" -ForegroundColor DarkGray
-    Write-Host "| [21] Reload Config        | [00] Exit                 |" -ForegroundColor White
-    Write-Host "+---------------------------+---------------------------+" -ForegroundColor DarkGray
+    Write-Host "+------------------------------+------------------------------+" -ForegroundColor DarkGray
+    Write-Host "|  OTHER                       |  EXIT                       |" -ForegroundColor Gray
+    Write-Host "|------------------------------|------------------------------|" -ForegroundColor DarkGray
+    Write-Host "| [21] Reload Config           | [00] Exit                    |" -ForegroundColor White
+    Write-Host "+------------------------------+------------------------------+" -ForegroundColor DarkGray
 }
 
 # ==========================================================
@@ -98,56 +100,34 @@ function Show-MainMenu {
 while ($true) {
 
     Show-MainMenu
-    $choice = Read-Choice "Select option"
+    $choice = Read-Host "Select option"
 
     switch ($choice) {
 
-        "1" {
-            Invoke-TweaksMenu -Config $TweaksConfig
-        }
+        "1"  { Invoke-TweaksMenu -Config $TweaksConfig }
+        "01" { Invoke-TweaksMenu -Config $TweaksConfig }
 
-        "01" {
-            Invoke-TweaksMenu -Config $TweaksConfig
-        }
+        "2"  { Invoke-DnsMenu -ConfigPath (Join-Path $ConfigDir "dns.json") }
+        "02" { Invoke-DnsMenu -ConfigPath (Join-Path $ConfigDir "dns.json") }
 
-        "2" {
-            Invoke-DnsMenu -ConfigPath (Join-Path $ConfigDir "dns.json")
-        }
+        "3"  { Invoke-CleanSystem }
+        "03" { Invoke-CleanSystem }
 
-        "02" {
-            Invoke-DnsMenu -ConfigPath (Join-Path $ConfigDir "dns.json")
-        }
-
-        "3" {
-            Invoke-CleanSystem
-        }
-
-        "03" {
-            Invoke-CleanSystem
-        }
-
-        "51" {
-            Invoke-AppMenu -Config $AppsConfig
-        }
+        "51" { Invoke-AppMenu -Config $AppsConfig }
 
         "21" {
             $TweaksConfig = Load-JsonFile (Join-Path $ConfigDir "tweaks.json")
             $AppsConfig   = Load-JsonFile (Join-Path $ConfigDir "applications.json")
             $DnsConfig    = Load-JsonFile (Join-Path $ConfigDir "dns.json")
-            Write-Host "Config reloaded." -ForegroundColor Green
+            Write-Host "Config reloaded successfully." -ForegroundColor Green
             Start-Sleep 1
         }
 
-        "0" {
-            break
-        }
-
-        "00" {
-            break
-        }
+        "0"  { break }
+        "00" { break }
 
         default {
-            Write-Host "Invalid option" -ForegroundColor Yellow
+            Write-Host "Invalid option." -ForegroundColor Yellow
             Start-Sleep 1
         }
     }
