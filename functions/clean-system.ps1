@@ -1,13 +1,15 @@
 # ============================================================
 # PMK TOOLBOX - CLEAN SYSTEM
 # Author : Minh Khai
-# Compatible: Windows 10 / Windows 11
+# Target : Windows 10 / Windows 11
 # ============================================================
 
 Set-StrictMode -Off
 $ErrorActionPreference = "Continue"
 
-# ------------------------------------------------------------
+# ============================================================
+# CLEAN TEMP FILES
+# ============================================================
 function Clear-TempFolders {
 
     Write-Host "[CLEAN] Temporary files" -ForegroundColor Cyan
@@ -25,7 +27,9 @@ function Clear-TempFolders {
     }
 }
 
-# ------------------------------------------------------------
+# ============================================================
+# CLEAN WINDOWS UPDATE CACHE
+# ============================================================
 function Clear-WindowsUpdateCache {
 
     Write-Host "[CLEAN] Windows Update cache" -ForegroundColor Cyan
@@ -42,18 +46,23 @@ function Clear-WindowsUpdateCache {
     } catch {}
 }
 
-# ------------------------------------------------------------
+# ============================================================
+# CLEAN PREFETCH
+# ============================================================
 function Clear-Prefetch {
 
     Write-Host "[CLEAN] Prefetch data" -ForegroundColor Cyan
 
     try {
-        Remove-Item "$env:WINDIR\Prefetch\*" -Force -ErrorAction SilentlyContinue
+        Remove-Item "$env:WINDIR\Prefetch\*" `
+            -Recurse -Force -ErrorAction SilentlyContinue
     } catch {}
 }
 
-# ------------------------------------------------------------
-function Clear-RecycleBin {
+# ============================================================
+# CLEAN RECYCLE BIN
+# ============================================================
+function Clear-RecycleBinData {
 
     Write-Host "[CLEAN] Recycle Bin" -ForegroundColor Cyan
 
@@ -62,7 +71,9 @@ function Clear-RecycleBin {
     } catch {}
 }
 
-# ------------------------------------------------------------
+# ============================================================
+# CLEAN EVENT LOGS
+# ============================================================
 function Clear-EventLogs {
 
     Write-Host "[CLEAN] Event Logs" -ForegroundColor Cyan
@@ -74,7 +85,9 @@ function Clear-EventLogs {
     } catch {}
 }
 
-# ------------------------------------------------------------
+# ============================================================
+# CLEAN DNS CACHE
+# ============================================================
 function Clear-DNSCache {
 
     Write-Host "[CLEAN] DNS Cache" -ForegroundColor Cyan
@@ -84,7 +97,9 @@ function Clear-DNSCache {
     } catch {}
 }
 
-# ------------------------------------------------------------
+# ============================================================
+# MAIN ENTRY - CALLED BY ToiUuPC.ps1
+# ============================================================
 function Invoke-CleanSystem {
 
     Clear-Host
@@ -96,7 +111,7 @@ function Invoke-CleanSystem {
     Clear-TempFolders
     Clear-WindowsUpdateCache
     Clear-Prefetch
-    Clear-RecycleBin
+    Clear-RecycleBinData
     Clear-EventLogs
     Clear-DNSCache
 
