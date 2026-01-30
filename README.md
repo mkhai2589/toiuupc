@@ -37,10 +37,12 @@
 
 ## 🚀 Cách sử dụng
 
-
 🛠️ Biên dịch thành EXE
 # Chạy script biên dịch
 .\Compile.ps1
 
 # File EXE sẽ được tạo: ToiUuPC.exe
 # Có thể chạy trực tiếp mà không cần PowerShell
+
+
+dsdsds
