@@ -64,26 +64,51 @@ if (-not $TweaksConfig -or -not $AppsConfig -or -not $DnsConfig) {
 }
 
 # ==========================================================
+# HEADER STATUS DASHBOARD
+# ==========================================================
+function Show-HeaderStatus {
+
+    $user  = $env:USERNAME
+    $os    = (Get-CimInstance Win32_OperatingSystem).Caption
+    $time  = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    $admin = if ([Security.Principal.WindowsPrincipal] `
+        [Security.Principal.WindowsIdentity]::GetCurrent()
+        .IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+        "ADMIN"
+    } else {
+        "USER"
+    }
+
+    $net = "OFFLINE"
+    if (Get-NetAdapter | Where-Object { $_.Status -eq "Up" }) {
+        $net = "ONLINE"
+    }
+
+    Write-Host " USER:$user | OS:$os" -ForegroundColor Cyan
+    Write-Host " NET:$net | MODE:$admin | TIME:$time" -ForegroundColor DarkGray
+    Write-Host ""
+}
+
+# ==========================================================
 # MENU DATA
 # ==========================================================
 $MenuItems = @(
-    @{ Key = "01"; Text = "Windows Tweaks";      Action = { Invoke-TweaksMenu -Config $TweaksConfig } },
-    @{ Key = "02"; Text = "DNS Management";      Action = { Invoke-DnsMenu -ConfigPath (Join-Path $ConfigDir "dns.json") } },
-    @{ Key = "03"; Text = "Clean System";        Action = { Invoke-CleanSystem } },
-    @{ Key = "51"; Text = "Applications";        Action = { Invoke-AppMenu -Config $AppsConfig } },
-    @{ Key = "21"; Text = "Reload Config";       Action = {
-            $TweaksConfig = Load-JsonFile (Join-Path $ConfigDir "tweaks.json")
-            $AppsConfig   = Load-JsonFile (Join-Path $ConfigDir "applications.json")
-            $DnsConfig    = Load-JsonFile (Join-Path $ConfigDir "dns.json")
-            Write-Host "Config reloaded successfully." -ForegroundColor Green
-            Start-Sleep 1
-        }
-    },
-    @{ Key = "00"; Text = "Exit";                Action = { $script:ExitMenu = $true } }
+    @{ Key = "01"; Text = "Windows Tweaks"; Action = { Invoke-TweaksMenu -Config $TweaksConfig } },
+    @{ Key = "02"; Text = "DNS Management"; Action = { Invoke-DnsMenu -ConfigPath (Join-Path $ConfigDir "dns.json") } },
+    @{ Key = "03"; Text = "Clean System";   Action = { Invoke-CleanSystem } },
+    @{ Key = "51"; Text = "Applications";   Action = { Invoke-AppMenu -Config $AppsConfig } },
+    @{ Key = "21"; Text = "Reload Config";  Action = {
+        $TweaksConfig = Load-JsonFile (Join-Path $ConfigDir "tweaks.json")
+        $AppsConfig   = Load-JsonFile (Join-Path $ConfigDir "applications.json")
+        $DnsConfig    = Load-JsonFile (Join-Path $ConfigDir "dns.json")
+        Write-Host "Config reloaded successfully." -ForegroundColor Green
+        Start-Sleep 1
+    }},
+    @{ Key = "00"; Text = "Exit"; Action = { $script:ExitMenu = $true } }
 )
 
 # ==========================================================
-# RENDER MENU
+# RENDER MENU (GHOST STYLE)
 # ==========================================================
 function Render-MainMenu {
     param ($SelectedIndex)
@@ -94,9 +119,7 @@ function Render-MainMenu {
         Show-PMKLogo
     }
 
-    Write-Host " PMK TOOLBOX – TOI UU WINDOWS" -ForegroundColor Cyan
-    Write-Host " Author : MINH KHAI" -ForegroundColor DarkGray
-    Write-Host ""
+    Show-HeaderStatus
 
     Write-Host "+------------------------------+------------------------------+" -ForegroundColor DarkGray
     Write-Host "|  SYSTEM / TOOLS              |  ACTION                     |" -ForegroundColor Gray
@@ -104,20 +127,17 @@ function Render-MainMenu {
 
     for ($i = 0; $i -lt $MenuItems.Count; $i++) {
         $item = $MenuItems[$i]
-
         $line = "| [{0}] {1,-22} |                              |" -f $item.Key, $item.Text
 
         if ($i -eq $SelectedIndex) {
             Write-Host $line -ForegroundColor Black -BackgroundColor Cyan
-        }
-        else {
+        } else {
             Write-Host $line -ForegroundColor White
         }
     }
 
     Write-Host "+------------------------------+------------------------------+" -ForegroundColor DarkGray
-    Write-Host ""
-    Write-Host " ↑ ↓ : Navigate   |  Enter : Select   |  Number : Direct select" -ForegroundColor DarkGray
+    Write-Host " ↑ ↓ Navigate | Enter Select | Number Direct" -ForegroundColor DarkGray
 }
 
 # ==========================================================
@@ -130,38 +150,24 @@ $NumberBuffer = ""
 while (-not $ExitMenu) {
 
     Render-MainMenu -SelectedIndex $SelectedIndex
-
     $key = [Console]::ReadKey($true)
 
     switch ($key.Key) {
 
-        'UpArrow' {
-            if ($SelectedIndex -gt 0) { $SelectedIndex-- }
-        }
-
-        'DownArrow' {
-            if ($SelectedIndex -lt ($MenuItems.Count - 1)) { $SelectedIndex++ }
-        }
-
-        'Enter' {
-            & $MenuItems[$SelectedIndex].Action
-        }
+        'UpArrow'   { if ($SelectedIndex -gt 0) { $SelectedIndex-- } }
+        'DownArrow' { if ($SelectedIndex -lt ($MenuItems.Count - 1)) { $SelectedIndex++ } }
+        'Enter'     { & $MenuItems[$SelectedIndex].Action }
 
         default {
             if ($key.KeyChar -match '\d') {
                 $NumberBuffer += $key.KeyChar
-
                 $match = $MenuItems | Where-Object { $_.Key -eq $NumberBuffer }
                 if ($match) {
                     & $match.Action
                     $NumberBuffer = ""
                 }
-
-                if ($NumberBuffer.Length -ge 2) {
-                    $NumberBuffer = ""
-                }
-            }
-            else {
+                if ($NumberBuffer.Length -ge 2) { $NumberBuffer = "" }
+            } else {
                 $NumberBuffer = ""
             }
         }
