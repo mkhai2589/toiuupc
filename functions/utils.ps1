@@ -2,6 +2,7 @@
 # utils.ps1
 # PMK TOOLBOX – Core Utilities (FINAL)
 # Author: Minh Khai
+# Compatible: Windows 10 / Windows 11 (PowerShell 5.1)
 # =====================================================
 
 Set-StrictMode -Off
@@ -130,11 +131,11 @@ function Test-Network {
 }
 
 # =====================================================
-# SYSTEM INFO
+# SYSTEM INFO (USED BY HEADER)
 # =====================================================
 function Get-SystemInfo {
 
-    $os = Get-CimInstance Win32_OperatingSystem
+    $os  = Get-CimInstance Win32_OperatingSystem
     $ver = Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion"
 
     return @{
@@ -145,33 +146,35 @@ function Get-SystemInfo {
         Build    = $os.BuildNumber
         Admin    = if (Test-IsAdmin) { "YES" } else { "NO" }
         Net      = if (Test-Network) { "OK" } else { "OFF" }
-        TZ       = "UTC$([int](Get-TimeZone).BaseUtcOffset.TotalHours)"
+        Time     = (Get-Date).ToString("HH:mm:ss")
     }
 }
 
 # =====================================================
-# HEADER RENDER (STATUS DASHBOARD)
+# HEADER RENDER (FIXED WIDTH – NO SIDE EFFECT)
 # =====================================================
 function Show-Header {
 
     $i = Get-SystemInfo
+    $w = $Global:UI.Width
 
-    $line = "+" + ("=" * $Global:UI.Width) + "+"
+    $line = "+" + ("=" * $w) + "+"
 
     Write-Host $line -ForegroundColor $Global:UI.Border
 
-    $text = "USER: $($i.User) | PC: $($i.Computer) | OS: $($i.OS) $($i.Version) ($($i.Build)) | NET: $($i.Net) | ADMIN: $($i.Admin) | TIME: $($i.TZ)"
-    if ($text.Length -gt $Global:UI.Width) {
-        $text = $text.Substring(0, $Global:UI.Width)
+    $text = "USER: $($i.User) | PC: $($i.Computer) | OS: $($i.OS) $($i.Version) ($($i.Build)) | NET: $($i.Net) | ADMIN: $($i.Admin) | TIME: $($i.Time)"
+
+    if ($text.Length -gt $w) {
+        $text = $text.Substring(0, $w)
     }
 
-    Write-Host ("|{0,-$($Global:UI.Width)}|" -f $text) -ForegroundColor $Global:UI.Header
+    Write-Host ("|{0,-$w}|" -f $text) -ForegroundColor $Global:UI.Header
     Write-Host $line -ForegroundColor $Global:UI.Border
     Write-Host ""
 }
 
 # =====================================================
-# SAFE CLEAR
+# SAFE CLEAR (HEADER AWARE)
 # =====================================================
 function Clear-Screen {
     Clear-Host
@@ -179,7 +182,7 @@ function Clear-Screen {
 }
 
 # =====================================================
-# JSON LOADER
+# JSON LOADER (USED BY ALL MODULES)
 # =====================================================
 function Load-JsonFile {
     param([Parameter(Mandatory)][string]$Path)
@@ -198,7 +201,7 @@ function Load-JsonFile {
 }
 
 # =====================================================
-# INPUT / PAUSE / KEY
+# INPUT / KEY / PAUSE
 # =====================================================
 function Pause {
     Write-Host ""
