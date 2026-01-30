@@ -192,18 +192,21 @@ function Test-Network {
 function Load-JsonFile {
     param([Parameter(Mandatory)][string]$Path)
 
+    $name = Split-Path $Path -Leaf
+    $key  = "JSON_" + ($name -replace '\.','_')
+
+    if (Get-Variable -Name $key -Scope Global -ErrorAction SilentlyContinue) {
+        return (Get-Variable $key -Scope Global).Value | ConvertFrom-Json
+    }
+
     if (-not (Test-Path $Path)) {
         Write-Host "ERROR: Missing config file: $Path" -ForegroundColor Red
         return $null
     }
 
-    try {
-        return Get-Content $Path -Raw -Encoding UTF8 | ConvertFrom-Json
-    } catch {
-        Write-Host "ERROR: Invalid JSON: $Path" -ForegroundColor Red
-        return $null
-    }
+    return Get-Content $Path -Raw -Encoding UTF8 | ConvertFrom-Json
 }
+
 
 # =====================================================
 # REGISTRY HELPER
