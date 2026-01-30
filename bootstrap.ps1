@@ -1,30 +1,56 @@
-# bootstrap.ps1 - Sửa lỗi load đỏ
+# ==================================================
+# bootstrap.ps1
+# PMK TOOLBOX – ToiUuPC Bootstrap (SIMPLE VERSION)
+# Author: Minh Khai
+# ==================================================
+
+# Suppress errors and warnings during bootstrap
+$ErrorActionPreference = "SilentlyContinue"
+$WarningPreference = "SilentlyContinue"
+
 chcp 65001 | Out-Null
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-Set-StrictMode -Off
-$ErrorActionPreference = 'SilentlyContinue'
-$WarningPreference = 'SilentlyContinue'
 
+Set-StrictMode -Off
+$ProgressPreference = "SilentlyContinue"
+
+# ==================================================
+# CONFIG
+# ==================================================
 $RepoUrl   = "https://github.com/mkhai2589/toiuupc"
 $ZipUrl    = "https://github.com/mkhai2589/toiuupc/archive/refs/heads/main.zip"
 $BaseDir   = Join-Path $env:TEMP "ToiUuPC"
 $MainFile  = Join-Path $BaseDir "ToiUuPC.ps1"
+
+# ==================================================
+# FUNCTIONS
+# ==================================================
 
 function Test-IsAdmin {
     try {
         $id = [Security.Principal.WindowsIdentity]::GetCurrent()
         $p  = New-Object Security.Principal.WindowsPrincipal($id)
         return $p.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-    } catch { return $false }
+    } catch {
+        return $false
+    }
 }
 
 function Relaunch-AsAdmin {
-    Write-Host "Relaunching as Administrator..." -ForegroundColor Yellow
+    Write-Host "Khoi dong lai voi quyen Administrator..." -ForegroundColor Yellow
+
     $psi = New-Object System.Diagnostics.ProcessStartInfo
     $psi.FileName = "powershell.exe"
-    $psi.Arguments = "-NoProfile -ExecutionPolicy Bypass -Command `"irm $($MyInvocation.MyCommand.Source) | iex`""
+    # Sửa lỗi: dùng đường dẫn script hiện tại, không phải tải từ internet
+    $scriptPath = $MyInvocation.MyCommand.Path
+    $psi.Arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`""
     $psi.Verb = "runas"
-    [System.Diagnostics.Process]::Start($psi) | Out-Null
+
+    try {
+        [System.Diagnostics.Process]::Start($psi) | Out-Null
+    } catch {
+        Write-Host "Ban da huy yeu cau chay voi quyen Administrator." -ForegroundColor Red
+    }
     exit
 }
 
@@ -32,15 +58,19 @@ function Test-Git {
     try {
         git --version *> $null
         return $true
-    } catch { return $false }
+    } catch {
+        return $false
+    }
 }
 
 function Clean-Folder {
     param([string]$Path)
+
     if (Test-Path $Path) {
-        Write-Host "Cleaning folder: $Path" -ForegroundColor DarkYellow
+        Write-Host "Dang xoa thu muc cu: $Path" -ForegroundColor DarkYellow
         Remove-Item $Path -Recurse -Force -ErrorAction SilentlyContinue
     }
+
     New-Item -ItemType Directory -Path $Path -Force | Out-Null
 }
 
@@ -50,41 +80,85 @@ function Write-Step {
     Write-Host "==> $Text" -ForegroundColor Cyan
 }
 
-# Admin check
+# ==================================================
+# ADMIN CHECK
+# ==================================================
 if (-not (Test-IsAdmin)) {
     Relaunch-AsAdmin
+    # Nếu không thành công, chương trình đã thoát
+    exit
 }
 
+# ==================================================
+# START
+# ==================================================
 Clear-Host
 Write-Host "PMK TOOLBOX – ToiUuPC Bootstrap" -ForegroundColor Green
 Write-Host "Author: Minh Khai"
-Write-Host "Target: $BaseDir"
+Write-Host "Thu muc: $BaseDir"
 Write-Host ""
 
-# Prepare folder
-Write-Step "Prepare working directory"
+# ==================================================
+# PREPARE FOLDER
+# ==================================================
+Write-Step "Chuan bi thu muc lam viec"
 Clean-Folder $BaseDir
 
-# Install / Update
+# ==================================================
+# INSTALL / UPDATE
+# ==================================================
 if (Test-Git) {
-    Write-Step "Git detected – cloning repository"
+    Write-Step "Phat hien Git – dang clone repository"
     git clone $RepoUrl $BaseDir 2>$null
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "Clone that bai. Thu phuong phap ZIP." -ForegroundColor Red
+        $useGit = $false
+    } else {
+        $useGit = $true
+    }
 } else {
-    Write-Step "Git not found – downloading ZIP"
-    $zipFile = Join-Path $env:TEMP "toiuupc.zip"
-    $extract = Join-Path $env:TEMP "toiuupc_extract"
-    if (Test-Path $zipFile) { Remove-Item $zipFile -Force }
-    if (Test-Path $extract) { Remove-Item $extract -Recurse -Force }
-    Write-Host "Downloading ZIP..." -ForegroundColor Gray
-    Invoke-WebRequest -Uri $ZipUrl -OutFile $zipFile -UseBasicParsing
-    Write-Host "Extracting..." -ForegroundColor Gray
-    Expand-Archive -Path $zipFile -DestinationPath $extract -Force
-    $src = Get-ChildItem $extract | Select-Object -First 1
-    Copy-Item "$($src.FullName)\*" $BaseDir -Recurse -Force
+    $useGit = $false
 }
 
-# Verify structure
-Write-Step "Verify project structure"
+if (-not $useGit) {
+    Write-Step "Git khong co san – dang tai ZIP"
+
+    $zipFile = Join-Path $env:TEMP "toiuupc.zip"
+    $extract = Join-Path $env:TEMP "toiuupc_extract"
+
+    if (Test-Path $zipFile) { Remove-Item $zipFile -Force }
+    if (Test-Path $extract) { Remove-Item $extract -Recurse -Force }
+
+    Write-Host "Dang tai ZIP..." -ForegroundColor Gray
+    try {
+        Invoke-WebRequest -Uri $ZipUrl -OutFile $zipFile -UseBasicParsing -ErrorAction Stop
+    } catch {
+        Write-Host "Tai ZIP that bai: $_" -ForegroundColor Red
+        exit 1
+    }
+
+    Write-Host "Dang giai nen..." -ForegroundColor Gray
+    try {
+        Expand-Archive -Path $zipFile -DestinationPath $extract -Force -ErrorAction Stop
+    } catch {
+        Write-Host "Giai nen ZIP that bai: $_" -ForegroundColor Red
+        exit 1
+    }
+
+    $src = Get-ChildItem $extract | Select-Object -First 1
+    if ($src) {
+        Copy-Item "$($src.FullName)\*" $BaseDir -Recurse -Force
+    } else {
+        Write-Host "Khong tim thay noi dung trong file ZIP." -ForegroundColor Red
+        exit 1
+    }
+}
+
+# ==================================================
+# VERIFY STRUCTURE
+# ==================================================
+Write-Step "Kiem tra cau truc du an"
+
 $required = @(
     "ToiUuPC.ps1",
     "functions\utils.ps1",
@@ -96,20 +170,33 @@ $required = @(
     "config\dns.json",
     "config\tweaks.json"
 )
+
 $missing = @()
+
 foreach ($file in $required) {
     if (-not (Test-Path (Join-Path $BaseDir $file))) {
         $missing += $file
     }
 }
+
 if ($missing.Count -gt 0) {
-    Write-Host "ERROR: Missing files:" -ForegroundColor Red
-    $missing | ForEach-Object { Write-Host " - $_" -ForegroundColor Red }
+    Write-Host "LOI: Thieu cac file sau:" -ForegroundColor Red
+    $missing | ForEach-Object {
+        Write-Host " - $_" -ForegroundColor Red
+    }
     exit 1
 }
-Write-Host "All required files verified." -ForegroundColor Green
 
-# Launch main tool
-Write-Step "Launching PMK Toolbox"
+Write-Host "Tat ca file can thiet da san sang." -ForegroundColor Green
+
+# ==================================================
+# LAUNCH MAIN TOOL
+# ==================================================
+Write-Step "Khoi dong PMK Toolbox"
+
 Set-Location $BaseDir
+
+# Chạy main script
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File $MainFile
+
+# Khi main script thoát, chương trình kết thúc.
