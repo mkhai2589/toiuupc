@@ -1,39 +1,157 @@
-# ==================================================
-# ToiUuPC.ps1 – MAIN (FINAL)
-# ==================================================
+# ==========================================================
+# ToiUuPC.ps1
+# PMK TOOLBOX – Toi Uu Windows
+# Author: Minh Khai
+# ==========================================================
+
+chcp 65001 | Out-Null
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 Set-StrictMode -Off
-$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Continue"
 
-$base = $PSScriptRoot
-. "$base\functions\utils.ps1"
-. "$base\functions\Show-PMKLogo.ps1"
-. "$base\functions\tweaks.ps1"
-. "$base\functions\install-apps.ps1"
-. "$base\functions\dns-management.ps1"
-. "$base\functions\clean-system.ps1"
+# ==========================================================
+# ROOT
+# ==========================================================
+$ScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 
-Assert-Admin
+# ==========================================================
+# LOAD CORE UTILS FIRST
+# ==========================================================
+$utilsPath = Join-Path $ScriptRoot "functions\utils.ps1"
+if (-not (Test-Path $utilsPath)) {
+    Write-Host "ERROR: utils.ps1 not found" -ForegroundColor Red
+    exit 1
+}
+. $utilsPath
 
-while ($true) {
+Ensure-Admin
 
-    Clear-Host
-    Show-PMKLogo
+# ==========================================================
+# LOAD ALL FUNCTION MODULES
+# ==========================================================
+$FunctionFiles = @(
+    "Show-PMKLogo.ps1",
+    "tweaks.ps1",
+    "install-apps.ps1",
+    "dns-management.ps1",
+    "clean-system.ps1"
+)
 
-    Write-Host ""
-    Write-Host "1. Windows Tweaks"
-    Write-Host "2. Install Applications"
-    Write-Host "3. DNS Management"
-    Write-Host "4. Clean System"
-    Write-Host "0. Exit"
-
-    $c = Read-Host "Select"
-
-    switch ($c) {
-        "1" { Run-WindowsTweaks }
-        "2" { Run-InstallApps }
-        "3" { Run-DNSManagement }
-        "4" { Run-CleanSystem }
-        "0" { exit }
+foreach ($file in $FunctionFiles) {
+    $path = Join-Path $ScriptRoot "functions\$file"
+    if (Test-Path $path) {
+        . $path
+    }
+    else {
+        Write-Host "ERROR: Missing function file: $file" -ForegroundColor Red
+        exit 1
     }
 }
+
+# ==========================================================
+# LOAD CONFIG FILES
+# ==========================================================
+$ConfigDir = Join-Path $ScriptRoot "config"
+
+$TweaksConfig = Load-JsonFile (Join-Path $ConfigDir "tweaks.json")
+$AppsConfig   = Load-JsonFile (Join-Path $ConfigDir "applications.json")
+$DnsConfig    = Load-JsonFile (Join-Path $ConfigDir "dns.json")
+
+if (-not $TweaksConfig -or -not $AppsConfig -or -not $DnsConfig) {
+    Write-Host "ERROR: One or more config files failed to load" -ForegroundColor Red
+    exit 1
+}
+
+# ==========================================================
+# MENU RENDER
+# ==========================================================
+function Show-MainMenu {
+
+    Clear-Screen
+
+    Show-PMKLogo
+
+    Write-Host " PMK TOOLBOX - Toi Uu Windows" -ForegroundColor Cyan
+    Write-Host " Author : MINH KHAI" -ForegroundColor DarkGray
+    Write-Host ""
+
+    Write-Host "+---------------------------+---------------------------+" -ForegroundColor DarkGray
+    Write-Host "|  SYSTEM TWEAK             |  INSTALLER               |" -ForegroundColor Gray
+    Write-Host "|---------------------------|---------------------------|" -ForegroundColor DarkGray
+    Write-Host "| [01] Windows Tweaks       | [51] Applications        |" -ForegroundColor White
+    Write-Host "| [02] DNS Management       |                           |" -ForegroundColor White
+    Write-Host "| [03] Clean System         |                           |" -ForegroundColor White
+    Write-Host "+---------------------------+---------------------------+" -ForegroundColor DarkGray
+
+    Write-Host ""
+    Write-Host "+---------------------------+---------------------------+" -ForegroundColor DarkGray
+    Write-Host "|  OTHER / INFO             |  EXIT                    |" -ForegroundColor Gray
+    Write-Host "|---------------------------|---------------------------|" -ForegroundColor DarkGray
+    Write-Host "| [21] Reload Config        | [00] Exit                 |" -ForegroundColor White
+    Write-Host "+---------------------------+---------------------------+" -ForegroundColor DarkGray
+}
+
+# ==========================================================
+# MAIN LOOP
+# ==========================================================
+while ($true) {
+
+    Show-MainMenu
+    $choice = Read-Choice "Select option"
+
+    switch ($choice) {
+
+        "1" {
+            Invoke-TweaksMenu -Config $TweaksConfig
+        }
+
+        "01" {
+            Invoke-TweaksMenu -Config $TweaksConfig
+        }
+
+        "2" {
+            Invoke-DnsMenu -ConfigPath (Join-Path $ConfigDir "dns.json")
+        }
+
+        "02" {
+            Invoke-DnsMenu -ConfigPath (Join-Path $ConfigDir "dns.json")
+        }
+
+        "3" {
+            Invoke-CleanSystem
+        }
+
+        "03" {
+            Invoke-CleanSystem
+        }
+
+        "51" {
+            Invoke-AppMenu -Config $AppsConfig
+        }
+
+        "21" {
+            $TweaksConfig = Load-JsonFile (Join-Path $ConfigDir "tweaks.json")
+            $AppsConfig   = Load-JsonFile (Join-Path $ConfigDir "applications.json")
+            $DnsConfig    = Load-JsonFile (Join-Path $ConfigDir "dns.json")
+            Write-Host "Config reloaded." -ForegroundColor Green
+            Start-Sleep 1
+        }
+
+        "0" {
+            break
+        }
+
+        "00" {
+            break
+        }
+
+        default {
+            Write-Host "Invalid option" -ForegroundColor Yellow
+            Start-Sleep 1
+        }
+    }
+}
+
+Clear-Host
+Write-Host "Exit PMK Toolbox." -ForegroundColor Cyan
