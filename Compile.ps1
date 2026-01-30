@@ -1,82 +1,268 @@
-# Compile.ps1 - Kiểm tra và biên dịch
+# =========================================================
+# Compile.ps1 - COMPILE SCRIPT (FINAL PRO)
+# =========================================================
+
 Set-StrictMode -Off
 $ErrorActionPreference = "Stop"
-Write-Host "ToiUuPC Compile Tool – ADVANCED (Freeze JSON)"
-if ($PSVersionTable.PSVersion.Major -ne 5) {
-    Write-Host "ERROR: Please run using Windows PowerShell 5.1"
+
+# =========================================================
+# HEADER
+# =========================================================
+Write-Host "========================================" -ForegroundColor Cyan
+Write-Host "     TOIUUPC COMPILE TOOL               " -ForegroundColor White
+Write-Host "========================================" -ForegroundColor Cyan
+Write-Host "Author: Minh Khai"
+Write-Host "Purpose: Bundle and compile to EXE"
+Write-Host ""
+
+# =========================================================
+# CHECK REQUIREMENTS
+# =========================================================
+Write-Host "[+] Kiem tra yeu cau..." -ForegroundColor Cyan
+
+# Check PowerShell version
+if ($PSVersionTable.PSVersion.Major -lt 5) {
+    Write-Host "[ERROR] Can PowerShell 5.1 tro len!" -ForegroundColor Red
+    Write-Host "  Hien tai: $($PSVersionTable.PSVersion)" -ForegroundColor Yellow
     exit 1
 }
-$Root      = Split-Path -Parent $MyInvocation.MyCommand.Path
-$MainFile  = Join-Path $Root "ToiUuPC.ps1"
-$FuncDir   = Join-Path $Root "functions"
-$UiDir     = Join-Path $Root "ui"
-$ConfigDir = Join-Path $Root "config"
-$BundledPS = Join-Path $Root "ToiUuPC-Bundled.ps1"
-$OutputExe = Join-Path $Root "ToiUuPC.exe"
+
+Write-Host "   => PowerShell: $($PSVersionTable.PSVersion)" -ForegroundColor Green
+
+# =========================================================
+# PATHS CONFIGURATION
+# =========================================================
+$Root = Split-Path -Parent $MyInvocation.MyCommand.Path
+
+$Paths = @{
+    MainFile    = Join-Path $Root "ToiUuPC.ps1"
+    FuncDir     = Join-Path $Root "functions"
+    ConfigDir   = Join-Path $Root "config"
+    BundledFile = Join-Path $Root "ToiUuPC-Bundled.ps1"
+    OutputExe   = Join-Path $Root "ToiUuPC.exe"
+}
+
+Write-Host "[+] Thiet lap duong dan..." -ForegroundColor Cyan
+foreach ($key in $Paths.Keys) {
+    Write-Host "   => $key : $($Paths[$key])" -ForegroundColor Gray
+}
+
+# =========================================================
+# VALIDATE REQUIRED FILES
+# =========================================================
+Write-Host "[+] Kiem tra file can thiet..." -ForegroundColor Cyan
+
 $required = @(
-    $MainFile,
-    "$FuncDir",
-    "$UiDir",
-    "$ConfigDir\applications.json",
-    "$ConfigDir\dns.json",
-    "$ConfigDir\tweaks.json"
+    $Paths.MainFile,
+    $Paths.FuncDir,
+    (Join-Path $Paths.ConfigDir "applications.json"),
+    (Join-Path $Paths.ConfigDir "dns.json"),
+    (Join-Path $Paths.ConfigDir "tweaks.json")
 )
+
+$allFilesExist = $true
 foreach ($r in $required) {
-    if (-not (Test-Path $r)) {
-        Write-Host "ERROR: Missing $r" -ForegroundColor Red
+    if (Test-Path $r) {
+        Write-Host "   => OK: $r" -ForegroundColor Green
+    } else {
+        Write-Host "   => MISSING: $r" -ForegroundColor Red
+        $allFilesExist = $false
+    }
+}
+
+if (-not $allFilesExist) {
+    Write-Host "[ERROR] Thieu file can thiet!" -ForegroundColor Red
+    exit 1
+}
+
+# =========================================================
+# BUILD BUNDLE
+# =========================================================
+Write-Host "[+] Tao bundle script..." -ForegroundColor Cyan
+
+$bundleContent = New-Object System.Collections.Generic.List[string]
+
+# Add header
+$bundleContent.Add("# " + ("=" * 56))
+$bundleContent.Add("# TOIUUPC - AUTO GENERATED BUNDLE")
+$bundleContent.Add("# Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')")
+$bundleContent.Add("# " + ("=" * 56))
+$bundleContent.Add("")
+$bundleContent.Add('Set-StrictMode -Off')
+$bundleContent.Add('$ErrorActionPreference = "SilentlyContinue"')
+$bundleContent.Add('$WarningPreference = "SilentlyContinue"')
+$bundleContent.Add("")
+
+# Embed JSON configurations
+function Add-JsonToBundle {
+    param($Name, $Path)
+    
+    Write-Host "   => Embedding: config\$Name" -ForegroundColor Gray
+    
+    try {
+        $content = Get-Content $Path -Raw -Encoding UTF8
+        $varName = "JSON_$($Name.Replace('.','_'))"
+        
+        $bundleContent.Add("")
+        $bundleContent.Add("# === $Name ===")
+        $bundleContent.Add("`$$varName = @'")
+        $bundleContent.Add($content.Trim())
+        $bundleContent.Add("'@")
+        $bundleContent.Add("")
+    } catch {
+        Write-Host "   => ERROR embedding $Name: $_" -ForegroundColor Red
+        return $false
+    }
+    
+    return $true
+}
+
+Add-JsonToBundle -Name "applications.json" -Path (Join-Path $Paths.ConfigDir "applications.json")
+Add-JsonToBundle -Name "dns.json" -Path (Join-Path $Paths.ConfigDir "dns.json")
+Add-JsonToBundle -Name "tweaks.json" -Path (Join-Path $Paths.ConfigDir "tweaks.json")
+
+# Embed all PowerShell functions
+Write-Host "[+] Embedding functions..." -ForegroundColor Cyan
+
+$bundleContent.Add("# " + ("=" * 56))
+$bundleContent.Add("# FUNCTIONS")
+$bundleContent.Add("# " + ("=" * 56))
+$bundleContent.Add("")
+
+Get-ChildItem $Paths.FuncDir -Filter "*.ps1" | Sort-Object Name | ForEach-Object {
+    Write-Host "   => Embedding: functions\$($_.Name)" -ForegroundColor Gray
+    
+    try {
+        $funcContent = Get-Content $_ -Raw -Encoding UTF8
+        $bundleContent.Add("")
+        $bundleContent.Add("# --- BEGIN $($_.Name) ---")
+        $bundleContent.Add($funcContent)
+        $bundleContent.Add("# --- END $($_.Name) ---")
+        $bundleContent.Add("")
+    } catch {
+        Write-Host "   => ERROR embedding $($_.Name)" -ForegroundColor Red
+    }
+}
+
+# Embed main script
+Write-Host "[+] Embedding main script..." -ForegroundColor Cyan
+
+$bundleContent.Add("# " + ("=" * 56))
+$bundleContent.Add("# MAIN SCRIPT")
+$bundleContent.Add("# " + ("=" * 56))
+$bundleContent.Add("")
+
+try {
+    $mainContent = Get-Content $Paths.MainFile -Raw -Encoding UTF8
+    $bundleContent.Add($mainContent)
+    Write-Host "   => Embedded main script" -ForegroundColor Green
+} catch {
+    Write-Host "   => ERROR embedding main script" -ForegroundColor Red
+    exit 1
+}
+
+# Write bundled file
+Write-Host "[+] Ghi bundle file..." -ForegroundColor Cyan
+
+try {
+    Set-Content -Path $Paths.BundledFile -Value $bundleContent -Encoding UTF8 -Force
+    Write-Host "   => Bundle created: $($Paths.BundledFile)" -ForegroundColor Green
+    Write-Host "   => Kich thuoc: $((Get-Item $Paths.BundledFile).Length / 1KB) KB" -ForegroundColor Gray
+} catch {
+    Write-Host "   => ERROR writing bundle: $_" -ForegroundColor Red
+    exit 1
+}
+
+# =========================================================
+# COMPILE TO EXE
+# =========================================================
+Write-Host "[+] Bien dich sang EXE..." -ForegroundColor Cyan
+
+# Check if ps2exe module is available
+$ps2exeModule = Get-Module -ListAvailable | Where-Object { $_.Name -eq "ps2exe" }
+
+if (-not $ps2exeModule) {
+    Write-Host "   => Cai dat module ps2exe..." -ForegroundColor Yellow
+    
+    try {
+        Install-Module ps2exe -Scope CurrentUser -Force -AllowClobber -ErrorAction Stop
+        Write-Host "   => Cai dat thanh cong!" -ForegroundColor Green
+    } catch {
+        Write-Host "   => ERROR cai dat ps2exe: $_" -ForegroundColor Red
+        Write-Host ""
+        Write-Host "Co the cai dat thu cong:" -ForegroundColor Yellow
+        Write-Host "1. Mo PowerShell voi quyen Administrator" -ForegroundColor Gray
+        Write-Host "2. Chay: Install-Module ps2exe -Force" -ForegroundColor Gray
         exit 1
     }
 }
-Write-Host "Bundling source..."
-$bundle = New-Object System.Collections.Generic.List[string]
-$bundle.Add("# =========================================================")
-$bundle.Add("# ToiUuPC – AUTO GENERATED BUNDLE (FREEZE JSON)")
-$bundle.Add("# =========================================================")
-$bundle.Add("")
-$bundle.Add("Set-StrictMode -Off")
-$bundle.Add('$ErrorActionPreference = "Continue"')
-$bundle.Add("")
-function Embed-Json {
-    param($Name, $Path)
-    Write-Host " + config\$Name"
-    $content = (Get-Content $Path -Raw) -replace "@","@@"
-    $bundle.Add("")
-    $bundle.Add("# ----- EMBED JSON: $Name -----")
-    $bundle.Add("`$Global:JSON_$($Name.Replace('.','_')) = @'")
-    $bundle.Add($content)
-    $bundle.Add("'@")
+
+# Import module
+try {
+    Import-Module ps2exe -Force -ErrorAction Stop
+    Write-Host "   => Import module ps2exe thanh cong" -ForegroundColor Green
+} catch {
+    Write-Host "   => ERROR import ps2exe: $_" -ForegroundColor Red
+    exit 1
 }
-Embed-Json "applications.json" "$ConfigDir\applications.json"
-Embed-Json "dns.json"          "$ConfigDir\dns.json"
-Embed-Json "tweaks.json"       "$ConfigDir\tweaks.json"
-$bundle.Add("")
-$bundle.Add("# ================= FUNCTIONS =================")
-Get-ChildItem $FuncDir -Filter "*.ps1" | Sort-Object Name | ForEach-Object {
-    Write-Host " + functions\$($_.Name)"
-    $bundle.Add("")
-    $bundle.Add("# ----- BEGIN $($_.Name) -----")
-    $bundle.Add((Get-Content $_ -Raw))
-    $bundle.Add("# ----- END $($_.Name) -----")
+
+# Compile with ps2exe
+Write-Host "   => Dang bien dich (co the mat vai giay)..." -ForegroundColor Gray
+
+$compileParams = @{
+    InputFile     = $Paths.BundledFile
+    OutputFile    = $Paths.OutputExe
+    RequireAdmin  = $true
+    NoConsole     = $false
+    Title         = "ToiUuPC"
+    Description   = "PMK Toolbox - Toi Uu Windows"
+    Company       = "PMK"
+    Product       = "ToiUuPC"
+    Version       = "1.0.0"
+    IconFile      = $null  # Add icon path if you have one
 }
-$bundle.Add("")
-$bundle.Add("# ================= UI FILES =================")
-Get-ChildItem $UiDir -Filter "*.xaml" | Sort-Object Name | ForEach-Object {
-    Write-Host " + ui\$($_.Name)"
-    $var = "UI_" + ($_.Name -replace '\.','_')
-    $xaml = (Get-Content $_ -Raw) -replace "@","@@"
-    $bundle.Add("")
-    $bundle.Add("`$Global:$var = @'")
-    $bundle.Add($xaml)
-    $bundle.Add("'@")
+
+try {
+    Invoke-ps2exe @compileParams -ErrorAction Stop
+    Write-Host "   => Bien dich thanh cong!" -ForegroundColor Green
+} catch {
+    Write-Host "   => ERROR bien dich: $_" -ForegroundColor Red
+    exit 1
 }
-$bundle.Add("")
-$bundle.Add("# ================= MAIN SCRIPT =================")
-$bundle.Add((Get-Content $MainFile -Raw))
-Set-Content $BundledPS $bundle -Encoding UTF8
-Write-Host "Bundled script created."
-if (-not (Get-Module -ListAvailable ps2exe)) {
-    Install-Module ps2exe -Scope CurrentUser -Force -AllowClobber
+
+# =========================================================
+# FINAL VERIFICATION
+# =========================================================
+Write-Host ""
+Write-Host "[+] Kiem tra ket qua..." -ForegroundColor Cyan
+
+if (Test-Path $Paths.OutputExe) {
+    $exeInfo = Get-Item $Paths.OutputExe
+    $exeSize = [math]::Round($exeInfo.Length / 1MB, 2)
+    
+    Write-Host "   => File EXE: $($Paths.OutputExe)" -ForegroundColor Green
+    Write-Host "   => Kich thuoc: $exeSize MB" -ForegroundColor Green
+    Write-Host "   => Ngay tao: $($exeInfo.CreationTime)" -ForegroundColor Gray
+} else {
+    Write-Host "   => ERROR: File EXE khong duoc tao!" -ForegroundColor Red
+    exit 1
 }
-Import-Module ps2exe
-Invoke-ps2exe -InputFile $BundledPS -OutputFile $OutputExe -RequireAdmin -NoConsole:$false -Title "ToiUuPC" -Company "PMK" -Product "ToiUuPC"
-Write-Host "DONE"
+
+# =========================================================
+# COMPLETION
+# =========================================================
+Write-Host ""
+Write-Host "========================================" -ForegroundColor Green
+Write-Host "     BIEN DICH HOAN TAT!               " -ForegroundColor White
+Write-Host "========================================" -ForegroundColor Green
+Write-Host ""
+Write-Host "Cac file da tao:" -ForegroundColor Cyan
+Write-Host "  1. $($Paths.BundledFile)" -ForegroundColor Gray
+Write-Host "  2. $($Paths.OutputExe)" -ForegroundColor Gray
+Write-Host ""
+Write-Host "Ban co the:" -ForegroundColor Cyan
+Write-Host "  - Chay ToiUuPC.exe de su dung" -ForegroundColor Gray
+Write-Host "  - Chay ToiUuPC.ps1 de phat trien" -ForegroundColor Gray
+Write-Host "  - Chay bootstrap.ps1 de tai va cap nhat" -ForegroundColor Gray
+Write-Host ""
+Write-Host "Cam on ban da su dung ToiUuPC!" -ForegroundColor Green
