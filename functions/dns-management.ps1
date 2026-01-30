@@ -1,7 +1,7 @@
 # ==========================================================
 # PMK TOOLBOX - DNS MANAGEMENT
 # Author : Minh Khai
-# Compatible: Windows 10 / Windows 11
+# Compatible: Windows 10 / Windows 11 (PowerShell 5.1)
 # ==========================================================
 
 Set-StrictMode -Off
@@ -11,6 +11,7 @@ $ErrorActionPreference = "Continue"
 # GET ACTIVE NETWORK ADAPTER
 # ==========================================================
 function Get-ActiveAdapter {
+
     Get-NetAdapter |
         Where-Object {
             $_.Status -eq "Up" -and $_.HardwareInterface
@@ -34,7 +35,8 @@ function Load-DnsConfig {
 
     try {
         return Get-Content $path -Raw | ConvertFrom-Json
-    } catch {
+    }
+    catch {
         Write-Host "ERROR: Invalid dns.json format!" -ForegroundColor Red
         Read-Host "Press Enter"
         return $null
@@ -42,7 +44,7 @@ function Load-DnsConfig {
 }
 
 # ==========================================================
-# APPLY DNS (IPv4 + IPv6 SAFE)
+# APPLY DNS (IPv4 + IPv6 SAFE – NO AddressFamily)
 # ==========================================================
 function Apply-Dns {
     param(
@@ -50,22 +52,34 @@ function Apply-Dns {
         [object]$Dns
     )
 
-    $servers = @()
+    # ---------- IPv4 ----------
+    $servers4 = @()
 
-    if ($Dns.Primary)   { $servers += $Dns.Primary }
-    if ($Dns.Secondary) { $servers += $Dns.Secondary }
+    if ($Dns.Primary -and $Dns.Primary.Trim() -ne "") {
+        $servers4 += $Dns.Primary
+    }
 
-    if ($servers.Count -gt 0) {
+    if ($Dns.Secondary -and $Dns.Secondary.Trim() -ne "") {
+        $servers4 += $Dns.Secondary
+    }
+
+    if ($servers4.Count -gt 0) {
         Set-DnsClientServerAddress `
             -InterfaceAlias $InterfaceAlias `
-            -ServerAddresses $servers `
+            -ServerAddresses $servers4 `
             -ErrorAction SilentlyContinue
     }
 
-    # IPv6 (nếu có)
+    # ---------- IPv6 ----------
     $servers6 = @()
-    if ($Dns.Primary6)   { $servers6 += $Dns.Primary6 }
-    if ($Dns.Secondary6) { $servers6 += $Dns.Secondary6 }
+
+    if ($Dns.Primary6 -and $Dns.Primary6.Trim() -ne "") {
+        $servers6 += $Dns.Primary6
+    }
+
+    if ($Dns.Secondary6 -and $Dns.Secondary6.Trim() -ne "") {
+        $servers6 += $Dns.Secondary6
+    }
 
     if ($servers6.Count -gt 0) {
         Set-DnsClientServerAddress `
@@ -93,14 +107,20 @@ function Restore-Dhcp {
 function Show-CurrentDns {
     param([string]$InterfaceAlias)
 
-    $dns = Get-DnsClientServerAddress `
-        -InterfaceAlias $InterfaceAlias `
-        -ErrorAction SilentlyContinue
+    try {
+        $dns = Get-DnsClientServerAddress `
+            -InterfaceAlias $InterfaceAlias `
+            -ErrorAction SilentlyContinue
 
-    if (-not $dns.ServerAddresses) {
-        Write-Host "Current DNS : DHCP" -ForegroundColor Green
-    } else {
-        Write-Host "Current DNS : $($dns.ServerAddresses -join ', ')" -ForegroundColor Yellow
+        if (-not $dns.ServerAddresses -or $dns.ServerAddresses.Count -eq 0) {
+            Write-Host "Current DNS : DHCP" -ForegroundColor Green
+        }
+        else {
+            Write-Host "Current DNS : $($dns.ServerAddresses -join ', ')" -ForegroundColor Yellow
+        }
+    }
+    catch {
+        Write-Host "Current DNS : Unknown" -ForegroundColor Red
     }
 }
 
@@ -147,7 +167,9 @@ function Invoke-DnsMenu {
 
         $sel = Read-Host "Select"
 
-        if ($sel -eq "0") { return }
+        if ($sel -eq "0") {
+            return
+        }
 
         if ($map.ContainsKey([int]$sel)) {
 
@@ -156,7 +178,8 @@ function Invoke-DnsMenu {
             if ($name -eq "Default DHCP") {
                 Restore-Dhcp -InterfaceAlias $iface
                 Write-Host "Restored DHCP DNS" -ForegroundColor Green
-            } else {
+            }
+            else {
                 Apply-Dns -InterfaceAlias $iface -Dns $config.$name
                 Write-Host "Applied DNS: $name" -ForegroundColor Green
             }
