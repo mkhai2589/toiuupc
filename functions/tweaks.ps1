@@ -1,15 +1,119 @@
 # ============================================================
-# tweaks.ps1 - WINDOWS TWEAKS ENGINE (FIXED DISPLAY)
+# tweaks.ps1 - WINDOWS TWEAKS ENGINE (FULL FEATURES)
 # ============================================================
 
 Set-StrictMode -Off
 $ErrorActionPreference = "SilentlyContinue"
 
-# ... (giữ nguyên các hàm trước đó)
+# ============================================================
+# CORE TWEAK FUNCTIONS
+# ============================================================
+
+function Test-OSVersion {
+    param([string]$min, [string]$max)
+    
+    $os = [System.Environment]::OSVersion.Version
+    $current = "$($os.Major).$($os.Minor)"
+    
+    try {
+        $currentVer = [version]$current
+        $minVer = [version]$min
+        $maxVer = [version]$max
+        
+        return ($currentVer -ge $minVer -and $currentVer -le $maxVer)
+    } catch {
+        return $false
+    }
+}
+
+function Apply-RegistryTweak {
+    param($t)
+    
+    try {
+        # Tạo registry path nếu không tồn tại
+        if (-not (Test-Path $t.path)) {
+            New-Item -Path $t.path -Force | Out-Null
+            Write-Status "Tao registry path: $($t.path)" -Type 'INFO'
+        }
+        
+        # Đặt giá trị registry
+        Set-ItemProperty -Path $t.path -Name $t.nameReg -Value $t.value -Type $t.regType -Force
+        Write-Status "Set registry: $($t.nameReg) = $($t.value)" -Type 'SUCCESS'
+        return $true
+    } catch {
+        Write-Status "Registry error: $_" -Type 'ERROR'
+        return $false
+    }
+}
+
+function Apply-ServiceTweak {
+    param($t)
+    
+    try {
+        $svc = Get-Service -Name $t.serviceName -ErrorAction SilentlyContinue
+        if (-not $svc) {
+            Write-Status "Service not found: $($t.serviceName)" -Type 'WARNING'
+            return $true
+        }
+        
+        # Dừng service nếu đang chạy
+        Stop-Service $t.serviceName -Force -ErrorAction SilentlyContinue
+        
+        # Đặt startup type
+        Set-Service -Name $t.serviceName -StartupType $t.startup
+        Write-Status "Service configured: $($t.serviceName) -> $($t.startup)" -Type 'SUCCESS'
+        
+        return $true
+    } catch {
+        Write-Status "Service error: $_" -Type 'ERROR'
+        return $false
+    }
+}
+
+function Apply-ScheduledTaskTweak {
+    param($t)
+    
+    try {
+        # Vô hiệu hóa task theo tên
+        if ($t.taskName) {
+            Disable-ScheduledTask -TaskName $t.taskName -ErrorAction SilentlyContinue
+            Write-Status "Task disabled: $($t.taskName)" -Type 'SUCCESS'
+        }
+        
+        # Vô hiệu hóa nhiều tasks
+        if ($t.tasks) {
+            foreach ($task in $t.tasks) {
+                Disable-ScheduledTask -TaskName $task -ErrorAction SilentlyContinue
+                Write-Status "Task disabled: $task" -Type 'SUCCESS'
+            }
+        }
+        
+        return $true
+    } catch {
+        Write-Status "Task error: $_" -Type 'ERROR'
+        return $false
+    }
+}
+
+function Rollback-RegistryTweak {
+    param($t)
+    
+    try {
+        if ($t.rollback.value -ne $null) {
+            Set-ItemProperty -Path $t.path -Name $t.nameReg -Value $t.rollback.value -Type $t.regType -Force
+            Write-Status "Rollback registry: $($t.nameReg) = $($t.rollback.value)" -Type 'INFO'
+        }
+        return $true
+    } catch {
+        Write-Status "Rollback error: $_" -Type 'ERROR'
+        return $false
+    }
+}
 
 function Execute-Tweak {
     param($t, [switch]$Rollback = $false)
     
+    # Hiển thị thông tin chi tiết về tweak
     Write-Host ""
     Write-Host " THONG TIN TWEAK:" -ForegroundColor $global:UI_Colors.Title
     Write-Host "   Ten: $($t.name)" -ForegroundColor $global:UI_Colors.Value
@@ -57,7 +161,10 @@ function Execute-Tweak {
     return $result
 }
 
-# Hàm menu chính cũng cần sửa
+# ============================================================
+# TWEAKS MENU
+# ============================================================
+
 function Show-TweaksMenu {
     param($Config)
     
@@ -68,6 +175,7 @@ function Show-TweaksMenu {
     }
     
     while ($true) {
+        # Xây dựng menu items từ tweaks
         $menuItems = @()
         $index = 1
         
@@ -86,6 +194,7 @@ function Show-TweaksMenu {
         
         $menuItems += @{ Key = "0"; Text = "Quay lai Menu Chinh" }
         
+        # Hiển thị menu với hai cột
         Show-Menu -MenuItems $menuItems -Title "WINDOWS TWEAKS" -TwoColumn -Prompt "Chon tweak de ap dung (0 de quay lai): "
         
         $choice = Read-Host
@@ -98,8 +207,10 @@ function Show-TweaksMenu {
         if ($tweakIndex -ge 0 -and $tweakIndex -lt $Config.tweaks.Count) {
             $selectedTweak = $Config.tweaks[$tweakIndex]
             
+            # Hiển thị header
             Show-Header -Title "AP DUNG TWEAK"
             
+            # Thực thi tweak
             $success = Execute-Tweak -t $selectedTweak
             
             Write-Host ""
@@ -117,3 +228,92 @@ function Show-TweaksMenu {
         }
     }
 }
+
+# ============================================================
+# TWEAK UTILITIES
+# ============================================================
+
+function Get-TweakCount {
+    param($Config)
+    
+    if (-not $Config.tweaks) {
+        return 0
+    }
+    return $Config.tweaks.Count
+}
+
+function Show-TweakCategories {
+    param($Config)
+    
+    if (-not $Config.tweaks) {
+        Write-Host "Khong co tweak nao" -ForegroundColor Yellow
+        return
+    }
+    
+    $categories = @{}
+    foreach ($tweak in $Config.tweaks) {
+        $category = $tweak.category
+        if (-not $categories.ContainsKey($category)) {
+            $categories[$category] = 0
+        }
+        $categories[$category]++
+    }
+    
+    Write-Host "`nDANH SACH CATEGORY TWEAKS:" -ForegroundColor Cyan
+    Write-Host "============================" -ForegroundColor Cyan
+    
+    foreach ($category in $categories.Keys | Sort-Object) {
+        $count = $categories[$category]
+        Write-Host "  $category : $count tweaks" -ForegroundColor White
+    }
+    
+    Write-Host ""
+}
+
+function Test-AllTweaksCompatibility {
+    param($Config)
+    
+    if (-not $Config.tweaks) {
+        Write-Status "Khong co tweak de kiem tra" -Type 'WARNING'
+        return
+    }
+    
+    $compatible = 0
+    $incompatible = 0
+    
+    foreach ($tweak in $Config.tweaks) {
+        if ($tweak.os_guard) {
+            if (Test-OSVersion -min $tweak.os_guard.min -max $tweak.os_guard.max) {
+                $compatible++
+            } else {
+                $incompatible++
+            }
+        } else {
+            $compatible++
+        }
+    }
+    
+    Write-Host "`nKET QUA KIEM TRA TUONG THICH:" -ForegroundColor Cyan
+    Write-Host "==============================" -ForegroundColor Cyan
+    Write-Host "  Tuong thich: $compatible tweaks" -ForegroundColor Green
+    Write-Host "  Khong tuong thich: $incompatible tweaks" -ForegroundColor Yellow
+    Write-Host "  Tong so: $($Config.tweaks.Count) tweaks" -ForegroundColor White
+    Write-Host ""
+}
+
+# ============================================================
+# EXPORT FUNCTIONS
+# ============================================================
+
+Export-ModuleMember -Function @(
+    'Test-OSVersion',
+    'Apply-RegistryTweak',
+    'Apply-ServiceTweak',
+    'Apply-ScheduledTaskTweak',
+    'Rollback-RegistryTweak',
+    'Execute-Tweak',
+    'Show-TweaksMenu',
+    'Get-TweakCount',
+    'Show-TweakCategories',
+    'Test-AllTweaksCompatibility'
+)
