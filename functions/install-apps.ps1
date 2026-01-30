@@ -1,36 +1,80 @@
 # ============================================================
-# install-apps.ps1 - INSTALL APPLICATIONS (2-COLUMN)
+# install-apps.ps1 - INSTALL APPLICATIONS (IMPROVED)
 # ============================================================
 
 Set-StrictMode -Off
 $ErrorActionPreference = "SilentlyContinue"
 
 # ============================================================
-# APPLICATION FUNCTIONS
+# VALIDATE APPLICATION CONFIG
 # ============================================================
-function Load-ApplicationConfig {
-    $path = Join-Path $PSScriptRoot "..\config\applications.json"
-    return Load-JsonFile -Path $path
-}
-
-function Ensure-Winget {
-    if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
-        Write-Status "Khong tim thay winget!" -Type 'ERROR'
-        Write-Host "  Vui long cai dat 'App Installer' tu Microsoft Store." -ForegroundColor $global:UI_Colors.Warning
+function Validate-AppConfig {
+    param([object]$App)
+    
+    $errors = @()
+    
+    if (-not $App.id) {
+        $errors += "Thieu 'id'"
+    }
+    
+    if (-not $App.name) {
+        $errors += "Thieu 'name'"
+    }
+    
+    if (-not $App.packageId) {
+        $errors += "Thieu 'packageId'"
+    } else {
+        # Kiểm tra định dạng packageId (thường là Vendor.App)
+        if ($App.packageId -notmatch '^[a-zA-Z0-9]+\.[a-zA-Z0-9]+') {
+            $errors += "packageId khong dung dinh dang (Vendor.App)"
+        }
+    }
+    
+    if (-not $App.source) {
+        $errors += "Thieu 'source'"
+    } elseif ($App.source -notin @('winget', 'msstore')) {
+        $errors += "source phai la 'winget' hoac 'msstore'"
+    }
+    
+    if ($errors.Count -gt 0) {
+        Write-Host " [VALIDATION ERROR] $($App.name):" -ForegroundColor $global:UI_Colors.Error
+        foreach ($err in $errors) {
+            Write-Host "   - $err" -ForegroundColor $global:UI_Colors.Warning
+        }
         return $false
     }
+    
     return $true
 }
 
-function Is-AppInstalled {
-    param([string]$PackageId)
+function Load-ApplicationConfig {
+    $path = Join-Path $PSScriptRoot "..\config\applications.json"
+    $config = Load-JsonFile -Path $path
     
-    try {
-        $result = winget list --id $PackageId --exact 2>$null
-        return ($result -match $PackageId)
-    } catch {
-        return $false
+    if ($config -and $config.applications) {
+        Write-Status "Kiem tra cau hinh ung dung..." -Type 'INFO'
+        $validCount = 0
+        $invalidCount = 0
+        
+        foreach ($app in $config.applications) {
+            if (Validate-AppConfig -App $app) {
+                $validCount++
+            } else {
+                $invalidCount++
+            }
+        }
+        
+        Write-Host ""
+        Write-Status "Kiem tra hoan tat: $validCount ung dung hop le, $invalidCount ung dung loi" -Type 'INFO'
+        
+        if ($invalidCount -gt 0) {
+            Write-Host "   Moi cap nhat file applications.json de sua loi" -ForegroundColor $global:UI_Colors.Warning
+            Write-Host ""
+            Pause
+        }
     }
+    
+    return $config
 }
 
 function Install-Application {
@@ -41,120 +85,75 @@ function Install-Application {
         return
     }
     
-    Write-Status "Kiem tra: $($App.name)" -Type 'INFO'
+    Write-Host ""
+    Write-Host " THONG TIN UNG DUNG:" -ForegroundColor $global:UI_Colors.Title
+    Write-Host "   Ten: $($App.name)" -ForegroundColor $global:UI_Colors.Value
+    Write-Host "   ID: $($App.packageId)" -ForegroundColor $global:UI_Colors.Label
+    Write-Host "   Nguon: $($App.source)" -ForegroundColor $global:UI_Colors.Label
+    Write-Host "   Loai: $($App.category)" -ForegroundColor $global:UI_Colors.Label
+    Write-Host ""
     
-    # Check if already installed
+    # Kiểm tra nếu đã cài đặt
+    Write-Status "Kiem tra trang thai cai dat..." -Type 'INFO'
     if (Is-AppInstalled $App.packageId) {
-        Write-Status "Da duoc cai dat (bo qua)" -Type 'WARNING'
+        Write-Status "Ung dung da duoc cai dat (bo qua)" -Type 'WARNING'
+        Write-Host ""
         return
     }
     
-    Write-Status "Dang cai dat: $($App.name)" -Type 'INFO'
+    Write-Status "Bat dau cai dat..." -Type 'INFO'
+    Write-Host ""
     
     $arguments = @(
         "install",
         "--id", $App.packageId,
         "--accept-package-agreements",
         "--accept-source-agreements",
-        "--disable-interactivity"
+        "--disable-interactivity",
+        "--silent"
     )
     
     if ($App.source) {
         $arguments += "--source", $App.source
     }
     
-    if ($App.silent -eq $true) {
-        $arguments += "--silent"
-    }
+    # Thêm logging chi tiết
+    $logFile = Join-Path $env:TEMP "winget_install_$(Get-Date -Format 'yyyyMMdd_HHmmss').log"
     
     try {
-        # Run winget directly
-        winget @arguments 2>&1 | Out-Null
+        Write-Host "   Dang cai dat (co the mat vai phut)..." -ForegroundColor $global:UI_Colors.Label
         
-        if ($LASTEXITCODE -eq 0) {
+        # Chạy winget với timeout
+        $process = Start-Process -FilePath "winget" `
+            -ArgumentList $arguments `
+            -NoNewWindow `
+            -Wait `
+            -PassThrupip install `
+            -RedirectStandardOutput $logFile `
+            -RedirectStandardError "$logFile.error"
+        
+        # Kiểm tra kết quả
+        if ($process.ExitCode -eq 0) {
             Write-Status "Cai dat thanh cong!" -Type 'SUCCESS'
         } else {
-            Write-Status "That bai (Ma loi: $LASTEXITCODE)" -Type 'ERROR'
+            Write-Status "That bai (Ma loi: $($process.ExitCode))" -Type 'ERROR'
+            
+            # Hiển thị log lỗi nếu có
+            if (Test-Path "$logFile.error") {
+                $errorLog = Get-Content "$logFile.error" -Tail 5
+                Write-Host "   Chi tiet loi:" -ForegroundColor $global:UI_Colors.Error
+                foreach ($line in $errorLog) {
+                    Write-Host "     $line" -ForegroundColor $global:UI_Colors.Warning
+                }
+            }
         }
+        
+        # Dọn dẹp log file
+        Remove-Item $logFile, "$logFile.error" -ErrorAction SilentlyContinue
+        
     } catch {
-        Write-Status "Loi: $_" -Type 'ERROR'
-    }
-}
-
-# ============================================================
-# APPLICATIONS MENU (2-COLUMN LAYOUT)
-# ============================================================
-function Show-AppsMenu {
-    param($Config)
-    
-    if (-not $Config.applications) {
-        Write-Status "Cau hinh applications.json khong hop le!" -Type 'ERROR'
-        Pause
-        return
+        Write-Status "Loi trong qua trinh cai dat: $_" -Type 'ERROR'
     }
     
-    if (-not (Ensure-Winget)) {
-        Pause
-        return
-    }
-    
-    while ($true) {
-        # Group apps by category
-        $categories = @{}
-        foreach ($app in $Config.applications) {
-            if (-not $categories.ContainsKey($app.category)) {
-                $categories[$app.category] = @()
-            }
-            $categories[$app.category] += $app
-        }
-        
-        # Build menu with category headers
-        $menuItems = @()
-        $index = 1
-        $appMap = @{}
-        
-        foreach ($category in ($categories.Keys | Sort-Object)) {
-            # Add category header
-            $menuItems += @{ Key = "==="; Text = "=== $category ===" }
-            
-            # Add apps in this category
-            foreach ($app in ($categories[$category] | Sort-Object Name)) {
-                $menuItems += @{ Key = $index.ToString("00"); Text = $app.name }
-                $appMap[$index.ToString("00")] = $app
-                $index++
-            }
-            
-            # Add spacer
-            $menuItems += @{ Key = ""; Text = "" }
-        }
-        
-        $menuItems += @{ Key = "00"; Text = "Quay lai Menu Chinh" }
-        
-        Show-Menu -MenuItems $menuItems -Title "CAI DAT UNG DUNG" -TwoColumn -Prompt "Nhap so ung dung de cai dat (00 de quay lai): "
-        
-        $choice = Read-Host
-        
-        if ($choice -eq "00") {
-            return
-        }
-        
-        if ($appMap.ContainsKey($choice)) {
-            $selectedApp = $appMap[$choice]
-            
-            Show-Header -Title "CAI DAT UNG DUNG"
-            Write-Host ""
-            Write-Host " Thong tin ung dung:" -ForegroundColor $global:UI_Colors.Title
-            Write-Host "   Ten: $($selectedApp.name)" -ForegroundColor $global:UI_Colors.Value
-            Write-Host "   ID: $($selectedApp.packageId)" -ForegroundColor $global:UI_Colors.Label
-            Write-Host "   Loai: $($selectedApp.category)" -ForegroundColor $global:UI_Colors.Label
-            Write-Host ""
-            
-            Install-Application -App $selectedApp
-            Write-Host ""
-            Pause
-        } else {
-            Write-Status "Lua chon khong hop le!" -Type 'WARNING'
-            Pause
-        }
-    }
+    Write-Host ""
 }
