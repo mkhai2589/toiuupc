@@ -3,6 +3,9 @@
 # Author : Minh Khai
 # ============================================================
 
+Set-StrictMode -Off
+$ErrorActionPreference = "Continue"
+
 $Script:AppConfigPath = Join-Path $PSScriptRoot "..\config\applications.json"
 
 # ------------------------------------------------------------
@@ -11,11 +14,9 @@ function Load-ApplicationConfig {
         Write-Host "ERROR: applications.json not found!" -ForegroundColor Red
         return $null
     }
-
     try {
         return Get-Content $Script:AppConfigPath -Raw | ConvertFrom-Json
-    }
-    catch {
+    } catch {
         Write-Host "ERROR: Invalid JSON format!" -ForegroundColor Red
         return $null
     }
@@ -23,31 +24,22 @@ function Load-ApplicationConfig {
 
 # ------------------------------------------------------------
 function Is-AppInstalled {
-    param (
-        [string]$PackageId
-    )
-
+    param([string]$PackageId)
     try {
-        $result = winget list --id $PackageId 2>$null
-        return ($result -match $PackageId)
-    }
-    catch {
-        return $false
-    }
+        return (winget list --id $PackageId 2>$null) -match $PackageId
+    } catch { return $false }
 }
 
 # ------------------------------------------------------------
 function Install-Application {
-    param (
-        [object]$App
-    )
+    param([object]$App)
 
     if (Is-AppInstalled $App.packageId) {
-        Write-Host ("[SKIP] {0} already installed" -f $App.name) -ForegroundColor Yellow
+        Write-Host "[SKIP] $($App.name) already installed" -ForegroundColor Yellow
         return
     }
 
-    Write-Host ("[INSTALL] {0}" -f $App.name) -ForegroundColor Cyan
+    Write-Host "[INSTALL] $($App.name)" -ForegroundColor Cyan
 
     $args = @(
         "install",
@@ -57,72 +49,56 @@ function Install-Application {
         "--accept-source-agreements"
     )
 
-    if ($App.silent -eq $true) {
-        $args += "--silent"
-    }
+    if ($App.silent) { $args += "--silent" }
 
-    Start-Process -FilePath "winget" -ArgumentList $args -Wait -NoNewWindow
+    Start-Process winget -ArgumentList $args -Wait -NoNewWindow
 }
 
 # ------------------------------------------------------------
 function Show-ApplicationsByCategory {
-    param (
-        [object]$Config
-    )
+    param([object]$Config)
 
     Clear-Host
-    Write-Host "+======================================================+" -ForegroundColor DarkGray
-    Write-Host "| INSTALL APPLICATIONS                                  |" -ForegroundColor White
-    Write-Host "+======================================================+" -ForegroundColor DarkGray
-    Write-Host ""
+    Write-Host "INSTALL APPLICATIONS" -ForegroundColor Cyan
+    Write-Host "---------------------------------------------"
 
     $index = 1
-    $menuMap = @{}
+    $map = @{}
 
     foreach ($cat in $Config.categories) {
-        Write-Host ("[{0}]" -f $cat) -ForegroundColor Green
+        Write-Host "`n[$cat]" -ForegroundColor Green
+        $apps = $Config.applications | Where-Object category -eq $cat
 
-        $apps = $Config.applications | Where-Object { $_.category -eq $cat }
         foreach ($app in $apps) {
             $key = "{0:00}" -f $index
-            Write-Host (" {0}. {1}" -f $key, $app.name)
-            $menuMap[$key] = $app
+            Write-Host " $key. $($app.name)"
+            $map[$key] = $app
             $index++
         }
-
-        Write-Host ""
     }
 
-    Write-Host "[00] Back"
-    Write-Host ""
-
-    return $menuMap
+    Write-Host "`n[00] Back"
+    return $map
 }
 
 # ------------------------------------------------------------
-function InstallApps-Menu {
-    $config = Load-ApplicationConfig
-    if (-not $config) { return }
+function Invoke-AppMenu {
+    param($Config)
+
+    if (-not $Config) {
+        $Config = Load-ApplicationConfig
+        if (-not $Config) { return }
+    }
 
     while ($true) {
-        $menuMap = Show-ApplicationsByCategory -Config $config
-        $choice = Read-Host "Select app number"
+        $map = Show-ApplicationsByCategory $Config
+        $choice = Read-Host "Select"
 
-        if ($choice -eq "00") {
-            return
-        }
+        if ($choice -eq "00") { return }
 
-        if ($menuMap.ContainsKey($choice)) {
-            Install-Application -App $menuMap[$choice]
-            Write-Host ""
-            Read-Host "Press Enter to continue"
-        }
-        else {
-            Write-Host "Invalid selection!" -ForegroundColor Red
-            Start-Sleep 1
+        if ($map.ContainsKey($choice)) {
+            Install-Application $map[$choice]
+            Read-Host "Press Enter"
         }
     }
 }
-
-# ------------------------------------------------------------
-Export-ModuleMember -Function InstallApps-Menu
