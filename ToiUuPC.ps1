@@ -22,7 +22,7 @@ try {
 # ==========================================================
 $utilsPath = Join-Path $PSScriptRoot "functions\utils.ps1"
 if (-not (Test-Path $utilsPath)) {
-    Write-Host "[ERROR] Không tìm thấy utils.ps1" -ForegroundColor Red
+    Write-Host "[ERROR] Khong tim thay utils.ps1" -ForegroundColor Red
     exit 1
 }
 . $utilsPath
@@ -66,25 +66,25 @@ $global:AppsConfig   = Load-JsonFile (Join-Path $ConfigDir "applications.json")
 $global:DnsConfig    = Load-JsonFile (Join-Path $ConfigDir "dns.json")
 
 if (-not $global:TweaksConfig) {
-    Write-Status "Tải cấu hình tweaks.json thất bại!" -Type 'ERROR'
+    Write-Status "Tai cau hinh tweaks.json that bai!" -Type 'ERROR'
 }
 if (-not $global:AppsConfig) {
-    Write-Status "Tải cấu hình applications.json thất bại!" -Type 'ERROR'
+    Write-Status "Tai cau hinh applications.json that bai!" -Type 'ERROR'
 }
 if (-not $global:DnsConfig) {
-    Write-Status "Tải cấu hình dns.json thất bại!" -Type 'ERROR'
+    Write-Status "Tai cau hinh dns.json that bai!" -Type 'ERROR'
 }
 
 # ==========================================================
 # MAIN MENU DEFINITION
 # ==========================================================
 $MainMenuItems = @(
-    @{ Key = "1"; Text = "Windows Tweaks (Tối ưu hệ thống)" }
-    @{ Key = "2"; Text = "DNS Management (Quản lý DNS)" }
-    @{ Key = "3"; Text = "Clean System (Dọn dẹp hệ thống)" }
-    @{ Key = "4"; Text = "Install Applications (Cài đặt ứng dụng)" }
-    @{ Key = "5"; Text = "Reload Configuration (Tải lại cấu hình)" }
-    @{ Key = "0"; Text = "Thoát ToiUuPC" }
+    @{ Key = "1"; Text = "Windows Tweaks (Toi uu he thong)" }
+    @{ Key = "2"; Text = "DNS Management (Quan ly DNS)" }
+    @{ Key = "3"; Text = "Clean System (Don dep he thong)" }
+    @{ Key = "4"; Text = "Install Applications (Cai dat ung dung)" }
+    @{ Key = "5"; Text = "Reload Configuration (Tai lai cau hinh)" }
+    @{ Key = "0"; Text = "Thoat ToiUuPC" }
 )
 
 # ==========================================================
@@ -101,7 +101,7 @@ while ($true) {
             if ($global:TweaksConfig) {
                 Show-TweaksMenu -Config $global:TweaksConfig
             } else {
-                Write-Status "Cấu hình tweaks chưa được tải!" -Type 'ERROR'
+                Write-Status "Cau hinh tweaks chua duoc tai!" -Type 'ERROR'
                 Pause
             }
         }
@@ -110,7 +110,7 @@ while ($true) {
             if ($global:DnsConfig) {
                 Show-DnsMenu -Config $global:DnsConfig
             } else {
-                Write-Status "Cấu hình DNS chưa được tải!" -Type 'ERROR'
+                Write-Status "Cau hinh DNS chua duoc tai!" -Type 'ERROR'
                 Pause
             }
         }
@@ -123,36 +123,36 @@ while ($true) {
             if ($global:AppsConfig) {
                 Show-AppsMenu -Config $global:AppsConfig
             } else {
-                Write-Status "Cấu hình ứng dụng chưa được tải!" -Type 'ERROR'
+                Write-Status "Cau hinh ung dung chua duoc tai!" -Type 'ERROR'
                 Pause
             }
         }
         '5' {
             # Reload Configuration
-            Show-Header -Title "RELOAD CONFIGURATION"
-            Write-Status "Đang tải lại cấu hình..." -Type 'INFO'
+            Show-Header -Title "TAI LAI CAU HINH"
+            Write-Status "Dang tai lai cau hinh..." -Type 'INFO'
             
             $global:TweaksConfig = Load-JsonFile (Join-Path $ConfigDir "tweaks.json")
             $global:AppsConfig   = Load-JsonFile (Join-Path $ConfigDir "applications.json")
             $global:DnsConfig    = Load-JsonFile (Join-Path $ConfigDir "dns.json")
             
             if ($global:TweaksConfig -and $global:AppsConfig -and $global:DnsConfig) {
-                Write-Status "Tải lại cấu hình thành công!" -Type 'SUCCESS'
+                Write-Status "Tai lai cau hinh thanh cong!" -Type 'SUCCESS'
             } else {
-                Write-Status "Có lỗi khi tải lại cấu hình!" -Type 'ERROR'
+                Write-Status "Co loi khi tai lai cau hinh!" -Type 'ERROR'
             }
             Pause
         }
         '0' {
             # Exit program
-            Show-Header -Title "THOÁT CHƯƠNG TRÌNH"
-            Write-Status "Cảm ơn bạn đã sử dụng ToiUuPC!" -Type 'INFO'
-            Write-Host "Chương trình sẽ đóng trong 2 giây..." -ForegroundColor $global:UI_Colors.Warning
+            Show-Header -Title "THOAT CHUONG TRINH"
+            Write-Status "Cam on ban da su dung ToiUuPC!" -Type 'INFO'
+            Write-Host "Chuong trinh se dong trong 2 giay..." -ForegroundColor $global:UI_Colors.Warning
             Start-Sleep -Seconds 2
             exit 0
         }
         default {
-            Write-Status "Lựa chọn không hợp lệ!" -Type 'WARNING'
+            Write-Status "Lua chon khong hop le!" -Type 'WARNING'
             Pause
         }
     }
