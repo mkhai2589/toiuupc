@@ -35,10 +35,12 @@ function Test-IsAdmin {
 
 function Relaunch-AsAdmin {
     Write-Host "Relaunching as Administrator..." -ForegroundColor Yellow
+
     $psi = New-Object System.Diagnostics.ProcessStartInfo
     $psi.FileName = "powershell.exe"
     $psi.Arguments = "-NoProfile -ExecutionPolicy Bypass -Command `"irm $($MyInvocation.MyCommand.Source) | iex`""
     $psi.Verb = "runas"
+
     [System.Diagnostics.Process]::Start($psi) | Out-Null
     exit
 }
@@ -53,16 +55,19 @@ function Test-Git {
 }
 
 function Clean-Folder {
-    param($Path)
+    param([string]$Path)
+
     if (Test-Path $Path) {
         Write-Host "Cleaning folder: $Path" -ForegroundColor DarkYellow
         Remove-Item $Path -Recurse -Force -ErrorAction SilentlyContinue
     }
+
     New-Item -ItemType Directory -Path $Path -Force | Out-Null
 }
 
 function Write-Step {
-    param($Text)
+    param([string]$Text)
+
     Write-Host ""
     Write-Host "==> $Text" -ForegroundColor Cyan
 }
@@ -95,7 +100,6 @@ Clean-Folder $BaseDir
 if (Test-Git) {
 
     Write-Step "Git detected – cloning repository"
-
     git clone $RepoUrl $BaseDir
 
 }
@@ -106,8 +110,8 @@ else {
     $zipFile = Join-Path $env:TEMP "toiuupc.zip"
     $extract = Join-Path $env:TEMP "toiuupc_extract"
 
-    if (Test-Path $zipFile)  { Remove-Item $zipFile  -Force }
-    if (Test-Path $extract)  { Remove-Item $extract  -Recurse -Force }
+    if (Test-Path $zipFile) { Remove-Item $zipFile -Force }
+    if (Test-Path $extract) { Remove-Item $extract -Recurse -Force }
 
     Write-Host "Downloading ZIP..." -ForegroundColor Gray
     Invoke-WebRequest -Uri $ZipUrl -OutFile $zipFile -UseBasicParsing
@@ -137,6 +141,7 @@ $required = @(
 )
 
 $missing = @()
+
 foreach ($file in $required) {
     if (-not (Test-Path (Join-Path $BaseDir $file))) {
         $missing += $file
@@ -145,7 +150,9 @@ foreach ($file in $required) {
 
 if ($missing.Count -gt 0) {
     Write-Host "ERROR: Missing files:" -ForegroundColor Red
-    $missing | ForEach-Object { Write-Host " - $_" -ForegroundColor Red }
+    $missing | ForEach-Object {
+        Write-Host " - $_" -ForegroundColor Red
+    }
     exit 1
 }
 
