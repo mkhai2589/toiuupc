@@ -42,8 +42,7 @@ foreach ($file in $FunctionFiles) {
     $path = Join-Path $ScriptRoot "functions\$file"
     if (Test-Path $path) {
         . $path
-    }
-    else {
+    } else {
         Write-Host "ERROR: Missing function file: $file" -ForegroundColor Red
         exit 1
     }
@@ -58,34 +57,34 @@ $TweaksConfig = Load-JsonFile (Join-Path $ConfigDir "tweaks.json")
 $AppsConfig   = Load-JsonFile (Join-Path $ConfigDir "applications.json")
 $DnsConfig    = Load-JsonFile (Join-Path $ConfigDir "dns.json")
 
-if (-not $TweaksConfig -or -not $AppsConfig -or -not $DnsConfig) {
-    Write-Host "ERROR: One or more config files failed to load" -ForegroundColor Red
-    exit 1
-}
-
 # ==========================================================
-# HEADER STATUS DASHBOARD
+# HEADER STATUS (NO MENU REDRAW)
 # ==========================================================
-function Show-HeaderStatus {
+function Draw-Header {
 
-    $user  = $env:USERNAME
-    $os    = (Get-CimInstance Win32_OperatingSystem).Caption
-    $time  = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    $admin = if ([Security.Principal.WindowsPrincipal] `
-        [Security.Principal.WindowsIdentity]::GetCurrent()
-        .IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+    $user = $env:USERNAME
+    $os   = (Get-CimInstance Win32_OperatingSystem).Caption
+    $time = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+
+    $principal = New-Object Security.Principal.WindowsPrincipal `
+        ([Security.Principal.WindowsIdentity]::GetCurrent())
+
+    $mode = if ($principal.IsInRole(
+        [Security.Principal.WindowsBuiltInRole]::Administrator)) {
         "ADMIN"
     } else {
         "USER"
     }
 
-    $net = "OFFLINE"
-    if (Get-NetAdapter | Where-Object { $_.Status -eq "Up" }) {
-        $net = "ONLINE"
+    $net = if (Get-NetAdapter | Where-Object Status -eq "Up") {
+        "ONLINE"
+    } else {
+        "OFFLINE"
     }
 
-    Write-Host " USER:$user | OS:$os" -ForegroundColor Cyan
-    Write-Host " NET:$net | MODE:$admin | TIME:$time" -ForegroundColor DarkGray
+    [Console]::SetCursorPosition(0,0)
+    Write-Host (" USER:{0} | OS:{1}" -f $user, $os) -ForegroundColor Cyan
+    Write-Host (" NET:{0} | MODE:{1} | TIME:{2}" -f $net, $mode, $time) -ForegroundColor DarkGray
     Write-Host ""
 }
 
@@ -93,39 +92,31 @@ function Show-HeaderStatus {
 # MENU DATA
 # ==========================================================
 $MenuItems = @(
-    @{ Key = "01"; Text = "Windows Tweaks"; Action = { Invoke-TweaksMenu -Config $TweaksConfig } },
-    @{ Key = "02"; Text = "DNS Management"; Action = { Invoke-DnsMenu -ConfigPath (Join-Path $ConfigDir "dns.json") } },
-    @{ Key = "03"; Text = "Clean System";   Action = { Invoke-CleanSystem } },
-    @{ Key = "51"; Text = "Applications";   Action = { Invoke-AppMenu -Config $AppsConfig } },
-    @{ Key = "21"; Text = "Reload Config";  Action = {
+    @{ Key="01"; Text="Windows Tweaks"; Action={ Invoke-TweaksMenu -Config $TweaksConfig } },
+    @{ Key="02"; Text="DNS Management"; Action={ Invoke-DnsMenu -ConfigPath (Join-Path $ConfigDir "dns.json") } },
+    @{ Key="03"; Text="Clean System";   Action={ Invoke-CleanSystem } },
+    @{ Key="51"; Text="Applications";   Action={ Invoke-AppMenu -Config $AppsConfig } },
+    @{ Key="21"; Text="Reload Config";  Action={
         $TweaksConfig = Load-JsonFile (Join-Path $ConfigDir "tweaks.json")
         $AppsConfig   = Load-JsonFile (Join-Path $ConfigDir "applications.json")
         $DnsConfig    = Load-JsonFile (Join-Path $ConfigDir "dns.json")
-        Write-Host "Config reloaded successfully." -ForegroundColor Green
-        Start-Sleep 1
     }},
-    @{ Key = "00"; Text = "Exit"; Action = { $script:ExitMenu = $true } }
+    @{ Key="00"; Text="Exit"; Action={ $script:ExitMenu = $true } }
 )
 
 # ==========================================================
-# RENDER MENU (GHOST STYLE)
+# RENDER MENU (FIXED POSITION)
 # ==========================================================
 function Render-MainMenu {
     param ($SelectedIndex)
 
-    Clear-Host
-
-    if (Get-Command Show-PMKLogo -ErrorAction SilentlyContinue) {
-        Show-PMKLogo
-    }
-
-    Show-HeaderStatus
+    [Console]::SetCursorPosition(0,4)
 
     Write-Host "+------------------------------+------------------------------+" -ForegroundColor DarkGray
     Write-Host "|  SYSTEM / TOOLS              |  ACTION                     |" -ForegroundColor Gray
     Write-Host "|------------------------------|------------------------------|" -ForegroundColor DarkGray
 
-    for ($i = 0; $i -lt $MenuItems.Count; $i++) {
+    for ($i=0; $i -lt $MenuItems.Count; $i++) {
         $item = $MenuItems[$i]
         $line = "| [{0}] {1,-22} |                              |" -f $item.Key, $item.Text
 
@@ -141,37 +132,47 @@ function Render-MainMenu {
 }
 
 # ==========================================================
-# MAIN LOOP (REAL-TIME ↑↓)
+# MAIN LOOP
 # ==========================================================
+Clear-Host
 $SelectedIndex = 0
 $ExitMenu = $false
 $NumberBuffer = ""
+$LastHeader = Get-Date
 
 while (-not $ExitMenu) {
 
+    if ((Get-Date) - $LastHeader -gt [TimeSpan]::FromSeconds(1)) {
+        Draw-Header
+        $LastHeader = Get-Date
+    }
+
     Render-MainMenu -SelectedIndex $SelectedIndex
-    $key = [Console]::ReadKey($true)
 
-    switch ($key.Key) {
+    if ([Console]::KeyAvailable) {
+        $key = [Console]::ReadKey($true)
 
-        'UpArrow'   { if ($SelectedIndex -gt 0) { $SelectedIndex-- } }
-        'DownArrow' { if ($SelectedIndex -lt ($MenuItems.Count - 1)) { $SelectedIndex++ } }
-        'Enter'     { & $MenuItems[$SelectedIndex].Action }
-
-        default {
-            if ($key.KeyChar -match '\d') {
-                $NumberBuffer += $key.KeyChar
-                $match = $MenuItems | Where-Object { $_.Key -eq $NumberBuffer }
-                if ($match) {
-                    & $match.Action
+        switch ($key.Key) {
+            'UpArrow'   { if ($SelectedIndex -gt 0) { $SelectedIndex-- } }
+            'DownArrow' { if ($SelectedIndex -lt ($MenuItems.Count-1)) { $SelectedIndex++ } }
+            'Enter'     { & $MenuItems[$SelectedIndex].Action }
+            default {
+                if ($key.KeyChar -match '\d') {
+                    $NumberBuffer += $key.KeyChar
+                    $match = $MenuItems | Where-Object Key -eq $NumberBuffer
+                    if ($match) {
+                        & $match.Action
+                        $NumberBuffer = ""
+                    }
+                    if ($NumberBuffer.Length -ge 2) { $NumberBuffer = "" }
+                } else {
                     $NumberBuffer = ""
                 }
-                if ($NumberBuffer.Length -ge 2) { $NumberBuffer = "" }
-            } else {
-                $NumberBuffer = ""
             }
         }
     }
+
+    Start-Sleep -Milliseconds 50
 }
 
 Clear-Host
