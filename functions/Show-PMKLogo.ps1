@@ -1,23 +1,14 @@
 # =====================================================
-# Show-PMKLogo.ps1 - SIMPLE LOGO (ASCII ONLY)
+# Show-PMKLogo.ps1 - SIMPLE ASCII LOGO
 # =====================================================
 
 function Show-PMKLogo {
-    Clear-Host
-    $logo = @(
-        "",
-        "  +=====================================================+",
-        "  |                                                      |",
-        "  |                PMK TOOLBOX v1.0                      |",
-        "  |             Toi Uu He Thong Windows                  |",
-        "  |                                                      |",
-        "  +=====================================================+",
-        "",
-        "  Tac gia: Minh Khai - 0333090930",
-        ""
-    )
-    
-    foreach ($line in $logo) {
-        Write-Host $line -ForegroundColor Cyan
-    }
+    Write-Host ""
+    Write-Host "==================================================" -ForegroundColor Cyan
+    Write-Host "           PMK TOOLBOX v1.0                      " -ForegroundColor Cyan
+    Write-Host "      Toi Uu He Thong Windows                    " -ForegroundColor Cyan
+    Write-Host "==================================================" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "Tac gia: Minh Khai - 0333090930" -ForegroundColor DarkGray
+    Write-Host ""
 }
