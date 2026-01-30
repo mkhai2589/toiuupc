@@ -1,37 +1,43 @@
-# 🖥️ ToiUuPC — Windows Optimization Toolkit
+# 🚀 ToiUuPC - PMK Toolbox
 
----
+**Công cụ tối ưu hóa Windows toàn diện với giao diện console chuyên nghiệp**
 
-## 📌 Overview
+[![Windows](https://img.shields.io/badge/Windows-10%2F11-0078D6?style=flat&logo=windows)](https://www.microsoft.com/windows)
+[![PowerShell](https://img.shields.io/badge/PowerShell-5.1+-5391FE?style=flat&logo=powershell)](https://docs.microsoft.com/powershell)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-**ToiUuPC** is a powerful **all-in-one Windows optimization toolkit** written in PowerShell.
+## ✨ Tính năng nổi bật
 
-It helps users:
+### 🛠️ **Tối ưu hệ thống**
+- **Windows Tweaks**: Hơn 50+ tinh chỉnh hệ thống Windows 10/11
+- **Rollback an toàn**: Khôi phục cài đặt gốc khi cần
+- **Kiểm tra tương thích**: Tự động kiểm tra phiên bản Windows
 
-- 🧹 Clean unnecessary system files  
-- ⚙️ Apply performance & privacy tweaks  
-- 🌐 Manage DNS settings  
-- 📦 Install common applications  
-- 📊 Monitor system performance in real time  
+### 🌐 **Quản lý mạng**
+- **DNS Management**: 9+ bộ DNS phổ biến (Google, Cloudflare, Quad9, AdGuard...)
+- **Cấu hình IPv4/IPv6**: Hỗ trợ đầy đủ cả hai phiên bản IP
+- **Auto-detect adapter**: Tự động nhận diện card mạng đang hoạt động
 
-All features are accessible via an **easy-to-use CLI menu** and an optional **graphical dashboard**.
+### 📦 **Quản lý ứng dụng**
+- **Cài đặt thông minh**: 30+ ứng dụng phổ biến qua Winget
+- **Menu 2 cột**: Hiển thị ứng dụng theo danh mục, dễ tìm kiếm
+- **Kiểm tra trùng**: Không cài đặt ứng dụng đã có sẵn
 
----
+### 🧹 **Dọn dẹp hệ thống**
+- **6 tác vụ dọn dẹp**: Temp files, Update cache, Prefetch, Recycle Bin, DNS cache
+- **Tùy chọn linh hoạt**: Dọn từng phần hoặc toàn bộ
+- **An toàn**: Không xóa file hệ thống quan trọng
 
-## 🚀 Installation
+## 📋 Yêu cầu hệ thống
 
----
+- **Hệ điều hành**: Windows 10 (1809+) / Windows 11
+- **PowerShell**: Version 5.1 trở lên (có sẵn trong Windows)
+- **Quyền truy cập**: Administrator (quyền quản trị viên)
+- **Kết nối mạng**: Cần để tải ứng dụng và cập nhật
 
-### 🔹 Option 1 — Run Bootstrap (Auto Installer) **[Recommended]**
+## 🚀 Cách sử dụng
 
-Open **PowerShell as Administrator** and run:
-
-
-
-
+### 📥 Phương pháp 1: Bootstrap (Khuyên dùng)
 ```powershell
-irm https://raw.githubusercontent.com/mkhai2589/toiuupc/main/bootstrap.ps1 | iex
-
-
-irm https://raw.githubusercontent.com/mkhai2589/toiuupc/main/ToiUuPC.ps1 | iex
-
+# Chạy trong PowerShell với quyền Administrator
+irm https://cdn.jsdelivr.net/gh/mkhai2589/toiuupc@main/bootstrap.ps1 | iex
