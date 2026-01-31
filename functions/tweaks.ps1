@@ -151,7 +151,7 @@ function Execute-Tweak {
 }
 
 # ============================================================
-# TWEAKS MENU (FIXED DISPLAY)
+# TWEAKS MENU (FIXED DISPLAY - 1 CỘT)
 # ============================================================
 
 function Show-TweaksMenu {
@@ -170,10 +170,7 @@ function Show-TweaksMenu {
         
         foreach ($tweak in $Config.tweaks) {
             $displayName = $tweak.name
-            if ($displayName.Length -gt 35) {
-                $displayName = $displayName.Substring(0, 32) + "..."
-            }
-            
+            # Không cắt chữ, hiển thị đầy đủ
             $menuItems += @{ 
                 Key = "$index"; 
                 Text = $displayName
@@ -183,8 +180,8 @@ function Show-TweaksMenu {
         
         $menuItems += @{ Key = "0"; Text = "Quay lai Menu Chinh" }
         
-        # Hien thi menu voi hai cot
-        Show-Menu -MenuItems $menuItems -Title "WINDOWS TWEAKS" -TwoColumn -Prompt "Chon tweak de ap dung (0 de quay lai): "
+        # Hien thi menu với 1 cột
+        Show-Menu -MenuItems $menuItems -Title "WINDOWS TWEAKS" -Prompt "Chon tweak de ap dung (0 de quay lai): "
         
         $choice = Read-Host
         
@@ -202,6 +199,7 @@ function Show-TweaksMenu {
             # Hien thi xac nhan
             Write-Host "Ban co chac muon ap dung tweak nay?" -ForegroundColor $global:UI_Colors.Title
             Write-Host "   Ten: $($selectedTweak.name)" -ForegroundColor $global:UI_Colors.Value
+            Write-Host "   Mo ta: $($selectedTweak.description)" -ForegroundColor $global:UI_Colors.Label
             Write-Host ""
             $confirm = Read-Host "Nhap 'YES' de xac nhan hoac Enter de huy: "
             
