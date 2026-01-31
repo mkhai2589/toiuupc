@@ -1,5 +1,5 @@
 # ==========================================================
-# ToiUuPC.ps1 - MAIN SCRIPT (FINAL VERSION)
+# ToiUuPC.ps1 - MAIN SCRIPT (FIXED FINAL)
 # ==========================================================
 
 # SUPPRESS ERRORS FOR CLEAN START
@@ -23,9 +23,20 @@ try {
 $utilsPath = Join-Path $PSScriptRoot "functions\utils.ps1"
 if (-not (Test-Path $utilsPath)) {
     Write-Host "[ERROR] Khong tim thay utils.ps1" -ForegroundColor Red
+    Write-Host "Vui long chay bootstrap.ps1 de tai lai du an." -ForegroundColor Yellow
+    Write-Host ""
+    Read-Host "Nhan Enter de thoat"
     exit 1
 }
-. $utilsPath
+
+# Load utils với xử lý lỗi
+try {
+    . $utilsPath
+    Write-Status "Loaded utilities" -Type 'INFO'
+} catch {
+    Write-Host "[ERROR] Khong the load utils.ps1: $_" -ForegroundColor Red
+    exit 1
+}
 
 # ==========================================================
 # ENSURE ADMINISTRATOR RIGHTS
@@ -33,7 +44,7 @@ if (-not (Test-Path $utilsPath)) {
 Ensure-Admin
 
 # ==========================================================
-# LOAD ALL FUNCTION MODULES
+# LOAD ALL FUNCTION MODULES (FIXED ERROR HANDLING)
 # ==========================================================
 $functions = @(
     "Show-PMKLogo.ps1",
@@ -43,19 +54,46 @@ $functions = @(
     "clean-system.ps1"
 )
 
+$loadedModules = @()
+$failedModules = @()
+
 foreach ($func in $functions) {
     $path = Join-Path $PSScriptRoot "functions\$func"
     if (Test-Path $path) {
         try {
-            . $path
-            Write-Status "Loaded: $func" -Type 'INFO'
+            # Kiểm tra cú pháp trước khi load
+            $scriptContent = Get-Content $path -Raw -ErrorAction Stop
+            $tokens = $null
+            $parseErrors = $null
+            $null = [System.Management.Automation.Language.Parser]::ParseInput($scriptContent, [ref]$tokens, [ref]$parseErrors)
+            
+            if ($parseErrors.Count -eq 0) {
+                . $path
+                $loadedModules += $func
+                Write-Status "Loaded: $func" -Type 'INFO'
+            } else {
+                $failedModules += $func
+                Write-Status "Syntax error in $func - skipping" -Type 'WARNING'
+            }
         } catch {
-            Write-Status "Error loading $func : $_" -Type 'ERROR'
+            $failedModules += $func
+            Write-Status "Error loading $func : $($_.Exception.Message)" -Type 'ERROR'
+            # KHÔNG DỪNG CHƯƠNG TRÌNH, TIẾP TỤC VỚI MODULES KHÁC
         }
     } else {
         Write-Status "Missing: $func" -Type 'WARNING'
+        $failedModules += $func
     }
 }
+
+# Hiển thị báo cáo load modules
+Write-Host ""
+Write-Host " BAO CAO LOAD MODULES:" -ForegroundColor Cyan
+Write-Host "   Thanh cong: $($loadedModules.Count)/$($functions.Count) modules" -ForegroundColor $(if ($loadedModules.Count -eq $functions.Count) { "Green" } else { "Yellow" })
+if ($failedModules.Count -gt 0) {
+    Write-Host "   That bai: $($failedModules -join ', ')" -ForegroundColor Yellow
+}
+Write-Host ""
 
 # ==========================================================
 # LOAD CONFIGURATIONS
@@ -97,33 +135,53 @@ while ($true) {
     
     switch ($choice) {
         '1' {
-            # Windows Tweaks
-            if ($global:TweaksConfig) {
-                Show-TweaksMenu -Config $global:TweaksConfig
+            # Windows Tweaks - Kiểm tra module đã load
+            if ("tweaks.ps1" -in $loadedModules) {
+                if ($global:TweaksConfig) {
+                    Show-TweaksMenu -Config $global:TweaksConfig
+                } else {
+                    Write-Status "Cau hinh tweaks chua duoc tai!" -Type 'ERROR'
+                    Pause
+                }
             } else {
-                Write-Status "Cau hinh tweaks chua duoc tai!" -Type 'ERROR'
+                Write-Status "Module tweaks chua duoc load! Vui long kiem tra lai." -Type 'ERROR'
                 Pause
             }
         }
         '2' {
-            # DNS Management  
-            if ($global:DnsConfig) {
-                Show-DnsMenu -Config $global:DnsConfig
+            # DNS Management - Kiểm tra module đã load
+            if ("dns-management.ps1" -in $loadedModules) {
+                if ($global:DnsConfig) {
+                    Show-DnsMenu -Config $global:DnsConfig
+                } else {
+                    Write-Status "Cau hinh DNS chua duoc tai!" -Type 'ERROR'
+                    Pause
+                }
             } else {
-                Write-Status "Cau hinh DNS chua duoc tai!" -Type 'ERROR'
+                Write-Status "Module DNS chua duoc load! Vui long kiem tra lai." -Type 'ERROR'
                 Pause
             }
         }
         '3' {
-            # Clean System
-            Show-CleanSystem
+            # Clean System - Kiểm tra module đã load
+            if ("clean-system.ps1" -in $loadedModules) {
+                Show-CleanSystem
+            } else {
+                Write-Status "Module clean system chua duoc load! Vui long kiem tra lai." -Type 'ERROR'
+                Pause
+            }
         }
         '4' {
-            # Install Applications
-            if ($global:AppsConfig) {
-                Show-AppsMenu -Config $global:AppsConfig
+            # Install Applications - Kiểm tra module đã load
+            if ("install-apps.ps1" -in $loadedModules) {
+                if ($global:AppsConfig) {
+                    Show-AppsMenu -Config $global:AppsConfig
+                } else {
+                    Write-Status "Cau hinh ung dung chua duoc tai!" -Type 'ERROR'
+                    Pause
+                }
             } else {
-                Write-Status "Cau hinh ung dung chua duoc tai!" -Type 'ERROR'
+                Write-Status "Module install apps chua duoc load! Vui long kiem tra lai." -Type 'ERROR'
                 Pause
             }
         }
