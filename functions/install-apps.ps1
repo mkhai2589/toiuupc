@@ -186,7 +186,7 @@ function Show-AppsMenu {
     }
     
     while ($true) {
-        # Group by category
+        # Group by category để hiển thị theo danh mục
         $categories = @{}
         foreach ($app in $Config.applications) {
             $category = $app.category
@@ -196,33 +196,46 @@ function Show-AppsMenu {
             $null = $categories[$category].Add($app)
         }
         
+        # Xây dựng menu hiển thị tất cả ứng dụng theo danh mục
+        $menuItems = @()
+        $appIndex = 1
+        $appMap = @{}  # Map số thứ tự -> ứng dụng
+        
+        # Hiển thị header
         Show-Header -Title "CAI DAT UNG DUNG"
         
-        Write-Host " DANH MUC UNG DUNG:" -ForegroundColor $global:UI_Colors.Title
+        Write-Host " DANH SACH UNG DUNG THEO DANH MUC:" -ForegroundColor White
         Write-Host ""
         
-        # Hien thi danh muc
-        $catKeys = @()
-        $index = 1
-        foreach ($cat in $categories.Keys | Sort-Object) {
-            $count = $categories[$cat].Count
-            Write-Host "  [$index] $cat ($count ung dung)" -ForegroundColor $global:UI_Colors.Menu
-            $catKeys += $cat
-            $index++
+        foreach ($cat in ($categories.Keys | Sort-Object)) {
+            Write-Host " [$cat]" -ForegroundColor Cyan
+            foreach ($app in $categories[$cat]) {
+                $status = if (Is-AppInstalled $app.packageId) { "[Da cai]" } else { "[Chua cai]" }
+                $displayText = "$($app.name) $status"
+                Write-Host "   $appIndex. $displayText" -ForegroundColor $global:UI_Colors.Menu
+                
+                $appMap[$appIndex] = $app
+                $appIndex++
+            }
+            Write-Host ""  # Khoảng cách giữa các danh mục
         }
         
+        Write-Host "--------------------------------------------------" -ForegroundColor DarkGray
+        Write-Host ""
+        
+        # Menu lựa chọn
+        Write-Host " CAC TINH NANG:" -ForegroundColor White
         Write-Host ""
         Write-Host "  [A] Cai dat TOAN BO ung dung" -ForegroundColor $global:UI_Colors.Highlight
-        Write-Host "  [B] Cai dat tung ung dung" -ForegroundColor $global:UI_Colors.Menu
-        Write-Host "  [C] Kiem tra ung dung da cai" -ForegroundColor $global:UI_Colors.Menu
-        Write-Host "  [D] Cai dat Winget (neu thieu)" -ForegroundColor $global:UI_Colors.Menu
+        Write-Host "  [B] Kiem tra ung dung da cai" -ForegroundColor $global:UI_Colors.Menu
+        Write-Host "  [C] Cai dat Winget (neu thieu)" -ForegroundColor $global:UI_Colors.Menu
         Write-Host ""
         Write-Host "  [0] Quay lai Menu Chinh" -ForegroundColor $global:UI_Colors.Menu
         Write-Host ""
-        Write-Host "-" * 55 -ForegroundColor $global:UI_Colors.Border
+        Write-Host "--------------------------------------------------" -ForegroundColor DarkGray
         Write-Host ""
         
-        $choice = Read-Host "Lua chon (0-$($catKeys.Count), A, B, C, D): "
+        $choice = Read-Host "Lua chon (so 1-$($appIndex-1), A, B, C, hoac 0): "
         
         switch ($choice.ToUpper()) {
             '0' { return }
@@ -262,42 +275,6 @@ function Show-AppsMenu {
                 Pause
             }
             'B' {
-                Show-Header -Title "CAI DAT TUNG UNG DUNG"
-                
-                # Liet ke tat ca ung dung
-                $allApps = $Config.applications
-                $appMenuItems = @()
-                for ($i = 0; $i -lt $allApps.Count; $i++) {
-                    $app = $allApps[$i]
-                    $status = if (Is-AppInstalled $app.packageId) { "[Da cai]" } else { "[Chua cai]" }
-                    $displayText = "$($app.name) $status"
-                    if ($displayText.Length -gt 40) {
-                        $displayText = $displayText.Substring(0, 37) + "..."
-                    }
-                    $appMenuItems += @{ 
-                        Key = "$($i+1)"; 
-                        Text = $displayText
-                    }
-                }
-                
-                $appMenuItems += @{ Key = "0"; Text = "Quay lai" }
-                
-                Show-Menu -MenuItems $appMenuItems -Title "CHON UNG DUNG" -TwoColumn -Prompt "Chon ung dung (0 de quay lai): "
-                
-                $appChoice = Read-Host
-                if ($appChoice -eq "0") { continue }
-                
-                $appIndex = [int]$appChoice - 1
-                if ($appIndex -ge 0 -and $appIndex -lt $allApps.Count) {
-                    $selectedApp = $allApps[$appIndex]
-                    Install-Application -App $selectedApp
-                    Pause
-                } else {
-                    Write-Status "Lua chon khong hop le!" -Type 'WARNING'
-                    Pause
-                }
-            }
-            'C' {
                 Show-Header -Title "KIEM TRA UNG DUNG DA CAI DAT"
                 
                 $installedCount = 0
@@ -308,18 +285,18 @@ function Show-AppsMenu {
                     $installed = Is-AppInstalled $app.packageId
                     $status = if ($installed) { 
                         $installedCount++
-                        "[Da cai]" 
+                        "Da cai" 
                     } else { 
-                        "[Chua cai]" 
+                        "Chua cai" 
                     }
-                    Write-Host "   $($app.name) $status" -ForegroundColor $(if ($installed) { "Green" } else { "Gray" })
+                    Write-Host "   $($app.name) ($($app.category)): $status" -ForegroundColor $(if ($installed) { "Green" } else { "Gray" })
                 }
                 
                 Write-Host ""
                 Write-Status "Da cai dat: $installedCount/$($Config.applications.Count) ung dung" -Type 'INFO'
                 Pause
             }
-            'D' {
+            'C' {
                 Show-Header -Title "CAI DAT WINGET"
                 if (Install-WingetIfMissing) {
                     Write-Status "Winget da san sang su dung!" -Type 'SUCCESS'
@@ -329,76 +306,17 @@ function Show-AppsMenu {
                 Pause
             }
             default {
-                # Xu ly chon danh muc
+                # Kiểm tra nếu là số và trong phạm vi
                 if ($choice -match '^\d+$') {
-                    $catIndex = [int]$choice - 1
-                    if ($catIndex -ge 0 -and $catIndex -lt $catKeys.Count) {
-                        $selectedCat = $catKeys[$catIndex]
-                        $catApps = $categories[$selectedCat]
-                        
-                        Show-Header -Title "CAI DAT UNG DUNG: $selectedCat"
-                        
-                        # Hien thi ung dung trong danh muc
-                        $catMenuItems = @()
-                        for ($i = 0; $i -lt $catApps.Count; $i++) {
-                            $app = $catApps[$i]
-                            $status = if (Is-AppInstalled $app.packageId) { "[Da cai]" } else { "[Chua cai]" }
-                            $displayText = "$($app.name) $status"
-                            if ($displayText.Length -gt 40) {
-                                $displayText = $displayText.Substring(0, 37) + "..."
-                            }
-                            $catMenuItems += @{ 
-                                Key = "$($i+1)"; 
-                                Text = $displayText
-                            }
-                        }
-                        
-                        $catMenuItems += @{ Key = "A"; Text = "Cai dat TOAN BO danh muc nay" }
-                        $catMenuItems += @{ Key = "0"; Text = "Quay lai" }
-                        
-                        Show-Menu -MenuItems $catMenuItems -Title "CHON UNG DUNG TRONG $selectedCat" -TwoColumn -Prompt "Lua chon (0, A, hoac so): "
-                        
-                        $catChoice = Read-Host
-                        
-                        switch ($catChoice.ToUpper()) {
-                            '0' { continue }
-                            'A' {
-                                $success = 0
-                                $failed = 0
-                                $skipped = 0
-                                
-                                foreach ($app in $catApps) {
-                                    if (Is-AppInstalled $app.packageId) {
-                                        $skipped++
-                                    } else {
-                                        if (Install-Application -App $app) {
-                                            $success++
-                                        } else {
-                                            $failed++
-                                        }
-                                    }
-                                }
-                                
-                                Write-Host ""
-                                Write-Status "Da cai dat $success/$($catApps.Count) ung dung trong danh muc!" -Type 'INFO'
-                                Pause
-                            }
-                            default {
-                                if ($catChoice -match '^\d+$') {
-                                    $appIndex = [int]$catChoice - 1
-                                    if ($appIndex -ge 0 -and $appIndex -lt $catApps.Count) {
-                                        $selectedApp = $catApps[$appIndex]
-                                        Install-Application -App $selectedApp
-                                        Pause
-                                    } else {
-                                        Write-Status "Lua chon khong hop le!" -Type 'WARNING'
-                                        Pause
-                                    }
-                                } else {
-                                    Write-Status "Lua chon khong hop le!" -Type 'WARNING'
-                                    Pause
-                                }
-                            }
+                    $selectedIndex = [int]$choice
+                    if ($selectedIndex -ge 1 -and $selectedIndex -lt $appIndex) {
+                        $selectedApp = $appMap[$selectedIndex]
+                        if ($selectedApp) {
+                            Install-Application -App $selectedApp
+                            Pause
+                        } else {
+                            Write-Status "Lua chon khong hop le!" -Type 'WARNING'
+                            Pause
                         }
                     } else {
                         Write-Status "Lua chon khong hop le!" -Type 'WARNING'
