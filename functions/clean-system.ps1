@@ -1,5 +1,5 @@
 # ============================================================
-# clean-system.ps1 - CLEAN SYSTEM (FIXED DISPLAY)
+# clean-system.ps1 - CLEAN SYSTEM (FIXED FINAL)
 # ============================================================
 
 Set-StrictMode -Off
@@ -14,10 +14,7 @@ function Invoke-TempClean {
         "$env:LOCALAPPDATA\Temp\*", 
         "$env:WINDIR\Temp\*",
         "$env:LOCALAPPDATA\Microsoft\Windows\INetCache\*",
-        "$env:LOCALAPPDATA\Microsoft\Windows\INetCookies\*",
-        "$env:LOCALAPPDATA\Google\Chrome\User Data\Default\Cache\*",
-        "$env:LOCALAPPDATA\Microsoft\Edge\User Data\Default\Cache\*",
-        "$env:APPDATA\Mozilla\Firefox\Profiles\*.default-release\cache2\entries\*"
+        "$env:LOCALAPPDATA\Microsoft\Windows\INetCookies\*"
     )
 
     $totalFreed = 0
@@ -26,7 +23,15 @@ function Invoke-TempClean {
     foreach ($path in $paths) {
         try {
             if (Test-Path $path) {
-                $items = Get-ChildItem $path -Recurse -ErrorAction SilentlyContinue
+                $items = Get-ChildItem $path -Recurse -ErrorAction SilentlyContinue | Where-Object {
+                    # Không xóa các file hệ thống quan trọng
+                    $_.Name -notlike "*.dll" -and
+                    $_.Name -notlike "*.sys" -and
+                    $_.Name -notlike "*.exe" -and
+                    $_.Name -notlike "pagefile.sys" -and
+                    $_.Name -notlike "hiberfil.sys"
+                }
+                
                 if ($items) {
                     $size = ($items | Measure-Object Length -Sum).Sum
                     $count = $items.Count
@@ -55,7 +60,7 @@ function Invoke-UpdateCacheClean {
     Write-Host ""
     try {
         # Dung cac service lien quan
-        Stop-Service wuauserv, bits, cryptsvc -Force -ErrorAction SilentlyContinue
+        Stop-Service wuauserv, bits, cryptsvc -Force -ErrorAction SilentlyContinue 2>&1 | Out-Null
         Write-Host "   ✓ Da dung Windows Update services" -ForegroundColor Green
         
         # Xoa cache
@@ -79,7 +84,7 @@ function Invoke-UpdateCacheClean {
         }
         
         # Khoi dong lai services
-        Start-Service bits, wuauserv, cryptsvc -ErrorAction SilentlyContinue
+        Start-Service bits, wuauserv, cryptsvc -ErrorAction SilentlyContinue 2>&1 | Out-Null
         Write-Host "   ✓ Da khoi dong lai Windows Update services" -ForegroundColor Green
         
         if ($freed -gt 0) {
@@ -101,7 +106,9 @@ function Invoke-PrefetchClean {
     try {
         $prefetchPath = "$env:WINDIR\Prefetch"
         if (Test-Path $prefetchPath) {
-            $items = Get-ChildItem "$prefetchPath\*" -ErrorAction SilentlyContinue
+            $items = Get-ChildItem "$prefetchPath\*" -ErrorAction SilentlyContinue | Where-Object {
+                $_.Name -ne "layout.ini"  # Giữ lại file layout.ini
+            }
             if ($items) {
                 $size = ($items | Measure-Object Length -Sum).Sum
                 $count = $items.Count
@@ -127,7 +134,11 @@ function Invoke-RecycleBinClean {
     try {
         $shell = New-Object -ComObject Shell.Application
         $recycleBin = $shell.Namespace(0xA)
-        $recycleBin.Items() | ForEach-Object { $recycleBin.RemoveItem($_) }
+        $recycleBin.Items() | ForEach-Object { 
+            try {
+                $recycleBin.RemoveItem($_)
+            } catch {}
+        }
         Write-Host "   ✓ Da xoa toan bo thung rac" -ForegroundColor Green
         Write-Host ""
         Write-Status "Da lam sach thung rac!" -Type 'SUCCESS'
@@ -141,7 +152,7 @@ function Invoke-DnsCacheClean {
     Write-Status "Dang xoa DNS cache..." -Type 'INFO'
     Write-Host ""
     try {
-        ipconfig /flushdns | Out-Null
+        ipconfig /flushdns 2>&1 | Out-Null
         Write-Host "   ✓ Da xoa DNS cache" -ForegroundColor Green
         Write-Host ""
         Write-Status "Da xoa DNS cache thanh cong!" -Type 'SUCCESS'
@@ -168,8 +179,7 @@ function Invoke-WindowsOldClean {
                 Write-Host "   Tim thay Windows.old folder" -ForegroundColor Yellow
                 Write-Host "   Dung luong: $sizeGB GB" -ForegroundColor Yellow
                 Write-Host ""
-                Write-Host "   Ban co chac muon xoa Windows.old?" -ForegroundColor Red
-                Write-Host "   (Chi xoa neu ban khong can rollback Windows)" -ForegroundColor Red
+                Write-Host "   CANH BAO: Xoa Windows.old se khong the rollback Windows!" -ForegroundColor Red
                 Write-Host ""
                 
                 $confirm = Read-Host "   Nhap 'YES' de xoa: "
@@ -210,7 +220,10 @@ function Invoke-SystemLogsClean {
         try {
             if (Test-Path $path) {
                 $items = Get-ChildItem $path -ErrorAction SilentlyContinue | Where-Object {
-                    $_.LastWriteTime -lt (Get-Date).AddDays(-30) -and $_.Name -notlike "*.exe"
+                    $_.LastWriteTime -lt (Get-Date).AddDays(-30) -and 
+                    $_.Name -notlike "*.exe" -and
+                    $_.Name -notlike "*.dll" -and
+                    $_.Name -notlike "*.sys"
                 }
                 
                 if ($items) {
@@ -240,7 +253,7 @@ function Invoke-DeliveryOptimizationClean {
     Write-Status "Dang xoa Delivery Optimization cache..." -Type 'INFO'
     Write-Host ""
     try {
-        Stop-Service DoSvc -Force -ErrorAction SilentlyContinue
+        Stop-Service DoSvc -Force -ErrorAction SilentlyContinue 2>&1 | Out-Null
         
         $doPaths = @(
             "$env:WINDIR\ServiceProfiles\LocalService\AppData\Local\Microsoft\Delivery Optimization\Logs\*",
@@ -261,7 +274,7 @@ function Invoke-DeliveryOptimizationClean {
             }
         }
         
-        Start-Service DoSvc -ErrorAction SilentlyContinue
+        Start-Service DoSvc -ErrorAction SilentlyContinue 2>&1 | Out-Null
         
         if ($freed -gt 0) {
             $freedMB = [math]::Round($freed / 1MB, 2)
@@ -281,7 +294,7 @@ function Invoke-StoreCacheClean {
     Write-Host ""
     try {
         # Dung Store services
-        Get-Service *wsosvc*, *WSService* | Stop-Service -Force -ErrorAction SilentlyContinue
+        Get-Service *wsosvc*, *WSService* | Stop-Service -Force -ErrorAction SilentlyContinue 2>&1 | Out-Null
         
         # Xoa Store cache
         $storePaths = @(
@@ -307,7 +320,7 @@ function Invoke-StoreCacheClean {
         }
         
         # Khoi dong lai Store
-        Get-Service *wsosvc*, *WSService* | Start-Service -ErrorAction SilentlyContinue
+        Get-Service *wsosvc*, *WSService* | Start-Service -ErrorAction SilentlyContinue 2>&1 | Out-Null
         
         if ($freed -gt 0) {
             $freedMB = [math]::Round($freed / 1MB, 2)
@@ -332,21 +345,19 @@ function Invoke-ChromeEdgeCacheClean {
     $chromePaths = @(
         "$env:LOCALAPPDATA\Google\Chrome\User Data\Default\Cache\*",
         "$env:LOCALAPPDATA\Google\Chrome\User Data\Default\Cache2\entries\*",
-        "$env:LOCALAPPDATA\Google\Chrome\User Data\Default\Code Cache\*",
-        "$env:LOCALAPPDATA\Google\Chrome\User Data\Default\Service Worker\CacheStorage\*",
-        "$env:LOCALAPPDATA\Google\Chrome\User Data\Default\Session Storage\*"
+        "$env:LOCALAPPDATA\Google\Chrome\User Data\Default\Code Cache\*"
     )
 
     # Edge paths
     $edgePaths = @(
         "$env:LOCALAPPDATA\Microsoft\Edge\User Data\Default\Cache\*",
         "$env:LOCALAPPDATA\Microsoft\Edge\User Data\Default\Cache2\entries\*",
-        "$env:LOCALAPPDATA\Microsoft\Edge\User Data\Default\Code Cache\*",
-        "$env:LOCALAPPDATA\Microsoft\Edge\User Data\Default\Service Worker\CacheStorage\*"
+        "$env:LOCALAPPDATA\Microsoft\Edge\User Data\Default\Code Cache\*"
     )
 
     $browserPaths = $chromePaths + $edgePaths
     $totalFreed = 0
+    $browsersCleaned = @()
 
     foreach ($path in $browserPaths) {
         try {
@@ -358,7 +369,9 @@ function Invoke-ChromeEdgeCacheClean {
                     $totalFreed += $size
                     
                     $browser = if ($path -like "*Chrome*") { "Chrome" } else { "Edge" }
-                    Write-Host "   ✓ Da xoa $browser cache" -ForegroundColor Green
+                    if ($browser -notin $browsersCleaned) {
+                        $browsersCleaned += $browser
+                    }
                 }
             }
         } catch { }
@@ -366,6 +379,7 @@ function Invoke-ChromeEdgeCacheClean {
 
     if ($totalFreed -gt 0) {
         $freedMB = [math]::Round($totalFreed / 1MB, 2)
+        Write-Host "   ✓ Da xoa cache: $($browsersCleaned -join ', ')" -ForegroundColor Green
         Write-Host ""
         Write-Status "Da giai phong: $freedMB MB tu browser cache" -Type 'SUCCESS'
     } else {
@@ -396,7 +410,11 @@ function Invoke-UserTempClean {
     foreach ($path in $userTempPaths) {
         try {
             if (Test-Path $path) {
-                $items = Get-ChildItem $path -Recurse -ErrorAction SilentlyContinue
+                $items = Get-ChildItem $path -Recurse -ErrorAction SilentlyContinue | Where-Object {
+                    $_.Name -notlike "*.dll" -and
+                    $_.Name -notlike "*.sys" -and
+                    $_.Name -notlike "*.exe"
+                }
                 if ($items) {
                     $size = ($items | Measure-Object Length -Sum).Sum
                     Remove-Item $path -Recurse -Force -ErrorAction SilentlyContinue
@@ -427,7 +445,7 @@ function Show-DiskUsageReport {
             $totalGB = [math]::Round($disk.Size / 1GB, 2)
             $freeGB = [math]::Round($disk.FreeSpace / 1GB, 2)
             $usedGB = $totalGB - $freeGB
-            $usedPercent = [math]::Round(($usedGB / $totalGB) * 100, 2)
+            $usedPercent = if ($totalGB -gt 0) { [math]::Round(($usedGB / $totalGB) * 100, 2) } else { 0 }
             
             Write-Host "   Tong dung luong: $totalGB GB" -ForegroundColor White
             Write-Host "   Da su dung: $usedGB GB ($usedPercent%)" -ForegroundColor Yellow
@@ -435,7 +453,7 @@ function Show-DiskUsageReport {
             
             # Hien thi thanh progress
             Write-Host "   [" -NoNewline -ForegroundColor Gray
-            $filled = [math]::Round($usedPercent / 5)
+            $filled = if ($usedPercent -gt 0) { [math]::Round($usedPercent / 5) } else { 0 }
             for ($i = 1; $i -le 20; $i++) {
                 if ($i -le $filled) {
                     Write-Host "█" -NoNewline -ForegroundColor $(if ($usedPercent -gt 90) { "Red" } elseif ($usedPercent -gt 70) { "Yellow" } else { "Green" })
@@ -458,7 +476,7 @@ function Show-DiskUsageReport {
 }
 
 # ============================================================
-# MAIN CLEAN SYSTEM MENU
+# MAIN CLEAN SYSTEM MENU (FIXED)
 # ============================================================
 function Show-CleanSystem {
     while ($true) {
@@ -567,6 +585,15 @@ function Show-CleanSystem {
                 Show-Header -Title "DON DEP TOAN BO HE THONG"
                 Write-Status "Bat dau don dep toan bo..." -Type 'INFO'
                 Write-Host ""
+                Write-Host " CANH BAO: Qua trinh nay co the mat nhieu thoi gian!" -ForegroundColor Red
+                Write-Host ""
+                
+                $confirm = Read-Host "Nhap 'YES' de tiep tuc: "
+                if ($confirm -ne "YES") {
+                    Write-Status "Da huy!" -Type 'INFO'
+                    Pause
+                    continue
+                }
                 
                 Invoke-TempClean
                 Invoke-UpdateCacheClean
