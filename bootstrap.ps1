@@ -1,8 +1,11 @@
 # ==================================================
-# bootstrap.ps1 - BOOTSTRAP SCRIPT (FIXED VERSION)
+# bootstrap.ps1 - BOOTSTRAP SCRIPT (FINAL VERSION)
+# ==================================================
+# Author: Minh Khai
+# Version: 2.0.0
+# Description: Download and install PMK Toolbox
 # ==================================================
 
-# THIẾT LẬP RÕ RÀNG
 Set-StrictMode -Off
 $ErrorActionPreference = "Continue"
 $WarningPreference = "Continue"
@@ -24,12 +27,10 @@ function Write-Log {
     $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     $logEntry = "[$timestamp] [$Level] $Message"
     
-    # Ghi vào file
     try {
         Add-Content -Path $LogFile -Value $logEntry -ErrorAction SilentlyContinue
     } catch {}
     
-    # Hiển thị ra console với màu sắc
     switch ($Level) {
         "ERROR" { Write-Host "[ERROR] $Message" -ForegroundColor Red }
         "WARN"  { Write-Host "[WARN]  $Message" -ForegroundColor Yellow }
@@ -56,7 +57,6 @@ function Show-BootstrapHeader {
     Write-Host "========================================" -ForegroundColor Cyan
     Write-Host "Author: Minh Khai"
     Write-Host "Target: $BaseDir"
-    Write-Host "Log file: $LogFile"
     Write-Host ""
 }
 
@@ -94,7 +94,6 @@ function Relaunch-AsAdmin {
 
 function Test-InternetConnection {
     try {
-        # Thử ping Google DNS
         $response = Test-Connection -ComputerName "8.8.8.8" -Count 1 -Quiet -ErrorAction Stop
         return $response
     } catch {
@@ -108,21 +107,17 @@ function Initialize-WorkingDirectory {
     try {
         Write-Log "Creating working directory: $Path" -Level "INFO"
         
-        # Sử dụng đường dẫn đầy đủ
-        $fullPath = [System.IO.Path]::GetFullPath($Path)
-        Write-Log "Full path: $fullPath" -Level "INFO"
-        
-        # Xóa thư mục cũ nếu tồn tại
-        if (Test-Path $fullPath) {
-            Remove-Item $fullPath -Recurse -Force -ErrorAction SilentlyContinue
+        # Xoa thu muc cu neu ton tai
+        if (Test-Path $Path) {
+            Remove-Item $Path -Recurse -Force -ErrorAction SilentlyContinue
             Write-Log "Removed old directory" -Level "INFO"
         }
         
-        # Tạo thư mục mới và tất cả subdirectories
-        New-Item -ItemType Directory -Path $fullPath -Force | Out-Null
-        New-Item -ItemType Directory -Path "$fullPath\config" -Force | Out-Null
-        New-Item -ItemType Directory -Path "$fullPath\functions" -Force | Out-Null
-        New-Item -ItemType Directory -Path "$fullPath\runtime" -Force | Out-Null
+        # Tao thu muc moi
+        New-Item -ItemType Directory -Path $Path -Force | Out-Null
+        New-Item -ItemType Directory -Path "$Path\config" -Force | Out-Null
+        New-Item -ItemType Directory -Path "$Path\functions" -Force | Out-Null
+        New-Item -ItemType Directory -Path "$Path\runtime" -Force | Out-Null
         
         Write-Log "Directory created successfully" -Level "INFO"
         return $true
@@ -151,13 +146,13 @@ function Download-Project {
         Write-Log "Extracting files..." -Level "INFO"
         Expand-Archive -Path $tempZip -DestinationPath $extractDir -Force -ErrorAction Stop
         
-        # Tìm thư mục chính (toiuupc-main)
+        # Tim thu muc chinh
         $mainExtractedDir = Get-ChildItem $extractDir -Directory -Filter "toiuupc*" | Select-Object -First 1
         
         if ($mainExtractedDir) {
             Write-Log "Found project directory: $($mainExtractedDir.FullName)" -Level "INFO"
             
-            # Copy tất cả file và thư mục
+            # Copy tat ca file va thu muc
             Copy-Item "$($mainExtractedDir.FullName)\*" $TargetDir -Recurse -Force
             Write-Log "Files copied successfully" -Level "INFO"
             return $true
@@ -204,7 +199,7 @@ function Test-ProjectFiles {
 try {
     Show-BootstrapHeader
     
-    # Kiểm tra admin
+    # Kiem tra admin
     Write-Log "Checking administrator rights..." -Level "INFO"
     if (-not (Test-IsAdmin)) {
         Write-Log "Not running as administrator, restarting..." -Level "WARN"
@@ -213,7 +208,7 @@ try {
     
     Write-Host "[INFO] Administrator: OK" -ForegroundColor Green
     
-    # Kiểm tra internet
+    # Kiem tra internet
     Write-Log "Checking internet connection..." -Level "INFO"
     if (-not (Test-InternetConnection)) {
         Write-Host "[WARNING] No internet connection detected!" -ForegroundColor Yellow
@@ -226,7 +221,7 @@ try {
         Write-Host "[INFO] Internet connection: OK" -ForegroundColor Green
     }
     
-    # Tạo thư mục
+    # Tao thu muc
     Write-Host "[INFO] Creating working directory: $BaseDir" -ForegroundColor Cyan
     if (-not (Initialize-WorkingDirectory -Path $BaseDir)) {
         Write-Host "[ERROR] Failed to create directory!" -ForegroundColor Red
@@ -237,7 +232,7 @@ try {
     
     Write-Host "[INFO] Directory created successfully" -ForegroundColor Green
     
-    # Tải dự án
+    # Tai du an
     Write-Host "[INFO] Downloading project from GitHub..." -ForegroundColor Cyan
     if (-not (Download-Project -ZipUrl $ZipUrl -TargetDir $BaseDir)) {
         Write-Host "[ERROR] Failed to download project!" -ForegroundColor Red
@@ -248,7 +243,7 @@ try {
     
     Write-Host "[INFO] Project downloaded successfully" -ForegroundColor Green
     
-    # Kiểm tra file
+    # Kiem tra file
     Write-Host "[INFO] Verifying project files..." -ForegroundColor Cyan
     if (-not (Test-ProjectFiles -BasePath $BaseDir)) {
         Write-Host "[ERROR] Project files are incomplete!" -ForegroundColor Red
@@ -259,7 +254,7 @@ try {
     
     Write-Host "[INFO] All files verified" -ForegroundColor Green
     
-    # Chạy chương trình chính
+    # Chay chuong trinh chinh
     Write-Host ""
     Write-Host "========================================" -ForegroundColor Green
     Write-Host "     LAUNCHING PMK TOOLBOX              " -ForegroundColor White
@@ -269,8 +264,8 @@ try {
     Set-Location $BaseDir
     
     if (Test-Path $MainFile) {
-        # Chạy chương trình chính
-        Start-Process powershell.exe -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$MainFile`"" -Wait
+        # Chay chuong trinh chinh
+        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $MainFile
     } else {
         Write-Host "[ERROR] Main file not found: $MainFile" -ForegroundColor Red
     }
