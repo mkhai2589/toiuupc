@@ -1,57 +1,33 @@
-# ==========================================================
-# ToiUuPC.ps1 - MAIN SCRIPT (FINAL VERSION)
-# ==========================================================
-# Author: Minh Khai
-# Version: 2.0.0
-# Description: Main script for PMK Toolbox
-# ==========================================================
-
-# ==========================================================
-# INITIALIZATION
-# ==========================================================
 Set-StrictMode -Off
 $ErrorActionPreference = "SilentlyContinue"
 $WarningPreference = "SilentlyContinue"
 
-# Setup console
 try {
     [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
     chcp 65001 | Out-Null
-} catch {
-    # Continue if encoding fails
-}
+} catch {}
 
-# ==========================================================
-# LOAD CORE UTILITIES
-# ==========================================================
-$utilsPath = Join-Path $PSScriptRoot "functions\utils.ps1"
+$scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path
+
+$utilsPath = Join-Path $scriptPath "functions\utils.ps1"
 if (-not (Test-Path $utilsPath)) {
     Write-Host "[ERROR] Khong tim thay utils.ps1" -ForegroundColor Red
-    Write-Host "Vui long chay bootstrap.ps1 de tai lai du an." -ForegroundColor Yellow
-    Write-Host ""
     Read-Host "Nhan Enter de thoat"
     exit 1
 }
 
-try {
-    . $utilsPath
-} catch {
-    Write-Host "[ERROR] Khong the load utils.ps1: $_" -ForegroundColor Red
+. $utilsPath
+
+if (-NOT ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
+    Write-Host "[ERROR] Vui long chay voi quyen Administrator!" -ForegroundColor Red
+    Write-Host "Hay chuot phai vao file va chon 'Run as Administrator'" -ForegroundColor Yellow
+    Read-Host "Nhan Enter de thoat"
     exit 1
 }
 
-# ==========================================================
-# ENSURE ADMINISTRATOR RIGHTS
-# ==========================================================
-Ensure-Admin
-
-# ==========================================================
-# LOAD ALL FUNCTION MODULES
-# ==========================================================
-Write-Status "Loading modules..." -Type 'INFO'
+Write-Status "Dang tai module..." -Type 'INFO'
 
 $modules = @(
-    "Show-PMKLogo.ps1",
     "tweaks.ps1",
     "install-apps.ps1",
     "dns-management.ps1",
@@ -59,7 +35,7 @@ $modules = @(
 )
 
 foreach ($module in $modules) {
-    $path = Join-Path $PSScriptRoot "functions\$module"
+    $path = Join-Path $scriptPath "functions\$module"
     if (Test-Path $path) {
         try {
             . $path
@@ -72,52 +48,29 @@ foreach ($module in $modules) {
     }
 }
 
-# ==========================================================
-# LOAD CONFIGURATIONS
-# ==========================================================
-$ConfigDir = Join-Path $PSScriptRoot "config"
+$configDir = Join-Path $scriptPath "config"
 
-function Load-Config {
-    param([string]$FileName)
-    
-    $path = Join-Path $ConfigDir $FileName
-    if (-not (Test-Path $path)) {
-        Write-Status "Khong tim thay file: $FileName" -Type 'ERROR'
-        return $null
-    }
-    
-    try {
-        $content = Get-Content $path -Raw -Encoding UTF8
-        return $content | ConvertFrom-Json
-    } catch {
-        Write-Status "Dinh dang JSON khong hop le: $FileName" -Type 'ERROR'
-        return $null
-    }
-}
+$global:TweaksConfig = Load-JsonConfig (Join-Path $configDir "tweaks.json")
+$global:AppsConfig = Load-JsonConfig (Join-Path $configDir "applications.json")
+$global:DnsConfig = Load-JsonConfig (Join-Path $configDir "dns.json")
 
-$global:TweaksConfig = Load-Config "tweaks.json"
-$global:AppsConfig = Load-Config "applications.json"
-$global:DnsConfig = Load-Config "dns.json"
-
-# ==========================================================
-# MAIN MENU DEFINITION
-# ==========================================================
-$MainMenuItems = @(
-    @{ Key = "1"; Text = "Windows Tweaks (Toi uu he thong)" }
-    @{ Key = "2"; Text = "DNS Management (Quan ly DNS)" }
-    @{ Key = "3"; Text = "Clean System (Don dep he thong)" }
-    @{ Key = "4"; Text = "Install Applications (Cai dat ung dung)" }
-    @{ Key = "5"; Text = "Reload Configuration (Tai lai cau hinh)" }
-    @{ Key = "0"; Text = "Thoat ToiUuPC" }
-)
-
-# ==========================================================
-# MAIN PROGRAM LOOP
-# ==========================================================
 while ($true) {
-    Show-Menu -MenuItems $MainMenuItems -Title "PMK TOOLBOX - MAIN MENU"
+    Show-Header -Title "PMK TOOLBOX"
     
-    $choice = Read-Host
+    Write-Host "+---------------------------+---------------------------+" -ForegroundColor Cyan
+    Write-Host "|  TOI UU HE THONG          |  CAI DAT UNG DUNG        |" -ForegroundColor Cyan
+    Write-Host "+---------------------------+---------------------------+" -ForegroundColor Cyan
+    Write-Host "| [1] Windows Tweaks        | [4] Install Applications |" -ForegroundColor Gray
+    Write-Host "| [2] DNS Management        |                           |" -ForegroundColor Gray
+    Write-Host "| [3] Clean System          |                           |" -ForegroundColor Gray
+    Write-Host "+---------------------------+---------------------------+" -ForegroundColor Cyan
+    Write-Host "|  TIEN ICH                 |  THOAT                   |" -ForegroundColor Cyan
+    Write-Host "+---------------------------+---------------------------+" -ForegroundColor Cyan
+    Write-Host "| [5] Reload Configuration  | [0] Thoat                |" -ForegroundColor Gray
+    Write-Host "+---------------------------+---------------------------+" -ForegroundColor Cyan
+    Write-Host ""
+    
+    $choice = Read-Host "Chon chuc nang (0-5): "
     
     switch ($choice) {
         '1' {
@@ -137,13 +90,7 @@ while ($true) {
             }
         }
         '3' {
-            # FIXED: Gọi đúng hàm Show-CleanSystem
-            if (Get-Command -Name Show-CleanSystem -ErrorAction SilentlyContinue) {
-                Show-CleanSystem
-            } else {
-                Write-Status "Module clean-system chua duoc load!" -Type 'ERROR'
-                Pause
-            }
+            Show-CleanSystem
         }
         '4' {
             if ($global:AppsConfig) {
@@ -157,21 +104,20 @@ while ($true) {
             Show-Header -Title "TAI LAI CAU HINH"
             Write-Status "Dang tai lai cau hinh..." -Type 'INFO'
             
-            $global:TweaksConfig = Load-Config "tweaks.json"
-            $global:AppsConfig = Load-Config "applications.json"
-            $global:DnsConfig = Load-Config "dns.json"
+            $global:TweaksConfig = Load-JsonConfig (Join-Path $configDir "tweaks.json")
+            $global:AppsConfig = Load-JsonConfig (Join-Path $configDir "applications.json")
+            $global:DnsConfig = Load-JsonConfig (Join-Path $configDir "dns.json")
             
             if ($global:TweaksConfig -and $global:AppsConfig -and $global:DnsConfig) {
-                Write-Status "Tai lai cau hinh thanh cong!" -Type 'SUCCESS'
+                Write-Status "Tai lai thanh cong!" -Type 'SUCCESS'
             } else {
-                Write-Status "Co loi khi tai lai cau hinh!" -Type 'ERROR'
+                Write-Status "Co loi khi tai lai!" -Type 'ERROR'
             }
             Pause
         }
         '0' {
-            Show-Header -Title "THOAT CHUONG TRINH"
-            Write-Status "Cam on ban da su dung ToiUuPC!" -Type 'INFO'
-            Write-Host "Chuong trinh se dong trong 2 giay..." -ForegroundColor Yellow
+            Show-Header -Title "THOAT"
+            Write-Status "Cam on ban da su dung PMK Toolbox!" -Type 'INFO'
             Start-Sleep -Seconds 2
             exit 0
         }
