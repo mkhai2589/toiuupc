@@ -28,7 +28,7 @@ $global:UI_Colors = @{
 # =====================================================
 # UI CONSTANTS
 # =====================================================
-$global:UI_Width = 60
+$global:UI_Width = 55
 
 # =====================================================
 # ADMIN CHECK FUNCTION
@@ -122,7 +122,7 @@ function Get-FormattedSystemInfo {
     # Admin Status
     $info.IsAdmin = if (Test-IsAdmin) { "YES" } else { "NO" }
     
-    # Time Zone
+    # Time Zone - FIXED: Hiển thị múi giờ và vị trí
     try {
         $tz = Get-TimeZone -ErrorAction SilentlyContinue
         $info.TimeZone = "Hanoi UTC+7"
@@ -131,6 +131,7 @@ function Get-FormattedSystemInfo {
     }
     
     $info.LocalTime = Get-Date -Format "HH:mm:ss"
+    $info.FullTime = "$($info.LocalTime) $($info.TimeZone)"
     
     # CPU Usage real-time
     try {
@@ -182,7 +183,6 @@ function Get-FormattedSystemInfo {
         $gpu = Get-CimInstance Win32_VideoController -ErrorAction SilentlyContinue | Select-Object -First 1
         if ($gpu -and $gpu.Name) {
             $gpuName = ($gpu.Name -split '\(R\)' | Select-Object -First 1).Trim()
-            # Khong gioi han do dai
             $info.GPU = $gpuName
         } else {
             $info.GPU = "Integrated Graphics"
@@ -202,79 +202,53 @@ function Show-Header {
     
     Clear-Host
     
-    # Simple header
-    Write-Host "=" * 50 -ForegroundColor Cyan
-    Write-Host "           PMK TOOLBOX v2.0" -ForegroundColor Cyan
-    Write-Host "      Toi Uu He Thong Windows" -ForegroundColor Cyan
-    Write-Host "=" * 50 -ForegroundColor Cyan
+    # Fixed header - Không có *50
+    Write-Host "==================================================" -ForegroundColor Cyan
+    Write-Host "           PMK TOOLBOX v2.0                      " -ForegroundColor Cyan
+    Write-Host "      Toi Uu He Thong Windows                    " -ForegroundColor Cyan
+    Write-Host "==================================================" -ForegroundColor Cyan
     Write-Host "Tac gia: Minh Khai - 0333090930" -ForegroundColor DarkGray
     Write-Host ""
     
     $info = Get-FormattedSystemInfo
     
-    # System info in simple format
+    # System info in simple format - FIXED: Computer Name thay vì PC
     Write-Host "SYSTEM STATUS:" -ForegroundColor White
-    Write-Host "  User: $($info.User) | PC: $($info.Computer) | Admin: $($info.IsAdmin)" -ForegroundColor Gray
+    Write-Host "  User: $($info.User) | Computer Name: $($info.Computer) | Admin: $($info.IsAdmin)" -ForegroundColor Gray
     Write-Host "  OS: $($info.OS) $($info.Arch) | Build: $($info.Build)" -ForegroundColor Gray
     Write-Host "  CPU: $($info.CPU) | RAM: $($info.RAM) | GPU: $($info.GPU)" -ForegroundColor Gray
     Write-Host "  Disk: $($info.Disks)" -ForegroundColor Gray
-    Write-Host "  Network: $($info.Network) | Time: $($info.LocalTime)" -ForegroundColor Gray
-    Write-Host "-" * 50 -ForegroundColor DarkGray
+    Write-Host "  Network: $($info.Network) | Time: $($info.FullTime)" -ForegroundColor Gray
+    Write-Host "--------------------------------------------------" -ForegroundColor DarkGray
     Write-Host ""
 }
 
 # =====================================================
-# MENU RENDERING (FIXED - TWO COLUMN PROPER SPACING)
+# MENU RENDERING (FIXED - 1 CỘT ĐƠN GIẢN)
 # =====================================================
 function Show-Menu {
     param(
         [Parameter(Mandatory)]
         [array]$MenuItems,
         [string]$Title = "MENU",
-        [switch]$TwoColumn = $false,
         [string]$Prompt = "Nhap lua chon:"
     )
     
+    Clear-Host
     Show-Header -Title $Title
     
     Write-Host $Title.ToUpper() -ForegroundColor White
     Write-Host ("-" * [Math]::Min($Title.Length, $global:UI_Width - 10)) -ForegroundColor DarkGray
     Write-Host ""
     
-    if ($TwoColumn) {
-        $mid = [Math]::Ceiling($MenuItems.Count / 2)
-        
-        for ($i = 0; $i -lt $mid; $i++) {
-            $left = $MenuItems[$i]
-            $right = if (($i + $mid) -lt $MenuItems.Count) { $MenuItems[$i + $mid] } else { $null }
-            
-            # Format left item
-            $leftText = $left.Text
-            
-            # Format right item
-            $rightText = ""
-            if ($right) {
-                $rightText = $right.Text
-            }
-            
-            # Display with proper spacing
-            $leftDisplay = "  [$($left.Key)] $leftText"
-            Write-Host $leftDisplay.PadRight(40) -NoNewline -ForegroundColor Gray
-            
-            if ($right) {
-                Write-Host "[$($right.Key)] $rightText" -ForegroundColor Gray
-            } else {
-                Write-Host ""
-            }
-        }
-    } else {
-        foreach ($item in $MenuItems) {
-            Write-Host "  [$($item.Key)] $($item.Text)" -ForegroundColor Gray
-        }
+    # Hiển thị menu 1 cột với khoảng cách dòng
+    foreach ($item in $MenuItems) {
+        Write-Host ""  # Thêm dòng trống giữa các mục
+        Write-Host "  [$($item.Key)] $($item.Text)" -ForegroundColor $global:UI_Colors.Menu
     }
     
     Write-Host ""
-    Write-Host "-" * 50 -ForegroundColor DarkGray
+    Write-Host "--------------------------------------------------" -ForegroundColor DarkGray
     Write-Host ""
     Write-Host $Prompt -ForegroundColor Green -NoNewline
 }
