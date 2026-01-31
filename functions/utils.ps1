@@ -1,9 +1,10 @@
 # =====================================================
-# utils.ps1 - CORE UI ENGINE & UTILITIES (FIXED FINAL)
+# utils.ps1 - CORE UI ENGINE & UTILITIES (FINAL VERSION)
 # =====================================================
-
-Set-StrictMode -Off
-$ErrorActionPreference = "SilentlyContinue"
+# Author: Minh Khai
+# Version: 2.0.0
+# Description: Core utilities for PMK Toolbox
+# =====================================================
 
 # =====================================================
 # COLOR SCHEME - PROFESSIONAL & CONSISTENT
@@ -21,14 +22,13 @@ $global:UI_Colors = @{
     Label       = 'Gray'
     Value       = 'White'
     Highlight   = 'Magenta'
+    Dim         = 'DarkGray'
 }
 
 # =====================================================
 # UI CONSTANTS
 # =====================================================
-$global:UI_Width = 85
-$global:UI_ColumnWidth = 40
-$global:UI_MaxItemLength = 35
+$global:UI_Width = 60
 
 # =====================================================
 # ADMIN CHECK FUNCTION
@@ -45,7 +45,7 @@ function Test-IsAdmin {
 
 function Ensure-Admin {
     if (-not (Test-IsAdmin)) {
-        Write-Status "Vui long chay voi quyen Administrator!" -Type 'ERROR'
+        Write-Host "[ERROR] Vui long chay voi quyen Administrator!" -ForegroundColor Red
         Write-Host "Chuong trinh se dong trong 3 giay..." -ForegroundColor Yellow
         Start-Sleep -Seconds 3
         exit 1
@@ -80,38 +80,34 @@ function Write-Status {
 }
 
 # =====================================================
-# SYSTEM INFORMATION (FIXED REALTIME - NO ERRORS)
+# SYSTEM INFORMATION (FIXED REALTIME)
 # =====================================================
 function Get-FormattedSystemInfo {
     $info = @{}
     
-    # User và Computer Name
+    # User va Computer Name
     $info.User = $env:USERNAME
     $info.Computer = $env:COMPUTERNAME
     
-    # OS Version (detailed) - FIXED ERROR
+    # OS Version
     try {
         $os = Get-CimInstance Win32_OperatingSystem -ErrorAction SilentlyContinue
         if ($os) {
             $info.OS = $os.Caption.Trim() -replace "Microsoft ", ""
             $info.Arch = if ([Environment]::Is64BitOperatingSystem) { "x64" } else { "x86" }
             $info.Build = $os.BuildNumber
-            $info.Version = (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion" -ErrorAction SilentlyContinue).DisplayVersion
-            if (-not $info.Version) { $info.Version = "N/A" }
         } else {
             $info.OS = "Windows"
             $info.Arch = "N/A"
             $info.Build = "N/A"
-            $info.Version = "N/A"
         }
     } catch {
         $info.OS = "Windows"
         $info.Arch = "N/A"
         $info.Build = "N/A"
-        $info.Version = "N/A"
     }
     
-    # Network Status - FIXED ERROR
+    # Network Status
     try {
         $adapters = Get-NetAdapter -Physical -ErrorAction SilentlyContinue | Where-Object { $_.Status -eq 'Up' }
         if ($adapters) {
@@ -126,37 +122,29 @@ function Get-FormattedSystemInfo {
     # Admin Status
     $info.IsAdmin = if (Test-IsAdmin) { "YES" } else { "NO" }
     
-    # Time Zone - FIXED ERROR
+    # Time Zone
     try {
         $tz = Get-TimeZone -ErrorAction SilentlyContinue
-        $city = if ($tz) { 
-            switch ($tz.Id) {
-                "SE Asia Standard Time" { "Hanoi" }
-                default { $tz.Id }
-            }
-        } else { "Hanoi" }
-        $offset = [System.TimeZoneInfo]::Local.BaseUtcOffset
-        $offsetStr = if ($offset.Hours -ge 0) { "+$($offset.Hours)" } else { "$($offset.Hours)" }
-        $info.TimeZone = "$city UTC$offsetStr"
+        $info.TimeZone = "Hanoi UTC+7"
     } catch {
         $info.TimeZone = "Hanoi UTC+7"
     }
     
     $info.LocalTime = Get-Date -Format "HH:mm:ss"
     
-    # CPU Usage real-time - FIXED ERROR
+    # CPU Usage real-time
     try {
         $cpu = Get-WmiObject Win32_Processor -ErrorAction SilentlyContinue | Measure-Object LoadPercentage -Average
         if ($cpu -and $cpu.Average -ge 0) {
             $info.CPU = "$([math]::Round($cpu.Average))%"
         } else {
-            $info.CPU = "N/A"
+            $info.CPU = "0%"
         }
     } catch {
-        $info.CPU = "N/A"
+        $info.CPU = "0%"
     }
     
-    # RAM Usage real-time - FIXED ERROR
+    # RAM Usage real-time
     try {
         $os = Get-CimInstance Win32_OperatingSystem -ErrorAction SilentlyContinue
         if ($os -and $os.TotalVisibleMemorySize -gt 0) {
@@ -164,13 +152,13 @@ function Get-FormattedSystemInfo {
             $ramPercent = [math]::Round(($ramUsed / $os.TotalVisibleMemorySize) * 100)
             $info.RAM = "$ramPercent%"
         } else {
-            $info.RAM = "N/A"
+            $info.RAM = "0%"
         }
     } catch {
-        $info.RAM = "N/A"
+        $info.RAM = "0%"
     }
     
-    # Disk Information - FIXED ERROR
+    # Disk Information - HIEN THI RO HON
     try {
         $drives = Get-PSDrive -PSProvider FileSystem -ErrorAction SilentlyContinue | 
                   Where-Object { $_.Used -and $_.Free -and $_.Name -match '^[A-Z]$' }
@@ -181,29 +169,26 @@ function Get-FormattedSystemInfo {
             $totalGB = $freeGB + $usedGB
             if ($totalGB -gt 0) {
                 $percent = [math]::Round(($usedGB / $totalGB) * 100)
-                $diskInfo += "$($drive.Name): ${percent}%"
+                $diskInfo += "$($drive.Name): $usedGB/$totalGB GB ($percent%)"
             }
         }
-        $info.Disks = if ($diskInfo.Count -gt 0) { $diskInfo -join ' ' } else { "N/A" }
+        $info.Disks = if ($diskInfo.Count -gt 0) { $diskInfo -join ' | ' } else { "No disk info" }
     } catch {
-        $info.Disks = "N/A"
+        $info.Disks = "Disk info error"
     }
     
-    # GPU Information - FIXED ERROR
+    # GPU Information - KHONG CAT CHU
     try {
         $gpu = Get-CimInstance Win32_VideoController -ErrorAction SilentlyContinue | Select-Object -First 1
         if ($gpu -and $gpu.Name) {
             $gpuName = ($gpu.Name -split '\(R\)' | Select-Object -First 1).Trim()
-            # Giới hạn độ dài GPU name
-            if ($gpuName.Length -gt 25) {
-                $gpuName = $gpuName.Substring(0, 22) + "..."
-            }
+            # Khong gioi han do dai
             $info.GPU = $gpuName
         } else {
-            $info.GPU = "N/A"
+            $info.GPU = "Integrated Graphics"
         }
     } catch {
-        $info.GPU = "N/A"
+        $info.GPU = "Unknown"
     }
     
     return $info
@@ -218,10 +203,10 @@ function Show-Header {
     Clear-Host
     
     # Simple header
-    Write-Host "==================================================" -ForegroundColor Cyan
-    Write-Host "           PMK TOOLBOX v1.0                      " -ForegroundColor Cyan
-    Write-Host "      Toi Uu He Thong Windows                    " -ForegroundColor Cyan
-    Write-Host "==================================================" -ForegroundColor Cyan
+    Write-Host "=" * 50 -ForegroundColor Cyan
+    Write-Host "           PMK TOOLBOX v2.0" -ForegroundColor Cyan
+    Write-Host "      Toi Uu He Thong Windows" -ForegroundColor Cyan
+    Write-Host "=" * 50 -ForegroundColor Cyan
     Write-Host "Tac gia: Minh Khai - 0333090930" -ForegroundColor DarkGray
     Write-Host ""
     
@@ -233,8 +218,8 @@ function Show-Header {
     Write-Host "  OS: $($info.OS) $($info.Arch) | Build: $($info.Build)" -ForegroundColor Gray
     Write-Host "  CPU: $($info.CPU) | RAM: $($info.RAM) | GPU: $($info.GPU)" -ForegroundColor Gray
     Write-Host "  Disk: $($info.Disks)" -ForegroundColor Gray
-    Write-Host "  Network: $($info.Network) | Time: $($info.LocalTime) $($info.TimeZone)" -ForegroundColor Gray
-    Write-Host "--------------------------------------------------" -ForegroundColor DarkGray
+    Write-Host "  Network: $($info.Network) | Time: $($info.LocalTime)" -ForegroundColor Gray
+    Write-Host "-" * 50 -ForegroundColor DarkGray
     Write-Host ""
 }
 
@@ -265,22 +250,16 @@ function Show-Menu {
             
             # Format left item
             $leftText = $left.Text
-            if ($leftText.Length -gt $global:UI_MaxItemLength) {
-                $leftText = $leftText.Substring(0, $global:UI_MaxItemLength - 3) + "..."
-            }
             
             # Format right item
             $rightText = ""
             if ($right) {
                 $rightText = $right.Text
-                if ($rightText.Length -gt $global:UI_MaxItemLength) {
-                    $rightText = $rightText.Substring(0, $global:UI_MaxItemLength - 3) + "..."
-                }
             }
             
             # Display with proper spacing
             $leftDisplay = "  [$($left.Key)] $leftText"
-            Write-Host $leftDisplay.PadRight($global:UI_ColumnWidth) -NoNewline -ForegroundColor Gray
+            Write-Host $leftDisplay.PadRight(40) -NoNewline -ForegroundColor Gray
             
             if ($right) {
                 Write-Host "[$($right.Key)] $rightText" -ForegroundColor Gray
@@ -295,7 +274,7 @@ function Show-Menu {
     }
     
     Write-Host ""
-    Write-Host "--------------------------------------------------" -ForegroundColor DarkGray
+    Write-Host "-" * 50 -ForegroundColor DarkGray
     Write-Host ""
     Write-Host $Prompt -ForegroundColor Green -NoNewline
 }
@@ -306,7 +285,7 @@ function Show-Menu {
 function Pause {
     Write-Host ""
     Write-Host "Nhan Enter de tiep tuc..." -ForegroundColor Yellow -NoNewline
-    Read-Host | Out-Null
+    $null = Read-Host
 }
 
 function Load-JsonFile {
