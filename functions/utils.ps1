@@ -1,5 +1,5 @@
 # =====================================================
-# utils.ps1 - CORE UI ENGINE & UTILITIES (FIXED VERSION)
+# utils.ps1 - CORE UI ENGINE & UTILITIES (FIXED FINAL)
 # =====================================================
 
 Set-StrictMode -Off
@@ -27,10 +27,11 @@ $global:UI_Colors = @{
 # UI CONSTANTS
 # =====================================================
 $global:UI_Width = 85
-$global:UI_ColumnWidth = 42
+$global:UI_ColumnWidth = 40
+$global:UI_MaxItemLength = 35
 
 # =====================================================
-# ADMIN CHECK FUNCTION (ĐẶT ĐẦU TIÊN)
+# ADMIN CHECK FUNCTION
 # =====================================================
 function Test-IsAdmin {
     try {
@@ -79,7 +80,7 @@ function Write-Status {
 }
 
 # =====================================================
-# SYSTEM INFORMATION (ADVANCED - REAL-TIME)
+# SYSTEM INFORMATION (FIXED REALTIME - NO ERRORS)
 # =====================================================
 function Get-FormattedSystemInfo {
     $info = @{}
@@ -88,13 +89,21 @@ function Get-FormattedSystemInfo {
     $info.User = $env:USERNAME
     $info.Computer = $env:COMPUTERNAME
     
-    # OS Version (detailed)
+    # OS Version (detailed) - FIXED ERROR
     try {
         $os = Get-CimInstance Win32_OperatingSystem -ErrorAction SilentlyContinue
-        $info.OS = if ($os) { $os.Caption.Trim() -replace "Microsoft ", "" } else { "Windows Unknown" }
-        $info.Arch = if ([Environment]::Is64BitOperatingSystem) { "x64" } else { "x86" }
-        $info.Build = if ($os) { $os.BuildNumber } else { "N/A" }
-        $info.Version = (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion" -ErrorAction SilentlyContinue).DisplayVersion
+        if ($os) {
+            $info.OS = $os.Caption.Trim() -replace "Microsoft ", ""
+            $info.Arch = if ([Environment]::Is64BitOperatingSystem) { "x64" } else { "x86" }
+            $info.Build = $os.BuildNumber
+            $info.Version = (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion" -ErrorAction SilentlyContinue).DisplayVersion
+            if (-not $info.Version) { $info.Version = "N/A" }
+        } else {
+            $info.OS = "Windows"
+            $info.Arch = "N/A"
+            $info.Build = "N/A"
+            $info.Version = "N/A"
+        }
     } catch {
         $info.OS = "Windows"
         $info.Arch = "N/A"
@@ -102,7 +111,7 @@ function Get-FormattedSystemInfo {
         $info.Version = "N/A"
     }
     
-    # Network Status
+    # Network Status - FIXED ERROR
     try {
         $adapters = Get-NetAdapter -Physical -ErrorAction SilentlyContinue | Where-Object { $_.Status -eq 'Up' }
         if ($adapters) {
@@ -117,7 +126,7 @@ function Get-FormattedSystemInfo {
     # Admin Status
     $info.IsAdmin = if (Test-IsAdmin) { "YES" } else { "NO" }
     
-    # Time Zone
+    # Time Zone - FIXED ERROR
     try {
         $tz = Get-TimeZone -ErrorAction SilentlyContinue
         $city = if ($tz) { 
@@ -126,25 +135,31 @@ function Get-FormattedSystemInfo {
                 default { $tz.Id }
             }
         } else { "Hanoi" }
-        $info.TimeZone = "$city UTC$([System.TimeZoneInfo]::Local.BaseUtcOffset.Hours)"
+        $offset = [System.TimeZoneInfo]::Local.BaseUtcOffset
+        $offsetStr = if ($offset.Hours -ge 0) { "+$($offset.Hours)" } else { "$($offset.Hours)" }
+        $info.TimeZone = "$city UTC$offsetStr"
     } catch {
         $info.TimeZone = "Hanoi UTC+7"
     }
     
     $info.LocalTime = Get-Date -Format "HH:mm:ss"
     
-    # CPU Usage real-time
+    # CPU Usage real-time - FIXED ERROR
     try {
         $cpu = Get-WmiObject Win32_Processor -ErrorAction SilentlyContinue | Measure-Object LoadPercentage -Average
-        $info.CPU = if ($cpu.Average) { "$([math]::Round($cpu.Average))%" } else { "N/A" }
+        if ($cpu -and $cpu.Average -ge 0) {
+            $info.CPU = "$([math]::Round($cpu.Average))%"
+        } else {
+            $info.CPU = "N/A"
+        }
     } catch {
         $info.CPU = "N/A"
     }
     
-    # RAM Usage real-time
+    # RAM Usage real-time - FIXED ERROR
     try {
         $os = Get-CimInstance Win32_OperatingSystem -ErrorAction SilentlyContinue
-        if ($os) {
+        if ($os -and $os.TotalVisibleMemorySize -gt 0) {
             $ramUsed = $os.TotalVisibleMemorySize - $os.FreePhysicalMemory
             $ramPercent = [math]::Round(($ramUsed / $os.TotalVisibleMemorySize) * 100)
             $info.RAM = "$ramPercent%"
@@ -155,7 +170,7 @@ function Get-FormattedSystemInfo {
         $info.RAM = "N/A"
     }
     
-    # Disk Information
+    # Disk Information - FIXED ERROR
     try {
         $drives = Get-PSDrive -PSProvider FileSystem -ErrorAction SilentlyContinue | 
                   Where-Object { $_.Used -and $_.Free -and $_.Name -match '^[A-Z]$' }
@@ -164,21 +179,28 @@ function Get-FormattedSystemInfo {
             $freeGB = [math]::Round($drive.Free / 1GB, 1)
             $usedGB = [math]::Round($drive.Used / 1GB, 1)
             $totalGB = $freeGB + $usedGB
-            $percent = [math]::Round(($usedGB / $totalGB) * 100)
-            $diskInfo += "$($drive.Name): ${percent}%"
+            if ($totalGB -gt 0) {
+                $percent = [math]::Round(($usedGB / $totalGB) * 100)
+                $diskInfo += "$($drive.Name): ${percent}%"
+            }
         }
         $info.Disks = if ($diskInfo.Count -gt 0) { $diskInfo -join ' ' } else { "N/A" }
     } catch {
         $info.Disks = "N/A"
     }
     
-    # GPU Information
+    # GPU Information - FIXED ERROR
     try {
         $gpu = Get-CimInstance Win32_VideoController -ErrorAction SilentlyContinue | Select-Object -First 1
-        $info.GPU = if ($gpu -and $gpu.Name) { 
-            ($gpu.Name -split '\(R\)' | Select-Object -First 1).Trim() 
-        } else { 
-            "N/A" 
+        if ($gpu -and $gpu.Name) {
+            $gpuName = ($gpu.Name -split '\(R\)' | Select-Object -First 1).Trim()
+            # Giới hạn độ dài GPU name
+            if ($gpuName.Length -gt 25) {
+                $gpuName = $gpuName.Substring(0, 22) + "..."
+            }
+            $info.GPU = $gpuName
+        } else {
+            $info.GPU = "N/A"
         }
     } catch {
         $info.GPU = "N/A"
@@ -188,14 +210,14 @@ function Get-FormattedSystemInfo {
 }
 
 # =====================================================
-# HEADER RENDERING (SIMPLE VERSION)
+# HEADER RENDERING (FIXED)
 # =====================================================
 function Show-Header {
     param([string]$Title = "TOI UU PC - PMK TOOLBOX")
     
     Clear-Host
     
-    # Simple header without box-drawing characters
+    # Simple header
     Write-Host "==================================================" -ForegroundColor Cyan
     Write-Host "           PMK TOOLBOX v1.0                      " -ForegroundColor Cyan
     Write-Host "      Toi Uu He Thong Windows                    " -ForegroundColor Cyan
@@ -217,7 +239,7 @@ function Show-Header {
 }
 
 # =====================================================
-# MENU RENDERING (SIMPLE VERSION)
+# MENU RENDERING (FIXED - TWO COLUMN PROPER SPACING)
 # =====================================================
 function Show-Menu {
     param(
@@ -241,12 +263,27 @@ function Show-Menu {
             $left = $MenuItems[$i]
             $right = if (($i + $mid) -lt $MenuItems.Count) { $MenuItems[$i + $mid] } else { $null }
             
-            $leftText = "  [$($left.Key)] $($left.Text)".PadRight($global:UI_ColumnWidth)
-            Write-Host $leftText -NoNewline -ForegroundColor Gray
+            # Format left item
+            $leftText = $left.Text
+            if ($leftText.Length -gt $global:UI_MaxItemLength) {
+                $leftText = $leftText.Substring(0, $global:UI_MaxItemLength - 3) + "..."
+            }
+            
+            # Format right item
+            $rightText = ""
+            if ($right) {
+                $rightText = $right.Text
+                if ($rightText.Length -gt $global:UI_MaxItemLength) {
+                    $rightText = $rightText.Substring(0, $global:UI_MaxItemLength - 3) + "..."
+                }
+            }
+            
+            # Display with proper spacing
+            $leftDisplay = "  [$($left.Key)] $leftText"
+            Write-Host $leftDisplay.PadRight($global:UI_ColumnWidth) -NoNewline -ForegroundColor Gray
             
             if ($right) {
-                $rightText = "[$($right.Key)] $($right.Text)"
-                Write-Host $rightText -ForegroundColor Gray
+                Write-Host "[$($right.Key)] $rightText" -ForegroundColor Gray
             } else {
                 Write-Host ""
             }
