@@ -15,8 +15,8 @@
     },
     {
       "id": "disable-diagtrack",
-      "name": "Tat Connected User Experiences",
-      "description": "Tat dich vu thu thap trai nghiem nguoi dung",
+      "name": "Tat DiagTrack",
+      "description": "Tat dich vu Connected User Experiences and Telemetry",
       "category": "privacy",
       "level": "balanced",
       "reboot_required": true,
@@ -26,8 +26,8 @@
     },
     {
       "id": "disable-wsearch",
-      "name": "Tat Windows Search",
-      "description": "Tat dich vu tim kiem Windows",
+      "name": "Tat WSearch",
+      "description": "Tat dich vu Windows Search Indexing",
       "category": "performance",
       "level": "dangerous",
       "reboot_required": true,
@@ -48,7 +48,7 @@
     },
     {
       "id": "disable-office-telemetry",
-      "name": "Tat Office telemetry",
+      "name": "Tat Office Telemetry",
       "description": "Vo hieu hoa task thu thap du lieu Office",
       "category": "privacy",
       "level": "balanced",
@@ -66,11 +66,9 @@
       "category": "debloat",
       "level": "dangerous",
       "reboot_required": true,
-      "type": "invoke_script",
-      "script": [
-        "Get-AppxPackage -AllUsers *Edge* | Remove-AppxPackage",
-        "Get-AppxProvisionedPackage -Online | Where-Object DisplayName -like *Edge* | Remove-AppxProvisionedPackage -Online"
-      ]
+      "type": "service",
+      "serviceName": "edgeupdate",
+      "startup": "Disabled"
     },
     {
       "id": "classic-right-click",
