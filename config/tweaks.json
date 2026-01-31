@@ -1,33 +1,6 @@
 {
   "tweaks": [
-    {
-      "id": "telemetry-set-level-security",
-      "name": "Dat muc thu thap du lieu xuong Security (0)",
-      "description": "Gioi han luong du lieu telemetry gui ve Microsoft o muc toi thieu (Security)",
-      "category": "telemetry",
-      "level": "balanced",
-      "reboot_required": false,
-      "impact": {
-        "privacy": "++",
-        "performance": "0",
-        "ux": "0"
-      },
-      "os_guard": {
-        "min": "10.0",
-        "max": "11.99",
-        "edition_note": "Muc 0 chi co hieu luc day du tren ban Enterprise/Education. Tren Pro/Home muc toi thieu la 1 (Basic)."
-      },
-      "type": "registry",
-      "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection",
-      "nameReg": "AllowTelemetry",
-      "value": 0,
-      "regType": "DWORD",
-      "sources": ["Sophia-Script", "Win11Debloat"],
-      "rollback": {
-        "value": 1,
-        "note": "Mac dinh Windows: 1 (Basic)"
-      }
-    },
+    
 
     {
       "id": "disable-diagtrack-service",
@@ -107,33 +80,7 @@
       }
     },
 
-    {
-      "id": "disable-adobe-flash-updater-task",
-      "name": "Tat task cap nhat Adobe Flash (loi thoi)",
-      "description": "Vo hieu hoa task cap nhat Flash Player. Flash da ngung ho tro tu nam 2020.",
-      "category": "tasks",
-      "level": "safe",
-      "reboot_required": false,
-      "impact": {
-        "privacy": "0",
-        "performance": "0",
-        "ux": "0"
-      },
-      "os_guard": {
-        "min": "10.0",
-        "max": "10.99",
-        "note": "Chi ton tai tren Windows 10 cu"
-      },
-      "type": "scheduled_task",
-      "taskName": "AdobeFlashPlayerUpdater",
-      "action": "Disable",
-      "deprecated": true,
-      "sources": ["Sophia-Script"],
-      "rollback": {
-        "action": "Enable",
-        "note": "Neu task ton tai"
-      }
-    },
+    
 
     {
       "id": "disable-office-telemetry-tasks",
@@ -165,20 +112,4 @@
     }
   ],
 
-  "metadata": {
-    "schema_version": "1.0",
-    "generated_date": "2024-06-15",
-    "sources": [
-      "Sophia-Script-for-Windows",
-      "Win11Debloat",
-      "Win-Debloat-Tools"
-    ],
-    "description": "Tap hop cac tweak he thong Windows 10/11 phuc vu bao mat, rieng tu va hieu nang.",
-    "warning": "CANH BAO: Mot so tweak co the gay mat on dinh hoac vo hieu hoa tinh nang bao mat quan trong.",
-    "notes": {
-      "os_guard_format": "Su dung dinh dang version: min va max la chuoi (vi du 10.0, 11.24, 11.99)",
-      "service_multiple_handling": "Doi voi type service_multiple engine nen xu ly tung service rieng le",
-      "future_schema_improvement": "Cac phien ban schema sau nen ho tro rollback chi tiet hon"
-    }
-  }
 }
