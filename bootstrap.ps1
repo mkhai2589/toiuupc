@@ -1,71 +1,118 @@
-Clear-Host
-Write-Host "==================================================" -ForegroundColor Cyan
-Write-Host "    PMK TOOLBOX - BOOTSTRAP INSTALLER            " -ForegroundColor White
-Write-Host "==================================================" -ForegroundColor Cyan
-Write-Host ""
+# ==================================================
+# bootstrap.ps1 - BOOTSTRAP SCRIPT
+# ==================================================
 
-$tempDir = Join-Path $env:TEMP "ToiUuPC"
-$projectUrl = "https://github.com/minhkhai179/toiuupc/archive/refs/heads/main.zip"
+Set-StrictMode -Off
+$ErrorActionPreference = "Continue"
 
 try {
-    $adminTest = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
-    if (-not $adminTest) {
-        Write-Host "[ERROR] Vui long chay voi quyen Administrator!" -ForegroundColor Red
-        Write-Host "Hay chuot phai vao file va chon 'Run as Administrator'" -ForegroundColor Yellow
-        Write-Host ""
-        Read-Host "Nhan Enter de thoat"
-        exit 1
-    }
+    chcp 65001 | Out-Null
+    [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+} catch {}
+
+function Write-Log {
+    param([string]$Message, [string]$Level = "INFO")
     
-    Write-Host "[INFO] Kiem tra ket noi Internet..." -ForegroundColor Cyan
+    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    Write-Host "[$timestamp] [$Level] $Message" -ForegroundColor $(switch ($Level) {
+        "ERROR" { "Red" }
+        "WARN" { "Yellow" }
+        "INFO" { "Cyan" }
+        default { "White" }
+    })
+}
+
+function Test-IsAdmin {
+    $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+    $principal = New-Object Security.Principal.WindowsPrincipal($identity)
+    return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+}
+
+function Relaunch-AsAdmin {
+    Write-Host "[!] Can quyen Administrator" -ForegroundColor Yellow
+    $currentScript = $MyInvocation.MyCommand.Path
+    Start-Process powershell.exe -Verb RunAs -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$currentScript`""
+    exit 0
+}
+
+function Initialize-WorkingDirectory {
+    param([string]$Path)
+    
     try {
-        Test-NetConnection -ComputerName 8.8.8.8 -Port 53 -ErrorAction Stop | Out-Null
-        Write-Host "[INFO] Ket noi Internet: OK" -ForegroundColor Green
+        Write-Log "Creating working directory: $Path" -Level "INFO"
+        
+        if (Test-Path $Path) {
+            Remove-Item $Path -Recurse -Force -ErrorAction SilentlyContinue
+            Write-Log "Removed old directory" -Level "INFO"
+        }
+        
+        New-Item -ItemType Directory -Path $Path -Force | Out-Null
+        Write-Log "Directory created successfully" -Level "INFO"
+        return $true
     } catch {
-        Write-Host "[WARNING] Khong co ket noi Internet!" -ForegroundColor Yellow
-        $choice = Read-Host "Nhap 'YES' de tiep tuc: "
-        if ($choice -ne "YES") { exit 1 }
-    }
-    
-    Write-Host "[INFO] Tao thu muc lam viec..." -ForegroundColor Cyan
-    if (Test-Path $tempDir) {
-        Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue
-    }
-    New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
-    
-    Write-Host "[INFO] Tai du an tu GitHub..." -ForegroundColor Cyan
-    $zipPath = Join-Path $tempDir "toiuupc.zip"
-    
-    $ProgressPreference = 'SilentlyContinue'
-    Invoke-WebRequest -Uri $projectUrl -OutFile $zipPath -UseBasicParsing
-    
-    Write-Host "[INFO] Giai nen file..." -ForegroundColor Cyan
-    Add-Type -AssemblyName System.IO.Compression.FileSystem
-    [System.IO.Compression.ZipFile]::ExtractToDirectory($zipPath, $tempDir)
-    
-    $sourceDir = Get-ChildItem -Path $tempDir -Directory -Filter "toiuupc*" | Select-Object -First 1
-    if ($sourceDir) {
-        Get-ChildItem -Path $sourceDir.FullName | Move-Item -Destination $tempDir -Force
-        Remove-Item $sourceDir.FullName -Recurse -Force
-    }
-    
-    Remove-Item $zipPath -Force -ErrorAction SilentlyContinue
-    
-    Write-Host "[INFO] Khoi dong PMK Toolbox..." -ForegroundColor Green
-    Write-Host ""
-    
-    $mainScript = Join-Path $tempDir "ToiUuPC.ps1"
-    if (Test-Path $mainScript) {
-        Set-Location $tempDir
-        Start-Process PowerShell -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$mainScript`"" -Verb RunAs
-    } else {
-        Write-Host "[ERROR] Khong tim thay file chinh!" -ForegroundColor Red
-        Read-Host "Nhan Enter de thoat"
+        Write-Log "Failed to create directory" -Level "ERROR"
+        return $false
     }
 }
-catch {
-    Write-Host "[ERROR] Co loi xay ra: $_" -ForegroundColor Red
-    Write-Host ""
-    Read-Host "Nhan Enter de thoat"
+
+function Download-Project {
+    param([string]$TargetDir)
+    
+    $tempZip = Join-Path $env:TEMP "toiuupc_temp.zip"
+    $extractDir = Join-Path $env:TEMP "toiuupc_extract"
+    
+    try {
+        Write-Log "Downloading project..." -Level "INFO"
+        
+        # Download từ GitHub
+        $zipUrl = "https://github.com/mkhai2589/toiuupc/archive/refs/heads/main.zip"
+        Invoke-WebRequest -Uri $zipUrl -OutFile $tempZip -UseBasicParsing
+        
+        Write-Log "Extracting files..." -Level "INFO"
+        Expand-Archive -Path $tempZip -DestinationPath $extractDir -Force
+        
+        $mainExtractedDir = Get-ChildItem $extractDir -Directory -Filter "toiuupc*" | Select-Object -First 1
+        
+        if ($mainExtractedDir) {
+            Write-Log "Found project directory: $($mainExtractedDir.FullName)" -Level "INFO"
+            
+            # Copy files
+            Copy-Item "$($mainExtractedDir.FullName)\*" $TargetDir -Recurse -Force
+            Write-Log "Files copied successfully" -Level "INFO"
+            return $true
+        }
+        
+        return $false
+        
+    } catch {
+        Write-Log "Download error" -Level "ERROR"
+        return $false
+    } finally {
+        if (Test-Path $tempZip) { Remove-Item $tempZip -Force }
+        if (Test-Path $extractDir) { Remove-Item $extractDir -Recurse -Force }
+    }
+}
+
+Clear-Host
+Write-Host "========================================" -ForegroundColor Cyan
+Write-Host "    PMK TOOLBOX - BOOTSTRAP             " -ForegroundColor White
+Write-Host "========================================" -ForegroundColor Cyan
+Write-Host ""
+
+Write-Log "Checking administrator rights..." -Level "INFO"
+if (-not (Test-IsAdmin)) {
+    Relaunch-AsAdmin
+}
+
+Write-Host "[INFO] Administrator: OK" -ForegroundColor Green
+
+$BaseDir = Join-Path $env:TEMP "ToiUuPC"
+$MainFile = Join-Path $BaseDir "ToiUuPC.ps1"
+
+Write-Host "[INFO] Creating working directory: $BaseDir" -ForegroundColor Cyan
+if (-not (Initialize-WorkingDirectory -Path $BaseDir)) {
+    Write-Host "[ERROR] Failed to create directory!" -ForegroundColor Red
     exit 1
 }
+
+Write-Host "[INFO] Downloading project..." -
