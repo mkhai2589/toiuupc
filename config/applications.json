@@ -1,4 +1,15 @@
 {
+  "categories": [
+    "browser",
+    "communication",
+    "development",
+    "media",
+    "utility",
+    "gaming",
+    "multimedia tools",
+    "microsoft tools",
+    "productivity"
+  ],
   "applications": [
     {
       "id": "chrome",
@@ -50,6 +61,13 @@
       "category": "browser"
     },
     {
+      "id": "tor",
+      "name": "Tor Browser",
+      "packageId": "TorProject.TorBrowser",
+      "source": "winget",
+      "category": "browser"
+    },
+    {
       "id": "zalo",
       "name": "Zalo",
       "packageId": "VNGCorp.Zalo",
@@ -85,16 +103,16 @@
       "category": "communication"
     },
     {
-      "id": "zoom",
-      "name": "Zoom",
-      "packageId": "Zoom.Zoom",
+      "id": "viber",
+      "name": "Viber",
+      "packageId": "Rakuten.Viber",
       "source": "winget",
       "category": "communication"
     },
     {
-      "id": "viber",
-      "name": "Viber",
-      "packageId": "Rakuten.Viber",
+      "id": "zoom",
+      "name": "Zoom",
+      "packageId": "Zoom.Zoom",
       "source": "winget",
       "category": "communication"
     },
@@ -109,6 +127,13 @@
       "id": "git",
       "name": "Git",
       "packageId": "Git.Git",
+      "source": "winget",
+      "category": "development"
+    },
+    {
+      "id": "githubcli",
+      "name": "GitHub CLI",
+      "packageId": "GitHub.cli",
       "source": "winget",
       "category": "development"
     },
@@ -155,13 +180,6 @@
       "category": "media"
     },
     {
-      "id": "audacity",
-      "name": "Audacity",
-      "packageId": "Audacity.Audacity",
-      "source": "winget",
-      "category": "media"
-    },
-    {
       "id": "itunes",
       "name": "iTunes",
       "packageId": "Apple.iTunes",
@@ -171,8 +189,8 @@
     {
       "id": "tiktok",
       "name": "TikTok",
-      "packageId": "9NH2GPH4JZS4",
-      "source": "msstore",
+      "packageId": "TikTok.TikTok",
+      "source": "winget",
       "category": "media"
     },
     {
@@ -218,53 +236,11 @@
       "category": "utility"
     },
     {
-      "id": "translucenttb",
-      "name": "TranslucentTB",
-      "packageId": "9PF4KZ2VN4W9",
-      "source": "msstore",
-      "category": "utility"
-    },
-    {
-      "id": "sharex",
-      "name": "ShareX",
-      "packageId": "ShareX.ShareX",
+      "id": "audacity",
+      "name": "Audacity",
+      "packageId": "Audacity.Audacity",
       "source": "winget",
-      "category": "utility"
-    },
-    {
-      "id": "cpuz",
-      "name": "CPU-Z",
-      "packageId": "CPUID.CPU-Z",
-      "source": "winget",
-      "category": "utility"
-    },
-    {
-      "id": "lightshot",
-      "name": "Lightshot",
-      "packageId": "Skillbrains.Lightshot",
-      "source": "winget",
-      "category": "utility"
-    },
-    {
-      "id": "notion",
-      "name": "Notion",
-      "packageId": "Notion.Notion",
-      "source": "winget",
-      "category": "utility"
-    },
-    {
-      "id": "chatgpt",
-      "name": "ChatGPT",
-      "packageId": "OpenAI.ChatGPT",
-      "source": "winget",
-      "category": "utility"
-    },
-    {
-      "id": "copilot",
-      "name": "Microsoft Copilot",
-      "packageId": "Microsoft.Copilot",
-      "source": "winget",
-      "category": "utility"
+      "category": "media"
     },
     {
       "id": "msstore",
@@ -274,9 +250,30 @@
       "category": "utility"
     },
     {
-      "id": "vc2015_64",
-      "name": "Visual C++ 2015-2022",
-      "packageId": "Microsoft.VCRedist.2015+.x64",
+      "id": "translucenttb",
+      "name": "TranslucentTB",
+      "packageId": "TranslucentTB.TranslucentTB",
+      "source": "winget",
+      "category": "utility"
+    },
+    {
+      "id": "sharex",
+      "name": "ShareX",
+      "packageId": "ShareX.ShareX",
+      "source": "winget",
+      "category": "multimedia tools"
+    },
+    {
+      "id": "lightshot",
+      "name": "Lightshot",
+      "packageId": "Skillbrains.Lightshot",
+      "source": "winget",
+      "category": "multimedia tools"
+    },
+    {
+      "id": "cpuz",
+      "name": "CPU-Z",
+      "packageId": "CPUID.CPU-Z",
       "source": "winget",
       "category": "utility"
     },
@@ -286,6 +283,34 @@
       "packageId": "Nvidia.GeForceNow",
       "source": "winget",
       "category": "gaming"
+    },
+    {
+      "id": "vc2015_32",
+      "name": "Visual C++ 2015-2022 32-bit",
+      "packageId": "Microsoft.VCRedist.2015+.x86",
+      "source": "winget",
+      "category": "microsoft tools"
+    },
+    {
+      "id": "vc2015_64",
+      "name": "Visual C++ 2015-2022 64-bit",
+      "packageId": "Microsoft.VCRedist.2015+.x64",
+      "source": "winget",
+      "category": "microsoft tools"
+    },
+    {
+      "id": "notion",
+      "name": "Notion",
+      "packageId": "Notion.Notion",
+      "source": "winget",
+      "category": "productivity"
+    },
+    {
+      "id": "copilot",
+      "name": "Microsoft Copilot",
+      "packageId": "Microsoft.Copilot",
+      "source": "winget",
+      "category": "productivity"
     }
   ]
 }
