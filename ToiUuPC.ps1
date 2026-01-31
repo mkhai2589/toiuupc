@@ -51,11 +51,11 @@ Ensure-Admin
 Write-Status "Loading modules..." -Type 'INFO'
 
 $modules = @(
+    "Show-PMKLogo.ps1",
     "tweaks.ps1",
     "install-apps.ps1",
     "dns-management.ps1",
-    "clean-system.ps1",
-    "Show-PMKLogo.ps1"
+    "clean-system.ps1"
 )
 
 foreach ($module in $modules) {
@@ -137,7 +137,13 @@ while ($true) {
             }
         }
         '3' {
-            Show-CleanSystem
+            # FIXED: Gọi đúng hàm Show-CleanSystem
+            if (Get-Command -Name Show-CleanSystem -ErrorAction SilentlyContinue) {
+                Show-CleanSystem
+            } else {
+                Write-Status "Module clean-system chua duoc load!" -Type 'ERROR'
+                Pause
+            }
         }
         '4' {
             if ($global:AppsConfig) {
