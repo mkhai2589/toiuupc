@@ -1,5 +1,9 @@
 # ==========================================================
-# dns-management.ps1 - DNS MANAGEMENT (FIXED WITH IPv4/IPv6)
+# dns-management.ps1 - DNS MANAGEMENT (FIXED VERSION)
+# ==========================================================
+# Author: Minh Khai
+# Version: 2.0.0
+# Description: DNS management module
 # ==========================================================
 
 Set-StrictMode -Off
@@ -16,6 +20,12 @@ function Get-ActiveNetworkAdapter {
 function Show-DnsMenu {
     param($Config)
     
+    if (-not $Config) {
+        Write-Status "Khong co cau hinh DNS!" -Type 'ERROR'
+        Pause
+        return
+    }
+    
     $adapter = Get-ActiveNetworkAdapter
     if (-not $adapter) {
         Write-Status "Khong tim thay adapter mang dang hoat dong!" -Type 'ERROR'
@@ -24,24 +34,21 @@ function Show-DnsMenu {
     }
     
     while ($true) {
-        # Get current DNS với phân biệt IPv4/IPv6
+        # Get current DNS
         $currentDns = Get-DnsClientServerAddress -InterfaceAlias $adapter.InterfaceAlias -ErrorAction SilentlyContinue
         
-        # Tách IPv4 và IPv6
-        $ipv4Servers = @()
-        $ipv6Servers = @()
+        $currentIPv4 = "DHCP"
         if ($currentDns -and $currentDns.ServerAddresses) {
+            $ipv4Servers = @()
             foreach ($addr in $currentDns.ServerAddresses) {
-                if ($addr.Contains(':')) {
-                    $ipv6Servers += $addr
-                } else {
+                if (-not $addr.Contains(':')) {
                     $ipv4Servers += $addr
                 }
             }
+            if ($ipv4Servers.Count -gt 0) {
+                $currentIPv4 = $ipv4Servers -join ', '
+            }
         }
-        
-        $currentIPv4 = if ($ipv4Servers.Count -gt 0) { $ipv4Servers -join ', ' } else { "DHCP" }
-        $currentIPv6 = if ($ipv6Servers.Count -gt 0) { $ipv6Servers -join ', ' } else { "DHCP" }
         
         Show-Header -Title "QUAN LY DNS"
         Write-Host " Adapter hien tai: $($adapter.InterfaceAlias)" -ForegroundColor $global:UI_Colors.Value
@@ -50,33 +57,21 @@ function Show-DnsMenu {
         Write-Host ""
         Write-Host " DNS HIEN TAI:" -ForegroundColor $global:UI_Colors.Title
         Write-Host "   IPv4: $currentIPv4" -ForegroundColor $global:UI_Colors.Highlight
-        Write-Host "   IPv6: $currentIPv6" -ForegroundColor $global:UI_Colors.Highlight
         Write-Host ""
-        Write-Host "─" * 50 -ForegroundColor $global:UI_Colors.Border
+        Write-Host "-" * 50 -ForegroundColor $global:UI_Colors.Border
         Write-Host ""
         
-        # Build menu từ DNS config
+        # Build menu tu DNS config
         $menuItems = @()
         $index = 1
         
         foreach ($dnsName in ($Config.PSObject.Properties.Name)) {
             $dnsConfig = $Config.$dnsName
             $primary = if ($dnsConfig.Primary) { $dnsConfig.Primary } else { "DHCP" }
-            $primary6 = if ($dnsConfig.Primary6) { $dnsConfig.Primary6 } else { "" }
             
-            $displayText = "$($dnsName)"
-            if ($primary -ne "DHCP") {
-                $displayText += " - IPv4: $primary"
-                if ($primary6) {
-                    $displayText += " IPv6: $primary6"
-                }
-            } else {
-                $displayText += " (Reset to DHCP)"
-            }
-            
-            # Cắt ngắn nếu quá dài
-            if ($displayText.Length -gt 45) {
-                $displayText = $displayText.Substring(0, 42) + "..."
+            $displayText = "$($dnsName) - $primary"
+            if ($displayText.Length -gt 35) {
+                $displayText = $displayText.Substring(0, 32) + "..."
             }
             
             $menuItems += @{ 
@@ -107,12 +102,10 @@ function Show-DnsMenu {
             Write-Host "   Mo ta: $($dnsConfig.Description)" -ForegroundColor $global:UI_Colors.Label
             Write-Host ""
             
-            # Thu thập tất cả địa chỉ DNS (IPv4 + IPv6)
+            # Thu thap tat ca dia chi DNS
             $servers = @()
             if ($dnsConfig.Primary)   { $servers += $dnsConfig.Primary }
             if ($dnsConfig.Secondary) { $servers += $dnsConfig.Secondary }
-            if ($dnsConfig.Primary6)   { $servers += $dnsConfig.Primary6 }
-            if ($dnsConfig.Secondary6) { $servers += $dnsConfig.Secondary6 }
             
             Write-Host " DNS servers se duoc ap dung:" -ForegroundColor $global:UI_Colors.Label
             foreach ($server in $servers) {
@@ -120,18 +113,18 @@ function Show-DnsMenu {
             }
             Write-Host ""
             
-            # Áp dụng DNS
+            # Ap dung DNS
             try {
                 if ($servers.Count -gt 0) {
                     Set-DnsClientServerAddress -InterfaceAlias $adapter.InterfaceAlias -ServerAddresses $servers -ErrorAction Stop
                     Write-Status "Da ap dung DNS thanh cong!" -Type 'SUCCESS'
                 } else {
-                    # Reset về DHCP
+                    # Reset ve DHCP
                     Set-DnsClientServerAddress -InterfaceAlias $adapter.InterfaceAlias -ResetServerAddresses -ErrorAction Stop
                     Write-Status "Da reset ve DHCP" -Type 'SUCCESS'
                 }
                 
-                # Xóa DNS cache
+                # Xoa DNS cache
                 ipconfig /flushdns 2>&1 | Out-Null
                 Write-Status "Da xoa DNS cache" -Type 'INFO'
                 
@@ -148,7 +141,3 @@ function Show-DnsMenu {
         }
     }
 }
-
-Export-ModuleMember -Function @(
-    'Show-DnsMenu'
-)
