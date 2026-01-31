@@ -50,13 +50,6 @@
       "category": "browser"
     },
     {
-      "id": "tor",
-      "name": "Tor Browser",
-      "packageId": "TorProject.TorBrowser",
-      "source": "winget",
-      "category": "browser"
-    },
-    {
       "id": "zalo",
       "name": "Zalo",
       "packageId": "VNGCorp.Zalo",
@@ -92,16 +85,16 @@
       "category": "communication"
     },
     {
-      "id": "viber",
-      "name": "Viber",
-      "packageId": "Rakuten.Viber",
+      "id": "zoom",
+      "name": "Zoom",
+      "packageId": "Zoom.Zoom",
       "source": "winget",
       "category": "communication"
     },
     {
-      "id": "zoom",
-      "name": "Zoom",
-      "packageId": "Zoom.Zoom",
+      "id": "viber",
+      "name": "Viber",
+      "packageId": "Rakuten.Viber",
       "source": "winget",
       "category": "communication"
     },
