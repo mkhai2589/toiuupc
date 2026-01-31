@@ -1,38 +1,24 @@
 {
   "tweaks": [
     {
-      "id": "disable-telemetry",
-      "name": "Tat thu thap du lieu",
-      "description": "Vo hieu hoa thu thap du lieu he thong",
-      "category": "privacy",
-      "level": "balanced",
+      "id": "restore-point",
+      "name": "Tao diem phuc hoi",
+      "description": "Tao diem phuc hoi he thong",
+      "category": "essential",
+      "level": "safe",
       "reboot_required": false,
-      "type": "registry",
-      "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection",
-      "nameReg": "AllowTelemetry",
-      "value": "0",
-      "regType": "DWord"
+      "type": "script",
+      "script": "Checkpoint-Computer -Description 'PMK Toolbox Restore Point' -RestorePointType MODIFY_SETTINGS"
     },
     {
-      "id": "disable-diagtrack",
-      "name": "Tat DiagTrack",
-      "description": "Tat dich vu Connected User Experiences and Telemetry",
+      "id": "disable-telemetry",
+      "name": "Tat thu thap du lieu",
+      "description": "Vo hieu hoa thu thap du lieu Microsoft",
       "category": "privacy",
       "level": "balanced",
       "reboot_required": true,
       "type": "service",
       "serviceName": "DiagTrack",
-      "startup": "Disabled"
-    },
-    {
-      "id": "disable-wsearch",
-      "name": "Tat WSearch",
-      "description": "Tat dich vu Windows Search Indexing",
-      "category": "performance",
-      "level": "dangerous",
-      "reboot_required": true,
-      "type": "service",
-      "serviceName": "WSearch",
       "startup": "Disabled"
     },
     {
@@ -47,46 +33,43 @@
       "startup": "Disabled"
     },
     {
-      "id": "disable-office-telemetry",
-      "name": "Tat Office Telemetry",
-      "description": "Vo hieu hoa task thu thap du lieu Office",
-      "category": "privacy",
-      "level": "balanced",
-      "reboot_required": false,
-      "type": "scheduled_task",
-      "tasks": [
-        "OfficeTelemetryAgentLogOn",
-        "OfficeTelemetryAgentFallBack"
-      ]
-    },
-    {
-      "id": "remove-edge",
-      "name": "Xoa Microsoft Edge",
-      "description": "Go bo trinh duyet Microsoft Edge",
-      "category": "debloat",
+      "id": "disable-wsearch",
+      "name": "Tat Windows Search",
+      "description": "Tat dich vu tim kiem de giam tai",
+      "category": "performance",
       "level": "dangerous",
       "reboot_required": true,
       "type": "service",
-      "serviceName": "edgeupdate",
+      "serviceName": "WSearch",
       "startup": "Disabled"
+    },
+    {
+      "id": "disable-edge",
+      "name": "Xoa Microsoft Edge",
+      "description": "Go bo trinh duyet Edge",
+      "category": "debloat",
+      "level": "dangerous",
+      "reboot_required": false,
+      "type": "script",
+      "script": "Get-AppxPackage -AllUsers Microsoft.MicrosoftEdge | Remove-AppxPackage"
     },
     {
       "id": "classic-right-click",
       "name": "Menu chuot phai Win10",
-      "description": "Khoi phuc menu chuot phai Windows 10 cho Win11",
+      "description": "Phuc hoi menu chuot phai kieu Windows 10",
       "category": "ui",
       "level": "balanced",
       "reboot_required": false,
       "type": "registry",
       "path": "HKCU:\\Software\\Classes\\CLSID\\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}\\InprocServer32",
-      "nameReg": "",
+      "name": "",
       "value": "",
       "regType": "String"
     },
     {
       "id": "disable-windows-update",
       "name": "Tat Windows Update",
-      "description": "Vo hieu hoa Windows Update hoan toan",
+      "description": "Vo hieu hoa cap nhat tu dong",
       "category": "updates",
       "level": "dangerous",
       "reboot_required": true,
@@ -95,37 +78,100 @@
       "startup": "Disabled"
     },
     {
-      "id": "disable-windows-defender",
-      "name": "Tat Windows Defender",
-      "description": "Vo hieu hoa Windows Defender hoan toan",
-      "category": "security",
-      "level": "dangerous",
-      "reboot_required": true,
-      "type": "service",
-      "serviceName": "WinDefend",
-      "startup": "Disabled"
-    },
-    {
       "id": "enable-windows-update",
       "name": "Bat Windows Update",
-      "description": "Kich hoat Windows Update tro lai",
+      "description": "Kich hoat lai Windows Update",
       "category": "updates",
-      "level": "balanced",
+      "level": "safe",
       "reboot_required": true,
       "type": "service",
       "serviceName": "wuauserv",
       "startup": "Manual"
     },
     {
-      "id": "enable-windows-defender",
-      "name": "Bat Windows Defender",
-      "description": "Kich hoat Windows Defender tro lai",
+      "id": "disable-defender",
+      "name": "Tat Windows Defender",
+      "description": "Vo hieu hoa Windows Defender",
       "category": "security",
-      "level": "balanced",
+      "level": "dangerous",
+      "reboot_required": true,
+      "type": "service",
+      "serviceName": "WinDefend",
+      "startup": "Disabled"
+    },
+    {
+      "id": "enable-defender",
+      "name": "Bat Windows Defender",
+      "description": "Kich hoat lai Windows Defender",
+      "category": "security",
+      "level": "safe",
       "reboot_required": true,
       "type": "service",
       "serviceName": "WinDefend",
       "startup": "Automatic"
+    },
+    {
+      "id": "disable-office-telemetry",
+      "name": "Tat telemetry Office",
+      "description": "Tat thu thap du lieu Microsoft Office",
+      "category": "privacy",
+      "level": "balanced",
+      "reboot_required": false,
+      "type": "task",
+      "tasks": ["OfficeTelemetryAgentLogOn", "OfficeTelemetryAgentFallBack"]
+    },
+    {
+      "id": "disable-gamedvr",
+      "name": "Tat Game DVR",
+      "description": "Vo hieu hoa Game DVR recording",
+      "category": "gaming",
+      "level": "balanced",
+      "reboot_required": false,
+      "type": "registry",
+      "path": "HKCU:\\System\\GameConfigStore",
+      "name": "GameDVR_Enabled",
+      "value": "0",
+      "regType": "DWord"
+    },
+    {
+      "id": "enable-legacy-boot",
+      "name": "Bat F8 boot menu",
+      "description": "Kich hoat menu boot F8 cu",
+      "category": "boot",
+      "level": "balanced",
+      "reboot_required": false,
+      "type": "script",
+      "script": "bcdedit /set bootmenupolicy legacy"
+    },
+    {
+      "id": "disable-legacy-boot",
+      "name": "Tat F8 boot menu",
+      "description": "Vo hieu hoa menu boot F8",
+      "category": "boot",
+      "level": "balanced",
+      "reboot_required": false,
+      "type": "script",
+      "script": "bcdedit /set bootmenupolicy standard"
+    },
+    {
+      "id": "reset-windows-update",
+      "name": "Reset Windows Update",
+      "description": "Reset cau hinh Windows Update",
+      "category": "fixes",
+      "level": "balanced",
+      "reboot_required": true,
+      "type": "script",
+      "script": "net stop wuauserv; net stop bits; net stop cryptsvc; ren %windir%\\SoftwareDistribution SoftwareDistribution.old; ren %windir%\\System32\\catroot2 catroot2.old; net start wuauserv; net start bits; net start cryptsvc"
+    },
+    {
+      "id": "reset-network",
+      "name": "Reset mang",
+      "description": "Reset cau hinh mang Windows",
+      "category": "fixes",
+      "level": "balanced",
+      "reboot_required": false,
+      "type": "script",
+      "script": "netsh winsock reset; netsh int ip reset; ipconfig /flushdns"
     }
   ]
 }
