@@ -1,5 +1,9 @@
 # =========================================================
-# Compile.ps1 - COMPILE SCRIPT (FIXED FINAL)
+# Compile.ps1 - COMPILE SCRIPT (FINAL VERSION)
+# =========================================================
+# Author: Minh Khai
+# Version: 2.0.0
+# Description: Compile PMK Toolbox to EXE
 # =========================================================
 
 Set-StrictMode -Off
@@ -30,7 +34,7 @@ if ($PSVersionTable.PSVersion.Major -lt 5) {
 Write-Host "   => PowerShell: $($PSVersionTable.PSVersion)" -ForegroundColor Green
 
 # =========================================================
-# PATHS CONFIGURATION (UPDATED - NO BUNDLED FILE)
+# PATHS CONFIGURATION
 # =========================================================
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 
@@ -83,10 +87,10 @@ Write-Host "[+] Tao bundle script..." -ForegroundColor Cyan
 $bundleContent = New-Object System.Collections.Generic.List[string]
 
 # Add header
-$bundleContent.Add("# " + ("=" * 56))
+$bundleContent.Add("# ========================================================")
 $bundleContent.Add("# TOIUUPC - AUTO GENERATED BUNDLE")
 $bundleContent.Add("# Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')")
-$bundleContent.Add("# " + ("=" * 56))
+$bundleContent.Add("# ========================================================")
 $bundleContent.Add("")
 $bundleContent.Add('Set-StrictMode -Off')
 $bundleContent.Add('$ErrorActionPreference = "SilentlyContinue"')
@@ -124,9 +128,9 @@ Add-JsonToBundle -Name "tweaks.json" -Path (Join-Path $Paths.ConfigDir "tweaks.j
 # Embed all PowerShell functions
 Write-Host "[+] Embedding functions..." -ForegroundColor Cyan
 
-$bundleContent.Add("# " + ("=" * 56))
+$bundleContent.Add("# ========================================================")
 $bundleContent.Add("# FUNCTIONS")
-$bundleContent.Add("# " + ("=" * 56))
+$bundleContent.Add("# ========================================================")
 $bundleContent.Add("")
 
 Get-ChildItem $Paths.FuncDir -Filter "*.ps1" | Sort-Object Name | ForEach-Object {
@@ -147,9 +151,9 @@ Get-ChildItem $Paths.FuncDir -Filter "*.ps1" | Sort-Object Name | ForEach-Object
 # Embed main script
 Write-Host "[+] Embedding main script..." -ForegroundColor Cyan
 
-$bundleContent.Add("# " + ("=" * 56))
+$bundleContent.Add("# ========================================================")
 $bundleContent.Add("# MAIN SCRIPT")
-$bundleContent.Add("# " + ("=" * 56))
+$bundleContent.Add("# ========================================================")
 $bundleContent.Add("")
 
 try {
@@ -218,8 +222,8 @@ $compileParams = @{
     Description   = "PMK Toolbox - Toi Uu Windows"
     Company       = "PMK"
     Product       = "ToiUuPC"
-    Version       = "1.0.0"
-    IconFile      = $null  # Add icon path if you have one
+    Version       = "2.0.0"
+    IconFile      = $null
 }
 
 try {
