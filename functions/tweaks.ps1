@@ -1,5 +1,9 @@
 # ============================================================
-# tweaks.ps1 - WINDOWS TWEAKS ENGINE (FULL FEATURES - FIXED)
+# tweaks.ps1 - WINDOWS TWEAKS ENGINE (FINAL VERSION)
+# ============================================================
+# Author: Minh Khai
+# Version: 2.0.0
+# Description: Windows tweaks and optimizations
 # ============================================================
 
 Set-StrictMode -Off
@@ -30,13 +34,13 @@ function Apply-RegistryTweak {
     param($t)
     
     try {
-        # Tạo registry path nếu không tồn tại
+        # Tao registry path neu khong ton tai
         if (-not (Test-Path $t.path)) {
             New-Item -Path $t.path -Force | Out-Null
             Write-Status "Tao registry path: $($t.path)" -Type 'INFO'
         }
         
-        # Đặt giá trị registry
+        # Dat gia tri registry
         Set-ItemProperty -Path $t.path -Name $t.nameReg -Value $t.value -Type $t.regType -Force
         Write-Status "Set registry: $($t.nameReg) = $($t.value)" -Type 'SUCCESS'
         return $true
@@ -56,12 +60,12 @@ function Apply-ServiceTweak {
             return $true
         }
         
-        # Dừng service nếu đang chạy
+        # Dung service neu dang chay
         try {
             Stop-Service $t.serviceName -Force -ErrorAction SilentlyContinue | Out-Null
         } catch {}
         
-        # Đặt startup type
+        # Dat startup type
         Set-Service -Name $t.serviceName -StartupType $t.startup -ErrorAction Stop
         Write-Status "Service configured: $($t.serviceName) -> $($t.startup)" -Type 'SUCCESS'
         
@@ -76,13 +80,13 @@ function Apply-ScheduledTaskTweak {
     param($t)
     
     try {
-        # Vô hiệu hóa task theo tên
+        # Vo hieu hoa task theo ten
         if ($t.taskName) {
             Disable-ScheduledTask -TaskName $t.taskName -ErrorAction SilentlyContinue
             Write-Status "Task disabled: $($t.taskName)" -Type 'SUCCESS'
         }
         
-        # Vô hiệu hóa nhiều tasks
+        # Vo hieu hoa nhieu tasks
         if ($t.tasks) {
             foreach ($task in $t.tasks) {
                 Disable-ScheduledTask -TaskName $task -ErrorAction SilentlyContinue
@@ -97,39 +101,22 @@ function Apply-ScheduledTaskTweak {
     }
 }
 
-function Rollback-RegistryTweak {
+function Execute-Tweak {
     param($t)
     
-    try {
-        if ($t.rollback.value -ne $null) {
-            Set-ItemProperty -Path $t.path -Name $t.nameReg -Value $t.rollback.value -Type $t.regType -Force
-            Write-Status "Rollback registry: $($t.nameReg) = $($t.rollback.value)" -Type 'INFO'
-        }
-        return $true
-    } catch {
-        Write-Status "Rollback error: $_" -Type 'ERROR'
-        return $false
-    }
-}
-
-function Execute-Tweak {
-    param($t, [switch]$Rollback = $false)
-    
-    # Hiển thị thông tin chi tiết về tweak
     Write-Host ""
     Write-Host " THONG TIN TWEAK:" -ForegroundColor $global:UI_Colors.Title
     Write-Host "   Ten: $($t.name)" -ForegroundColor $global:UI_Colors.Value
     Write-Host "   Mo ta: $($t.description)" -ForegroundColor $global:UI_Colors.Label
     Write-Host "   Loai: $($t.category) | Muc do: $($t.level)" -ForegroundColor $global:UI_Colors.Label
     
-    # Hiển thị cảnh báo nếu có
     if ($t.level -eq "dangerous") {
-        Write-Host "   ⚠️  CANH BAO: Tweak nay co the anh huong den tinh nang he thong!" -ForegroundColor Red
+        Write-Host "   CANH BAO: Tweak nay co the anh huong den tinh nang he thong!" -ForegroundColor Red
     }
     
     Write-Host ""
     
-    # Kiểm tra OS compatibility
+    # Kiem tra OS compatibility
     if ($t.os_guard) {
         if (-not (Test-OSVersion -min $t.os_guard.min -max $t.os_guard.max)) {
             Write-Status "Khong tuong thich voi Windows hien tai" -Type 'WARNING'
@@ -146,18 +133,11 @@ function Execute-Tweak {
     Write-Host ""
     
     $result = $false
-    if ($Rollback) {
-        switch ($t.type) {
-            "registry" { $result = Rollback-RegistryTweak $t }
-            default { Write-Status "Rollback chua duoc ho tro cho loai: $($t.type)" -Type 'WARNING' }
-        }
-    } else {
-        switch ($t.type) {
-            "registry"        { $result = Apply-RegistryTweak $t }
-            "service"         { $result = Apply-ServiceTweak $t }
-            "scheduled_task"  { $result = Apply-ScheduledTaskTweak $t }
-            default { Write-Status "Khong ho tro loai tweak: $($t.type)" -Type 'ERROR' }
-        }
+    switch ($t.type) {
+        "registry"        { $result = Apply-RegistryTweak $t }
+        "service"         { $result = Apply-ServiceTweak $t }
+        "scheduled_task"  { $result = Apply-ScheduledTaskTweak $t }
+        default { Write-Status "Khong ho tro loai tweak: $($t.type)" -Type 'ERROR' }
     }
     
     Write-Host ""
@@ -177,19 +157,23 @@ function Execute-Tweak {
 function Show-TweaksMenu {
     param($Config)
     
-    if (-not $Config.tweaks) {
+    if (-not $Config -or -not $Config.tweaks) {
         Write-Status "Cau hinh tweaks.json khong hop le!" -Type 'ERROR'
         Pause
         return
     }
     
     while ($true) {
-        # Xây dựng menu items từ tweaks
+        # Xay dung menu items tu tweaks
         $menuItems = @()
         $index = 1
         
         foreach ($tweak in $Config.tweaks) {
             $displayName = $tweak.name
+            if ($displayName.Length -gt 35) {
+                $displayName = $displayName.Substring(0, 32) + "..."
+            }
+            
             $menuItems += @{ 
                 Key = "$index"; 
                 Text = $displayName
@@ -199,7 +183,7 @@ function Show-TweaksMenu {
         
         $menuItems += @{ Key = "0"; Text = "Quay lai Menu Chinh" }
         
-        # Hiển thị menu với hai cột (ĐÃ SỬA LỖI HIỂN THỊ)
+        # Hien thi menu voi hai cot
         Show-Menu -MenuItems $menuItems -Title "WINDOWS TWEAKS" -TwoColumn -Prompt "Chon tweak de ap dung (0 de quay lai): "
         
         $choice = Read-Host
@@ -212,17 +196,17 @@ function Show-TweaksMenu {
         if ($tweakIndex -ge 0 -and $tweakIndex -lt $Config.tweaks.Count) {
             $selectedTweak = $Config.tweaks[$tweakIndex]
             
-            # Hiển thị header
+            # Hien thi header
             Show-Header -Title "AP DUNG TWEAK"
             
-            # Hiển thị xác nhận
+            # Hien thi xac nhan
             Write-Host "Ban co chac muon ap dung tweak nay?" -ForegroundColor $global:UI_Colors.Title
             Write-Host "   Ten: $($selectedTweak.name)" -ForegroundColor $global:UI_Colors.Value
             Write-Host ""
             $confirm = Read-Host "Nhap 'YES' de xac nhan hoac Enter de huy: "
             
             if ($confirm -eq "YES") {
-                # Thực thi tweak
+                # Thuc thi tweak
                 $success = Execute-Tweak -t $selectedTweak
                 
                 Write-Host ""
@@ -243,92 +227,3 @@ function Show-TweaksMenu {
         }
     }
 }
-
-# ============================================================
-# TWEAK UTILITIES
-# ============================================================
-
-function Get-TweakCount {
-    param($Config)
-    
-    if (-not $Config.tweaks) {
-        return 0
-    }
-    return $Config.tweaks.Count
-}
-
-function Show-TweakCategories {
-    param($Config)
-    
-    if (-not $Config.tweaks) {
-        Write-Host "Khong co tweak nao" -ForegroundColor Yellow
-        return
-    }
-    
-    $categories = @{}
-    foreach ($tweak in $Config.tweaks) {
-        $category = $tweak.category
-        if (-not $categories.ContainsKey($category)) {
-            $categories[$category] = 0
-        }
-        $categories[$category]++
-    }
-    
-    Write-Host "`nDANH SACH CATEGORY TWEAKS:" -ForegroundColor Cyan
-    Write-Host "============================" -ForegroundColor Cyan
-    
-    foreach ($category in $categories.Keys | Sort-Object) {
-        $count = $categories[$category]
-        Write-Host "  $category : $count tweaks" -ForegroundColor White
-    }
-    
-    Write-Host ""
-}
-
-function Test-AllTweaksCompatibility {
-    param($Config)
-    
-    if (-not $Config.tweaks) {
-        Write-Status "Khong co tweak de kiem tra" -Type 'WARNING'
-        return
-    }
-    
-    $compatible = 0
-    $incompatible = 0
-    
-    foreach ($tweak in $Config.tweaks) {
-        if ($tweak.os_guard) {
-            if (Test-OSVersion -min $tweak.os_guard.min -max $tweak.os_guard.max) {
-                $compatible++
-            } else {
-                $incompatible++
-            }
-        } else {
-            $compatible++
-        }
-    }
-    
-    Write-Host "`nKET QUA KIEM TRA TUONG THICH:" -ForegroundColor Cyan
-    Write-Host "==============================" -ForegroundColor Cyan
-    Write-Host "  Tuong thich: $compatible tweaks" -ForegroundColor Green
-    Write-Host "  Khong tuong thich: $incompatible tweaks" -ForegroundColor Yellow
-    Write-Host "  Tong so: $($Config.tweaks.Count) tweaks" -ForegroundColor White
-    Write-Host ""
-}
-
-# ============================================================
-# EXPORT FUNCTIONS
-# ============================================================
-
-Export-ModuleMember -Function @(
-    'Test-OSVersion',
-    'Apply-RegistryTweak',
-    'Apply-ServiceTweak',
-    'Apply-ScheduledTaskTweak',
-    'Rollback-RegistryTweak',
-    'Execute-Tweak',
-    'Show-TweaksMenu',
-    'Get-TweakCount',
-    'Show-TweakCategories',
-    'Test-AllTweaksCompatibility'
-)
