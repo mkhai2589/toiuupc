@@ -1,8 +1,9 @@
 # ==================================================
-# bootstrap.ps1 - BOOTSTRAP SCRIPT (100% WORKING VERSION)
+# bootstrap.ps1 - BOOTSTRAP SCRIPT (FIXED VERSION)
 # ==================================================
 
 # THIẾT LẬP RÕ RÀNG
+Set-StrictMode -Off
 $ErrorActionPreference = "Continue"
 $WarningPreference = "Continue"
 
@@ -11,10 +12,9 @@ try {
     chcp 65001 | Out-Null
     [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 } catch {}
-Set-StrictMode -Off
 
 # ==================================================
-# LOGGING SYSTEM (SIMPLE BUT EFFECTIVE)
+# LOGGING SYSTEM
 # ==================================================
 $LogFile = Join-Path $env:TEMP "toiuupc_bootstrap_$(Get-Date -Format 'yyyyMMdd_HHmmss').log"
 
@@ -31,13 +31,7 @@ function Write-Log {
     
     # Hiển thị ra console với màu sắc
     switch ($Level) {
-        "ERROR" { 
-            Write-Host "[ERROR] $Message" -ForegroundColor Red 
-            # PAUSE ĐỂ ĐỌC LỖI
-            Write-Host "Press any key to continue..." -ForegroundColor Yellow -NoNewline
-            $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
-            Write-Host ""
-        }
+        "ERROR" { Write-Host "[ERROR] $Message" -ForegroundColor Red }
         "WARN"  { Write-Host "[WARN]  $Message" -ForegroundColor Yellow }
         "INFO"  { Write-Host "[INFO]  $Message" -ForegroundColor Cyan }
         default { Write-Host "[$Level] $Message" -ForegroundColor White }
@@ -68,9 +62,9 @@ function Show-BootstrapHeader {
 
 function Test-IsAdmin {
     try {
-        $id = [Security.Principal.WindowsIdentity]::GetCurrent()
-        $p = New-Object Security.Principal.WindowsPrincipal($id)
-        return $p.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+        $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+        $principal = New-Object Security.Principal.WindowsPrincipal($identity)
+        return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
     } catch {
         return $false
     }
@@ -112,15 +106,28 @@ function Initialize-WorkingDirectory {
     param([string]$Path)
     
     try {
+        Write-Log "Creating working directory: $Path" -Level "INFO"
+        
+        # Sử dụng đường dẫn đầy đủ
+        $fullPath = [System.IO.Path]::GetFullPath($Path)
+        Write-Log "Full path: $fullPath" -Level "INFO"
+        
         # Xóa thư mục cũ nếu tồn tại
-        if (Test-Path $Path) {
-            Remove-Item $Path -Recurse -Force -ErrorAction Stop
+        if (Test-Path $fullPath) {
+            Remove-Item $fullPath -Recurse -Force -ErrorAction SilentlyContinue
+            Write-Log "Removed old directory" -Level "INFO"
         }
         
-        # Tạo thư mục mới
-        New-Item -ItemType Directory -Path $Path -Force | Out-Null
+        # Tạo thư mục mới và tất cả subdirectories
+        New-Item -ItemType Directory -Path $fullPath -Force | Out-Null
+        New-Item -ItemType Directory -Path "$fullPath\config" -Force | Out-Null
+        New-Item -ItemType Directory -Path "$fullPath\functions" -Force | Out-Null
+        New-Item -ItemType Directory -Path "$fullPath\runtime" -Force | Out-Null
+        
+        Write-Log "Directory created successfully" -Level "INFO"
         return $true
     } catch {
+        Write-Log "Failed to create directory: $_" -Level "ERROR"
         return $false
     }
 }
@@ -133,8 +140,8 @@ function Download-Project {
     
     try {
         # Clean up
-        if (Test-Path $tempZip) { Remove-Item $tempZip -Force }
-        if (Test-Path $extractDir) { Remove-Item $extractDir -Recurse -Force }
+        if (Test-Path $tempZip) { Remove-Item $tempZip -Force -ErrorAction SilentlyContinue }
+        if (Test-Path $extractDir) { Remove-Item $extractDir -Recurse -Force -ErrorAction SilentlyContinue }
         
         # Download
         Write-Log "Downloading project from GitHub..." -Level "INFO"
@@ -144,30 +151,18 @@ function Download-Project {
         Write-Log "Extracting files..." -Level "INFO"
         Expand-Archive -Path $tempZip -DestinationPath $extractDir -Force -ErrorAction Stop
         
-        # Find and copy
-        $foundDir = $null
+        # Tìm thư mục chính (toiuupc-main)
+        $mainExtractedDir = Get-ChildItem $extractDir -Directory -Filter "toiuupc*" | Select-Object -First 1
         
-        # Tìm thư mục chứa ToiUuPC.ps1
-        $allDirs = Get-ChildItem $extractDir -Directory -Recurse | Where-Object { 
-            Test-Path (Join-Path $_.FullName "ToiUuPC.ps1") 
-        }
-        
-        if ($allDirs.Count -gt 0) {
-            $foundDir = $allDirs[0].FullName
-        } else {
-            # Thử tìm trong thư mục đầu tiên
-            $firstDir = Get-ChildItem $extractDir -Directory | Select-Object -First 1
-            if ($firstDir) {
-                $foundDir = $firstDir.FullName
-            }
-        }
-        
-        if ($foundDir) {
-            Write-Log "Copying files from: $foundDir" -Level "INFO"
-            Copy-Item "$foundDir\*" $TargetDir -Recurse -Force
+        if ($mainExtractedDir) {
+            Write-Log "Found project directory: $($mainExtractedDir.FullName)" -Level "INFO"
+            
+            # Copy tất cả file và thư mục
+            Copy-Item "$($mainExtractedDir.FullName)\*" $TargetDir -Recurse -Force
+            Write-Log "Files copied successfully" -Level "INFO"
             return $true
         } else {
-            Write-Log "Could not find project files" -Level "ERROR"
+            Write-Log "Could not find project directory in extracted files" -Level "ERROR"
             return $false
         }
         
@@ -186,7 +181,10 @@ function Test-ProjectFiles {
     
     $requiredFiles = @(
         "ToiUuPC.ps1",
-        "functions\utils.ps1"
+        "functions\utils.ps1",
+        "config\applications.json",
+        "config\dns.json",
+        "config\tweaks.json"
     )
     
     foreach ($file in $requiredFiles) {
@@ -213,6 +211,8 @@ try {
         Relaunch-AsAdmin
     }
     
+    Write-Host "[INFO] Administrator: OK" -ForegroundColor Green
+    
     # Kiểm tra internet
     Write-Log "Checking internet connection..." -Level "INFO"
     if (-not (Test-InternetConnection)) {
@@ -222,57 +222,65 @@ try {
         if ($choice -ne 'Y' -and $choice -ne 'y') {
             exit 1
         }
+    } else {
+        Write-Host "[INFO] Internet connection: OK" -ForegroundColor Green
     }
     
     # Tạo thư mục
-    Write-Log "Creating working directory: $BaseDir" -Level "INFO"
+    Write-Host "[INFO] Creating working directory: $BaseDir" -ForegroundColor Cyan
     if (-not (Initialize-WorkingDirectory -Path $BaseDir)) {
-        Write-Log "Failed to create directory" -Level "ERROR"
+        Write-Host "[ERROR] Failed to create directory!" -ForegroundColor Red
+        Write-Host "Press Enter to exit..." -ForegroundColor Yellow
+        Read-Host | Out-Null
         exit 1
     }
+    
+    Write-Host "[INFO] Directory created successfully" -ForegroundColor Green
     
     # Tải dự án
-    Write-Log "Downloading project..." -Level "INFO"
+    Write-Host "[INFO] Downloading project from GitHub..." -ForegroundColor Cyan
     if (-not (Download-Project -ZipUrl $ZipUrl -TargetDir $BaseDir)) {
-        Write-Log "Failed to download project" -Level "ERROR"
+        Write-Host "[ERROR] Failed to download project!" -ForegroundColor Red
+        Write-Host "Press Enter to exit..." -ForegroundColor Yellow
+        Read-Host | Out-Null
         exit 1
     }
+    
+    Write-Host "[INFO] Project downloaded successfully" -ForegroundColor Green
     
     # Kiểm tra file
-    Write-Log "Verifying project files..." -Level "INFO"
+    Write-Host "[INFO] Verifying project files..." -ForegroundColor Cyan
     if (-not (Test-ProjectFiles -BasePath $BaseDir)) {
-        Write-Log "Project files are incomplete" -Level "ERROR"
+        Write-Host "[ERROR] Project files are incomplete!" -ForegroundColor Red
+        Write-Host "Press Enter to exit..." -ForegroundColor Yellow
+        Read-Host | Out-Null
         exit 1
     }
     
+    Write-Host "[INFO] All files verified" -ForegroundColor Green
+    
     # Chạy chương trình chính
-    Write-Log "Launching ToiUuPC..." -Level "INFO"
+    Write-Host ""
+    Write-Host "========================================" -ForegroundColor Green
+    Write-Host "     LAUNCHING PMK TOOLBOX              " -ForegroundColor White
+    Write-Host "========================================" -ForegroundColor Green
+    Write-Host ""
+    
     Set-Location $BaseDir
     
     if (Test-Path $MainFile) {
-        Write-Host ""
-        Write-Host "========================================" -ForegroundColor Green
-        Write-Host "     LAUNCHING PMK TOOLBOX              " -ForegroundColor White
-        Write-Host "========================================" -ForegroundColor Green
-        Write-Host ""
-        
         # Chạy chương trình chính
-        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $MainFile
+        Start-Process powershell.exe -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$MainFile`"" -Wait
     } else {
-        Write-Log "Main file not found: $MainFile" -Level "ERROR"
-        Write-Host "[ERROR] Main file not found!" -ForegroundColor Red
-        Write-Host "Please check the project structure." -ForegroundColor Yellow
+        Write-Host "[ERROR] Main file not found: $MainFile" -ForegroundColor Red
     }
     
 } catch {
-    Write-Log "Unhandled error: $_" -Level "ERROR"
-    Write-Host "[FATAL ERROR] An unexpected error occurred." -ForegroundColor Red
-    Write-Host "Error details: $_" -ForegroundColor Red
+    Write-Host "[FATAL ERROR] An unexpected error occurred: $_" -ForegroundColor Red
     Write-Host "Log file: $LogFile" -ForegroundColor Gray
 }
 
 Write-Host ""
 Write-Host "Bootstrap completed." -ForegroundColor Green
-Write-Host "Log file: $LogFile" -ForegroundColor Gray
 Write-Host "Press Enter to exit..." -ForegroundColor Yellow
 Read-Host | Out-Null
