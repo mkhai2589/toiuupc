@@ -1,13 +1,4 @@
 {
-  "categories": [
-    "browser",
-    "communication",
-    "development",
-    "media",
-    "utility",
-    "gaming"
-  ],
-
   "applications": [
     {
       "id": "chrome",
@@ -101,6 +92,20 @@
       "category": "communication"
     },
     {
+      "id": "viber",
+      "name": "Viber",
+      "packageId": "Rakuten.Viber",
+      "source": "winget",
+      "category": "communication"
+    },
+    {
+      "id": "zoom",
+      "name": "Zoom",
+      "packageId": "Zoom.Zoom",
+      "source": "winget",
+      "category": "communication"
+    },
+    {
       "id": "vscode",
       "name": "Visual Studio Code",
       "packageId": "Microsoft.VisualStudioCode",
@@ -111,13 +116,6 @@
       "id": "git",
       "name": "Git",
       "packageId": "Git.Git",
-      "source": "winget",
-      "category": "development"
-    },
-    {
-      "id": "githubcli",
-      "name": "GitHub CLI",
-      "packageId": "GitHub.cli",
       "source": "winget",
       "category": "development"
     },
@@ -164,10 +162,24 @@
       "category": "media"
     },
     {
-      "id": "obs",
-      "name": "OBS Studio",
-      "packageId": "OBSProject.OBSStudio",
+      "id": "audacity",
+      "name": "Audacity",
+      "packageId": "Audacity.Audacity",
       "source": "winget",
+      "category": "media"
+    },
+    {
+      "id": "itunes",
+      "name": "iTunes",
+      "packageId": "Apple.iTunes",
+      "source": "winget",
+      "category": "media"
+    },
+    {
+      "id": "tiktok",
+      "name": "TikTok",
+      "packageId": "9NH2GPH4JZS4",
+      "source": "msstore",
       "category": "media"
     },
     {
@@ -205,7 +217,6 @@
       "source": "winget",
       "category": "utility"
     },
- 
     {
       "id": "irfanview",
       "name": "IrfanView",
@@ -214,27 +225,54 @@
       "category": "utility"
     },
     {
-      "id": "sumatrapdf",
-      "name": "Sumatra PDF",
-      "packageId": "SumatraPDF.SumatraPDF",
+      "id": "translucenttb",
+      "name": "TranslucentTB",
+      "packageId": "9PF4KZ2VN4W9",
+      "source": "msstore",
+      "category": "utility"
+    },
+    {
+      "id": "sharex",
+      "name": "ShareX",
+      "packageId": "ShareX.ShareX",
       "source": "winget",
       "category": "utility"
     },
     {
-      "id": "qbittorrent",
-      "name": "qBittorrent",
-      "packageId": "qBittorrent.qBittorrent",
+      "id": "cpuz",
+      "name": "CPU-Z",
+      "packageId": "CPUID.CPU-Z",
       "source": "winget",
       "category": "utility"
     },
     {
-      "id": "audacity",
-      "name": "Audacity",
-      "packageId": "Audacity.Audacity",
+      "id": "lightshot",
+      "name": "Lightshot",
+      "packageId": "Skillbrains.Lightshot",
       "source": "winget",
-      "category": "media"
+      "category": "utility"
     },
-
+    {
+      "id": "notion",
+      "name": "Notion",
+      "packageId": "Notion.Notion",
+      "source": "winget",
+      "category": "utility"
+    },
+    {
+      "id": "chatgpt",
+      "name": "ChatGPT",
+      "packageId": "OpenAI.ChatGPT",
+      "source": "winget",
+      "category": "utility"
+    },
+    {
+      "id": "copilot",
+      "name": "Microsoft Copilot",
+      "packageId": "Microsoft.Copilot",
+      "source": "winget",
+      "category": "utility"
+    },
     {
       "id": "msstore",
       "name": "Microsoft Store",
@@ -242,6 +280,19 @@
       "source": "msstore",
       "category": "utility"
     },
-
+    {
+      "id": "vc2015_64",
+      "name": "Visual C++ 2015-2022",
+      "packageId": "Microsoft.VCRedist.2015+.x64",
+      "source": "winget",
+      "category": "utility"
+    },
+    {
+      "id": "geforcenow",
+      "name": "GeForce NOW",
+      "packageId": "Nvidia.GeForceNow",
+      "source": "winget",
+      "category": "gaming"
+    }
   ]
 }
