@@ -1,5 +1,5 @@
 # ============================================================
-# tweaks.ps1 - WINDOWS TWEAKS ENGINE (FULL FEATURES)
+# tweaks.ps1 - WINDOWS TWEAKS ENGINE (FULL FEATURES - FIXED)
 # ============================================================
 
 Set-StrictMode -Off
@@ -57,10 +57,12 @@ function Apply-ServiceTweak {
         }
         
         # Dừng service nếu đang chạy
-        Stop-Service $t.serviceName -Force -ErrorAction SilentlyContinue
+        try {
+            Stop-Service $t.serviceName -Force -ErrorAction SilentlyContinue | Out-Null
+        } catch {}
         
         # Đặt startup type
-        Set-Service -Name $t.serviceName -StartupType $t.startup
+        Set-Service -Name $t.serviceName -StartupType $t.startup -ErrorAction Stop
         Write-Status "Service configured: $($t.serviceName) -> $($t.startup)" -Type 'SUCCESS'
         
         return $true
@@ -119,6 +121,12 @@ function Execute-Tweak {
     Write-Host "   Ten: $($t.name)" -ForegroundColor $global:UI_Colors.Value
     Write-Host "   Mo ta: $($t.description)" -ForegroundColor $global:UI_Colors.Label
     Write-Host "   Loai: $($t.category) | Muc do: $($t.level)" -ForegroundColor $global:UI_Colors.Label
+    
+    # Hiển thị cảnh báo nếu có
+    if ($t.level -eq "dangerous") {
+        Write-Host "   ⚠️  CANH BAO: Tweak nay co the anh huong den tinh nang he thong!" -ForegroundColor Red
+    }
+    
     Write-Host ""
     
     # Kiểm tra OS compatibility
@@ -155,6 +163,7 @@ function Execute-Tweak {
     Write-Host ""
     if ($t.reboot_required) {
         Write-Status "CAN KHOI DONG LAI MAY" -Type 'WARNING'
+        Write-Host "   De thay doi co hieu luc day du, vui long khoi dong lai may." -ForegroundColor $global:UI_Colors.Warning
     }
     
     Write-Host ""
@@ -162,7 +171,7 @@ function Execute-Tweak {
 }
 
 # ============================================================
-# TWEAKS MENU
+# TWEAKS MENU (FIXED DISPLAY)
 # ============================================================
 
 function Show-TweaksMenu {
@@ -181,20 +190,16 @@ function Show-TweaksMenu {
         
         foreach ($tweak in $Config.tweaks) {
             $displayName = $tweak.name
-            if ($displayName.Length -gt 45) {
-                $displayName = $displayName.Substring(0, 42) + "..."
-            }
-            
             $menuItems += @{ 
                 Key = "$index"; 
-                Text = "$displayName"
+                Text = $displayName
             }
             $index++
         }
         
         $menuItems += @{ Key = "0"; Text = "Quay lai Menu Chinh" }
         
-        # Hiển thị menu với hai cột
+        # Hiển thị menu với hai cột (ĐÃ SỬA LỖI HIỂN THỊ)
         Show-Menu -MenuItems $menuItems -Title "WINDOWS TWEAKS" -TwoColumn -Prompt "Chon tweak de ap dung (0 de quay lai): "
         
         $choice = Read-Host
@@ -210,14 +215,24 @@ function Show-TweaksMenu {
             # Hiển thị header
             Show-Header -Title "AP DUNG TWEAK"
             
-            # Thực thi tweak
-            $success = Execute-Tweak -t $selectedTweak
-            
+            # Hiển thị xác nhận
+            Write-Host "Ban co chac muon ap dung tweak nay?" -ForegroundColor $global:UI_Colors.Title
+            Write-Host "   Ten: $($selectedTweak.name)" -ForegroundColor $global:UI_Colors.Value
             Write-Host ""
-            if ($success) {
-                Write-Status "Hoan thanh!" -Type 'SUCCESS'
+            $confirm = Read-Host "Nhap 'YES' de xac nhan hoac Enter de huy: "
+            
+            if ($confirm -eq "YES") {
+                # Thực thi tweak
+                $success = Execute-Tweak -t $selectedTweak
+                
+                Write-Host ""
+                if ($success) {
+                    Write-Status "Hoan thanh!" -Type 'SUCCESS'
+                } else {
+                    Write-Status "Co loi xay ra!" -Type 'ERROR'
+                }
             } else {
-                Write-Status "Co loi xay ra!" -Type 'ERROR'
+                Write-Status "Da huy!" -Type 'INFO'
             }
             
             Write-Host ""
