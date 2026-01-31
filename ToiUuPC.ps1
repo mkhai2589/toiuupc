@@ -1,20 +1,24 @@
 # ==========================================================
-# ToiUuPC.ps1 - MAIN SCRIPT (FIXED VERSION)
+# ToiUuPC.ps1 - MAIN SCRIPT (FINAL VERSION)
+# ==========================================================
+# Author: Minh Khai
+# Version: 2.0.0
+# Description: Main script for PMK Toolbox
 # ==========================================================
 
-# SUPPRESS ERRORS FOR CLEAN START
+# ==========================================================
+# INITIALIZATION
+# ==========================================================
 Set-StrictMode -Off
 $ErrorActionPreference = "SilentlyContinue"
 $WarningPreference = "SilentlyContinue"
 
-# ==========================================================
-# SETUP ENVIRONMENT
-# ==========================================================
+# Setup console
 try {
     [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
     chcp 65001 | Out-Null
 } catch {
-    # Ignore encoding errors
+    # Continue if encoding fails
 }
 
 # ==========================================================
@@ -42,40 +46,29 @@ try {
 Ensure-Admin
 
 # ==========================================================
-# LOAD ALL FUNCTION MODULES (SIMPLE AND EFFECTIVE)
+# LOAD ALL FUNCTION MODULES
 # ==========================================================
-Write-Host ""
 Write-Status "Loading modules..." -Type 'INFO'
 
 $modules = @(
-    @{ Name = "Show-PMKLogo.ps1"; Required = $false }
-    @{ Name = "tweaks.ps1"; Required = $true }
-    @{ Name = "install-apps.ps1"; Required = $true }
-    @{ Name = "dns-management.ps1"; Required = $true }
-    @{ Name = "clean-system.ps1"; Required = $true }
+    "tweaks.ps1",
+    "install-apps.ps1",
+    "dns-management.ps1",
+    "clean-system.ps1",
+    "Show-PMKLogo.ps1"
 )
 
 foreach ($module in $modules) {
-    $path = Join-Path $PSScriptRoot "functions\$($module.Name)"
+    $path = Join-Path $PSScriptRoot "functions\$module"
     if (Test-Path $path) {
         try {
             . $path
-            Write-Host "  ✓ $($module.Name)" -ForegroundColor Green
+            Write-Host "  [OK] $module" -ForegroundColor Green
         } catch {
-            Write-Host "  ✗ $($module.Name) - Error: $_" -ForegroundColor Red
-            if ($module.Required) {
-                Write-Host "[ERROR] Required module failed to load!" -ForegroundColor Red
-                Pause
-                exit 1
-            }
+            Write-Host "  [ERROR] $module" -ForegroundColor Red
         }
     } else {
-        Write-Host "  ✗ $($module.Name) - Not found" -ForegroundColor Yellow
-        if ($module.Required) {
-            Write-Host "[ERROR] Required module not found!" -ForegroundColor Red
-            Pause
-            exit 1
-        }
+        Write-Host "  [MISSING] $module" -ForegroundColor Yellow
     }
 }
 
@@ -84,7 +77,7 @@ foreach ($module in $modules) {
 # ==========================================================
 $ConfigDir = Join-Path $PSScriptRoot "config"
 
-function Load-ConfigFile {
+function Load-Config {
     param([string]$FileName)
     
     $path = Join-Path $ConfigDir $FileName
@@ -102,9 +95,9 @@ function Load-ConfigFile {
     }
 }
 
-$global:TweaksConfig = Load-ConfigFile "tweaks.json"
-$global:AppsConfig   = Load-ConfigFile "applications.json"
-$global:DnsConfig    = Load-ConfigFile "dns.json"
+$global:TweaksConfig = Load-Config "tweaks.json"
+$global:AppsConfig = Load-Config "applications.json"
+$global:DnsConfig = Load-Config "dns.json"
 
 # ==========================================================
 # MAIN MENU DEFINITION
@@ -158,9 +151,9 @@ while ($true) {
             Show-Header -Title "TAI LAI CAU HINH"
             Write-Status "Dang tai lai cau hinh..." -Type 'INFO'
             
-            $global:TweaksConfig = Load-ConfigFile "tweaks.json"
-            $global:AppsConfig   = Load-ConfigFile "applications.json"
-            $global:DnsConfig    = Load-ConfigFile "dns.json"
+            $global:TweaksConfig = Load-Config "tweaks.json"
+            $global:AppsConfig = Load-Config "applications.json"
+            $global:DnsConfig = Load-Config "dns.json"
             
             if ($global:TweaksConfig -and $global:AppsConfig -and $global:DnsConfig) {
                 Write-Status "Tai lai cau hinh thanh cong!" -Type 'SUCCESS'
