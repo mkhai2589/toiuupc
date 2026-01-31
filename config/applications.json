@@ -205,13 +205,7 @@
       "source": "winget",
       "category": "utility"
     },
-    {
-      "id": "ccleaner",
-      "name": "CCleaner",
-      "packageId": "Piriform.CCleaner",
-      "source": "winget",
-      "category": "utility"
-    },
+ 
     {
       "id": "irfanview",
       "name": "IrfanView",
@@ -223,13 +217,6 @@
       "id": "sumatrapdf",
       "name": "Sumatra PDF",
       "packageId": "SumatraPDF.SumatraPDF",
-      "source": "winget",
-      "category": "utility"
-    },
-    {
-      "id": "greenshot",
-      "name": "Greenshot",
-      "packageId": "Greenshot.Greenshot",
       "source": "winget",
       "category": "utility"
     },
@@ -247,83 +234,7 @@
       "source": "winget",
       "category": "media"
     },
-    {
-      "id": "gimp",
-      "name": "GIMP",
-      "packageId": "GIMP.GIMP",
-      "source": "winget",
-      "category": "media"
-    },
-    {
-      "id": "inkscape",
-      "name": "Inkscape",
-      "packageId": "Inkscape.Inkscape",
-      "source": "winget",
-      "category": "media"
-    },
-    {
-      "id": "krita",
-      "name": "Krita",
-      "packageId": "KDE.Krita",
-      "source": "winget",
-      "category": "media"
-    },
-    {
-      "id": "blender",
-      "name": "Blender",
-      "packageId": "BlenderFoundation.Blender",
-      "source": "winget",
-      "category": "media"
-    },
-    {
-      "id": "handbrake",
-      "name": "HandBrake",
-      "packageId": "HandBrake.HandBrake",
-      "source": "winget",
-      "category": "media"
-    },
-    {
-      "id": "winmerge",
-      "name": "WinMerge",
-      "packageId": "WinMerge.WinMerge",
-      "source": "winget",
-      "category": "development"
-    },
-    {
-      "id": "winscp",
-      "name": "WinSCP",
-      "packageId": "WinSCP.WinSCP",
-      "source": "winget",
-      "category": "development"
-    },
-    {
-      "id": "putty",
-      "name": "PuTTY",
-      "packageId": "PuTTY.PuTTY",
-      "source": "winget",
-      "category": "development"
-    },
-    {
-      "id": "wireshark",
-      "name": "Wireshark",
-      "packageId": "WiresharkFoundation.Wireshark",
-      "source": "winget",
-      "category": "development"
-    },
-    {
-      "id": "virtualbox",
-      "name": "VirtualBox",
-      "packageId": "Oracle.VirtualBox",
-      "source": "winget",
-      "category": "development"
-    },
-    {
-      "id": "vmware",
-      "name": "VMware Workstation Player",
-      "packageId": "VMware.WorkstationPlayer",
-      "source": "winget",
-      "category": "development"
-    },
+
     {
       "id": "msstore",
       "name": "Microsoft Store",
@@ -331,12 +242,6 @@
       "source": "msstore",
       "category": "utility"
     },
-    {
-      "id": "office",
-      "name": "Microsoft Office",
-      "packageId": "9WZDNCRFHV9V",
-      "source": "msstore",
-      "category": "utility"
-    }
+
   ]
 }
