@@ -1,19 +1,23 @@
 # ==================================================
-# bootstrap.ps1 - BOOTSTRAP SCRIPT (FINAL PRO WITH LOGGING)
+# bootstrap.ps1 - BOOTSTRAP SCRIPT (FIXED WITH PAUSE ON ERROR)
 # ==================================================
 
 # SUPPRESS ERRORS FOR CLEAN START
-$ErrorActionPreference = "Continue"  # Đổi từ SilentlyContinue sang Continue để thấy lỗi
+$ErrorActionPreference = "Continue"  # Để hiển thị lỗi
 $WarningPreference = "Continue"
 
-chcp 65001 | Out-Null
-[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+# Thiết lập encoding
+try {
+    chcp 65001 | Out-Null
+    [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+} catch {}
 Set-StrictMode -Off
 
 # ==================================================
-# LOGGING SYSTEM
+# LOGGING SYSTEM (IMPROVED)
 # ==================================================
 $LogFile = Join-Path $env:TEMP "toiuupc_bootstrap_$(Get-Date -Format 'yyyyMMdd_HHmmss').log"
+$global:BootstrapDebug = $true  # Cho phép pause khi lỗi
 
 function Write-Log {
     param([string]$Message, [string]$Level = "INFO")
@@ -29,7 +33,15 @@ function Write-Log {
     
     # Hiển thị ra console với màu sắc
     switch ($Level) {
-        "ERROR" { Write-Host "[ERROR] $Message" -ForegroundColor Red }
+        "ERROR" { 
+            Write-Host "[ERROR] $Message" -ForegroundColor Red 
+            # Nếu đang debug, pause để đọc lỗi
+            if ($global:BootstrapDebug) {
+                Write-Host "Press any key to continue..." -ForegroundColor Yellow -NoNewline
+                $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+                Write-Host ""
+            }
+        }
         "WARN"  { Write-Host "[WARN]  $Message" -ForegroundColor Yellow }
         "INFO"  { Write-Host "[INFO]  $Message" -ForegroundColor Cyan }
         "DEBUG" { Write-Host "[DEBUG] $Message" -ForegroundColor Gray }
@@ -44,6 +56,7 @@ Write-Log "User: $env:USERNAME"
 Write-Log "May tinh: $env:COMPUTERNAME"
 Write-Log "PS Version: $($PSVersionTable.PSVersion)"
 Write-Log "Log file: $LogFile"
+Write-Log "Debug mode: $global:BootstrapDebug"
 
 # ==================================================
 # CONFIGURATION
@@ -128,12 +141,13 @@ function Test-GitAvailable {
 function Test-InternetConnection {
     Write-Log "Kiem tra ket noi Internet" -Level "DEBUG"
     try {
-        $response = Test-NetConnection -ComputerName "8.8.8.8" -Port 53 -InformationLevel Quiet -ErrorAction Stop
+        # Thử ping Google DNS
+        $response = Test-Connection -ComputerName "8.8.8.8" -Count 1 -Quiet -ErrorAction Stop
         if ($response) {
             Write-Log "Ket noi Internet: OK" -Level "INFO"
             return $true
         } else {
-            Write-Log "Khong co ket noi Internet (Test-NetConnection tra ve false)" -Level "WARN"
+            Write-Log "Khong co ket noi Internet (ping that bai)" -Level "WARN"
             return $false
         }
     } catch {
