@@ -45,12 +45,14 @@ function Show-DnsMenu {
         
         Show-Header -Title "QUAN LY DNS"
         Write-Host " Adapter hien tai: $($adapter.InterfaceAlias)" -ForegroundColor $global:UI_Colors.Value
+        Write-Host "   Ten: $($adapter.Name)" -ForegroundColor $global:UI_Colors.Label
+        Write-Host "   MAC: $($adapter.MacAddress)" -ForegroundColor $global:UI_Colors.Label
         Write-Host ""
         Write-Host " DNS HIEN TAI:" -ForegroundColor $global:UI_Colors.Title
         Write-Host "   IPv4: $currentIPv4" -ForegroundColor $global:UI_Colors.Highlight
         Write-Host "   IPv6: $currentIPv6" -ForegroundColor $global:UI_Colors.Highlight
         Write-Host ""
-        Write-Host "─" * 40 -ForegroundColor $global:UI_Colors.Border
+        Write-Host "─" * 50 -ForegroundColor $global:UI_Colors.Border
         Write-Host ""
         
         # Build menu từ DNS config
@@ -62,14 +64,19 @@ function Show-DnsMenu {
             $primary = if ($dnsConfig.Primary) { $dnsConfig.Primary } else { "DHCP" }
             $primary6 = if ($dnsConfig.Primary6) { $dnsConfig.Primary6 } else { "" }
             
-            $displayText = "$($dnsName.PadRight(20))"
+            $displayText = "$($dnsName)"
             if ($primary -ne "DHCP") {
-                $displayText += " IPv4: $primary"
+                $displayText += " - IPv4: $primary"
                 if ($primary6) {
                     $displayText += " IPv6: $primary6"
                 }
             } else {
                 $displayText += " (Reset to DHCP)"
+            }
+            
+            # Cắt ngắn nếu quá dài
+            if ($displayText.Length -gt 45) {
+                $displayText = $displayText.Substring(0, 42) + "..."
             }
             
             $menuItems += @{ 
@@ -97,6 +104,8 @@ function Show-DnsMenu {
             
             Show-Header -Title "AP DUNG DNS"
             Write-Status "Dang ap dung DNS: $selectedDns" -Type 'INFO'
+            Write-Host "   Mo ta: $($dnsConfig.Description)" -ForegroundColor $global:UI_Colors.Label
+            Write-Host ""
             
             # Thu thập tất cả địa chỉ DNS (IPv4 + IPv6)
             $servers = @()
@@ -105,26 +114,31 @@ function Show-DnsMenu {
             if ($dnsConfig.Primary6)   { $servers += $dnsConfig.Primary6 }
             if ($dnsConfig.Secondary6) { $servers += $dnsConfig.Secondary6 }
             
-            Write-Host ""
-            if ($servers.Count -gt 0) {
-                Write-Host " DNS servers:" -ForegroundColor $global:UI_Colors.Label
-                foreach ($server in $servers) {
-                    Write-Host "   - $server" -ForegroundColor $global:UI_Colors.Value
-                }
-                Write-Host ""
-                
-                # Áp dụng tất cả DNS servers trong MỘT lệnh (ĐÃ SỬA)
-                Set-DnsClientServerAddress -InterfaceAlias $adapter.InterfaceAlias -ServerAddresses $servers
-                Write-Status "Da ap dung DNS thanh cong!" -Type 'SUCCESS'
-            } else {
-                # Reset về DHCP
-                Set-DnsClientServerAddress -InterfaceAlias $adapter.InterfaceAlias -ResetServerAddresses
-                Write-Status "Da reset ve DHCP" -Type 'SUCCESS'
+            Write-Host " DNS servers se duoc ap dung:" -ForegroundColor $global:UI_Colors.Label
+            foreach ($server in $servers) {
+                Write-Host "   - $server" -ForegroundColor $global:UI_Colors.Value
             }
+            Write-Host ""
             
-            # Xóa DNS cache
-            ipconfig /flushdns | Out-Null
-            Write-Status "Da xoa DNS cache" -Type 'INFO'
+            # Áp dụng DNS
+            try {
+                if ($servers.Count -gt 0) {
+                    Set-DnsClientServerAddress -InterfaceAlias $adapter.InterfaceAlias -ServerAddresses $servers -ErrorAction Stop
+                    Write-Status "Da ap dung DNS thanh cong!" -Type 'SUCCESS'
+                } else {
+                    # Reset về DHCP
+                    Set-DnsClientServerAddress -InterfaceAlias $adapter.InterfaceAlias -ResetServerAddresses -ErrorAction Stop
+                    Write-Status "Da reset ve DHCP" -Type 'SUCCESS'
+                }
+                
+                # Xóa DNS cache
+                ipconfig /flushdns 2>&1 | Out-Null
+                Write-Status "Da xoa DNS cache" -Type 'INFO'
+                
+            } catch {
+                Write-Status "Loi khi ap dung DNS: $_" -Type 'ERROR'
+                Write-Host "   Vui long kiem tra quyen Administrator" -ForegroundColor $global:UI_Colors.Warning
+            }
             
             Write-Host ""
             Pause
@@ -134,3 +148,7 @@ function Show-DnsMenu {
         }
     }
 }
+
+Export-ModuleMember -Function @(
+    'Show-DnsMenu'
+)
