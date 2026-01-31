@@ -1,5 +1,5 @@
 # ============================================================
-# install-apps.ps1 - INSTALL APPLICATIONS (COMPLETE VERSION)
+# install-apps.ps1 - INSTALL APPLICATIONS (FIXED FINAL)
 # ============================================================
 
 Set-StrictMode -Off
@@ -40,8 +40,11 @@ function Is-AppInstalled {
 
 function Test-WingetAvailable {
     try {
-        winget --version 2>&1 | Out-Null
-        return $true
+        $wingetVersion = winget --version 2>&1
+        if ($wingetVersion -like "*version*" -or $wingetVersion -match '\d+\.\d+\.\d+') {
+            return $true
+        }
+        return $false
     } catch {
         return $false
     }
@@ -55,36 +58,39 @@ function Install-WingetIfMissing {
     Write-Status "Winget chua duoc cai dat. Dang cai dat winget..." -Type 'INFO'
     
     try {
-        # Method 1: Try to install from Microsoft Store
+        # Method 1: Try to install from Microsoft Store link
         $wingetUrl = "https://aka.ms/getwinget"
         $wingetPath = Join-Path $env:TEMP "Microsoft.DesktopAppInstaller_8wekyb3d8bbwe.msixbundle"
         
-        Invoke-WebRequest -Uri $wingetUrl -OutFile $wingetPath -UseBasicParsing
-        Add-AppxPackage -Path $wingetPath -ErrorAction SilentlyContinue
+        Write-Host "   Dang tai winget tu Microsoft..." -ForegroundColor Gray
+        Invoke-WebRequest -Uri $wingetUrl -OutFile $wingetPath -UseBasicParsing -ErrorAction Stop
+        
+        # Check if file was downloaded
+        if (-not (Test-Path $wingetPath) -or (Get-Item $wingetPath).Length -lt 1024) {
+            Write-Status "File tai ve bi loi, thu cach khac..." -Type 'WARNING'
+            throw "File download error"
+        }
+        
+        Write-Host "   Dang cai dat winget..." -ForegroundColor Gray
+        Add-AppxPackage -Path $wingetPath -ErrorAction Stop | Out-Null
         
         if (Test-WingetAvailable) {
             Write-Status "Winget da duoc cai dat thanh cong!" -Type 'SUCCESS'
+            # Clean up
+            Remove-Item $wingetPath -Force -ErrorAction SilentlyContinue
             return $true
+        } else {
+            Write-Status "Winget cai dat nhung chua san sang, thu cach khac..." -Type 'WARNING'
         }
-        
-        # Method 2: Use GitHub release
-        Write-Status "Dang thu cach khac de cai dat winget..." -Type 'INFO'
-        $githubUrl = "https://github.com/microsoft/winget-cli/releases/latest/download/Microsoft.DesktopAppInstaller_8wekyb3d8bbwe.msixbundle"
-        Invoke-WebRequest -Uri $githubUrl -OutFile $wingetPath -UseBasicParsing
-        Add-AppxPackage -Path $wingetPath -ErrorAction SilentlyContinue
-        
-        if (Test-WingetAvailable) {
-            Write-Status "Winget da duoc cai dat thanh cong!" -Type 'SUCCESS'
-            return $true
-        }
-        
-        Write-Status "Khong the cai dat winget. Vui long cai dat thu cong." -Type 'ERROR'
-        return $false
         
     } catch {
         Write-Status "Loi cai dat winget: $_" -Type 'ERROR'
+        Write-Host "   Vui long cai dat winget thu cong." -ForegroundColor Yellow
+        Write-Host "   Truy cap: https://docs.microsoft.com/en-us/windows/package-manager/winget/" -ForegroundColor Gray
         return $false
     }
+    
+    return $false
 }
 
 function Install-Application {
@@ -246,9 +252,11 @@ function Show-AppsMenu {
         Write-Host ""
         $choice = Read-Host "Nhap 'YES' de cai dat winget, hoac bat ky de bo qua: "
         if ($choice -eq "YES") {
-            Install-WingetIfMissing
+            if (-not (Install-WingetIfMissing)) {
+                Write-Status "Khong the cai dat winget. Mot so chuc nang co the khong hoat dong." -Type 'ERROR'
+                Pause
+            }
         }
-        Pause
     }
     
     while ($true) {
@@ -296,6 +304,7 @@ function Show-AppsMenu {
                 Show-Header -Title "CAI DAT TOAN BO UNG DUNG"
                 Write-Status "Ban co chac muon cai dat TOAN BO ung dung?" -Type 'WARNING'
                 Write-Host "   So luong: $($Config.applications.Count) ung dung" -ForegroundColor $global:UI_Colors.Value
+                Write-Host "   Qua trinh co the mat nhieu thoi gian!" -ForegroundColor $global:UI_Colors.Warning
                 Write-Host ""
                 $confirm = Read-Host "Nhap 'YES' de xac nhan: "
                 if ($confirm -eq "YES") {
@@ -320,9 +329,13 @@ function Show-AppsMenu {
                 for ($i = 0; $i -lt $allApps.Count; $i++) {
                     $app = $allApps[$i]
                     $status = if (Is-AppInstalled $app.packageId) { "[Da cai]" } else { "[Chua cai]" }
+                    $displayText = "$($app.name) $status"
+                    if ($displayText.Length -gt 40) {
+                        $displayText = $displayText.Substring(0, 37) + "..."
+                    }
                     $appMenuItems += @{ 
                         Key = "$($i+1)"; 
-                        Text = "$($app.name.PadRight(30)) $status"
+                        Text = $displayText
                     }
                 }
                 
@@ -358,7 +371,8 @@ function Show-AppsMenu {
                     } else { 
                         "[Chua cai]" 
                     }
-                    Write-Host "   $($app.name.PadRight(35)) $status" -ForegroundColor $(if ($installed) { "Green" } else { "Gray" })
+                    $displayText = "$($app.name) $status"
+                    Write-Host "   $displayText" -ForegroundColor $(if ($installed) { "Green" } else { "Gray" })
                 }
                 
                 Write-Host ""
@@ -389,16 +403,20 @@ function Show-AppsMenu {
                         for ($i = 0; $i -lt $catApps.Count; $i++) {
                             $app = $catApps[$i]
                             $status = if (Is-AppInstalled $app.packageId) { "[Da cai]" } else { "[Chua cai]" }
+                            $displayText = "$($app.name) $status"
+                            if ($displayText.Length -gt 40) {
+                                $displayText = $displayText.Substring(0, 37) + "..."
+                            }
                             $catMenuItems += @{ 
                                 Key = "$($i+1)"; 
-                                Text = "$($app.name.PadRight(30)) $status"
+                                Text = $displayText
                             }
                         }
                         
                         $catMenuItems += @{ Key = "A"; Text = "Cai dat TOAN BO danh muc nay" }
                         $catMenuItems += @{ Key = "0"; Text = "Quay lai" }
                         
-                        Show-Menu -MenuItems $catMenuItems -Title "CHON UNG DUNG TRONG $selectedCat" -Prompt "Lua chon (0, A, hoac so): "
+                        Show-Menu -MenuItems $catMenuItems -Title "CHON UNG DUNG TRONG $selectedCat" -TwoColumn -Prompt "Lua chon (0, A, hoac so): "
                         
                         $catChoice = Read-Host
                         
