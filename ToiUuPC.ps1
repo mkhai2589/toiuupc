@@ -1,5 +1,5 @@
 # ==========================================================
-# ToiUuPC.ps1 - MAIN SCRIPT (OFFICIAL FINAL VERSION)
+# ToiUuPC.ps1 - MAIN SCRIPT (FIXED VERSION)
 # ==========================================================
 
 # SUPPRESS ERRORS FOR CLEAN START
@@ -29,10 +29,8 @@ if (-not (Test-Path $utilsPath)) {
     exit 1
 }
 
-# Load utils với xử lý lỗi
 try {
     . $utilsPath
-    Write-Status "Loaded utilities" -Type 'INFO'
 } catch {
     Write-Host "[ERROR] Khong the load utils.ps1: $_" -ForegroundColor Red
     exit 1
@@ -44,93 +42,69 @@ try {
 Ensure-Admin
 
 # ==========================================================
-# LOAD ALL FUNCTION MODULES (ULTRA ROBUST VERSION)
+# LOAD ALL FUNCTION MODULES (SIMPLE AND EFFECTIVE)
 # ==========================================================
-$functions = @(
-    "Show-PMKLogo.ps1",
-    "tweaks.ps1",
-    "install-apps.ps1", 
-    "dns-management.ps1",
-    "clean-system.ps1"
+Write-Host ""
+Write-Status "Loading modules..." -Type 'INFO'
+
+$modules = @(
+    @{ Name = "Show-PMKLogo.ps1"; Required = $false }
+    @{ Name = "tweaks.ps1"; Required = $true }
+    @{ Name = "install-apps.ps1"; Required = $true }
+    @{ Name = "dns-management.ps1"; Required = $true }
+    @{ Name = "clean-system.ps1"; Required = $true }
 )
 
-$global:loadedModules = @()
-$global:failedModules = @()
-
-Write-Host ""
-Write-Host "=== LOADING MODULES ===" -ForegroundColor Cyan
-
-foreach ($func in $functions) {
-    $path = Join-Path $PSScriptRoot "functions\$func"
+foreach ($module in $modules) {
+    $path = Join-Path $PSScriptRoot "functions\$($module.Name)"
     if (Test-Path $path) {
         try {
-            Write-Host "  Loading $func..." -ForegroundColor Gray -NoNewline
-            
-            # Load file
             . $path
-            
-            # Kiểm tra xem module có export functions không
-            $moduleFunctions = Get-Command -Module (Get-Module) | Where-Object { $_.Source -like "*$func*" }
-            
-            if ($moduleFunctions.Count -gt 0) {
-                $global:loadedModules += $func
-                Write-Host " [OK]" -ForegroundColor Green
-            } else {
-                $global:failedModules += $func
-                Write-Host " [NO FUNCTIONS]" -ForegroundColor Yellow
-            }
+            Write-Host "  ✓ $($module.Name)" -ForegroundColor Green
         } catch {
-            $global:failedModules += $func
-            Write-Host " [ERROR]" -ForegroundColor Red
-            Write-Host "    Error: $_" -ForegroundColor DarkRed
+            Write-Host "  ✗ $($module.Name) - Error: $_" -ForegroundColor Red
+            if ($module.Required) {
+                Write-Host "[ERROR] Required module failed to load!" -ForegroundColor Red
+                Pause
+                exit 1
+            }
         }
     } else {
-        Write-Host "  Missing: $func" -ForegroundColor Yellow
-        $global:failedModules += $func
+        Write-Host "  ✗ $($module.Name) - Not found" -ForegroundColor Yellow
+        if ($module.Required) {
+            Write-Host "[ERROR] Required module not found!" -ForegroundColor Red
+            Pause
+            exit 1
+        }
     }
 }
-
-# Hiển thị báo cáo load modules
-Write-Host ""
-Write-Host "=== MODULE LOAD REPORT ===" -ForegroundColor Cyan
-Write-Host "  Success: $($global:loadedModules.Count)/$($functions.Count)" -ForegroundColor $(if ($global:loadedModules.Count -eq $functions.Count) { "Green" } else { "Yellow" })
-
-if ($global:failedModules.Count -gt 0) {
-    Write-Host "  Failed: $($global:failedModules.Count)" -ForegroundColor Red
-    foreach ($module in $global:failedModules) {
-        Write-Host "    - $module" -ForegroundColor Yellow
-    }
-}
-
-# Kiểm tra nếu không có module nào load được
-if ($global:loadedModules.Count -eq 0) {
-    Write-Host ""
-    Write-Host "[ERROR] Khong load duoc module nao! Chuong trinh se dong." -ForegroundColor Red
-    Write-Host "Hay chay bootstrap.ps1 de tai lai du an." -ForegroundColor Yellow
-    Pause
-    exit 1
-}
-
-Write-Host ""
-Pause
 
 # ==========================================================
 # LOAD CONFIGURATIONS
 # ==========================================================
 $ConfigDir = Join-Path $PSScriptRoot "config"
-$global:TweaksConfig = Load-JsonFile (Join-Path $ConfigDir "tweaks.json")
-$global:AppsConfig   = Load-JsonFile (Join-Path $ConfigDir "applications.json")
-$global:DnsConfig    = Load-JsonFile (Join-Path $ConfigDir "dns.json")
 
-if (-not $global:TweaksConfig) {
-    Write-Status "Tai cau hinh tweaks.json that bai!" -Type 'ERROR'
+function Load-ConfigFile {
+    param([string]$FileName)
+    
+    $path = Join-Path $ConfigDir $FileName
+    if (-not (Test-Path $path)) {
+        Write-Status "Khong tim thay file: $FileName" -Type 'ERROR'
+        return $null
+    }
+    
+    try {
+        $content = Get-Content $path -Raw -Encoding UTF8
+        return $content | ConvertFrom-Json
+    } catch {
+        Write-Status "Dinh dang JSON khong hop le: $FileName" -Type 'ERROR'
+        return $null
+    }
 }
-if (-not $global:AppsConfig) {
-    Write-Status "Tai cau hinh applications.json that bai!" -Type 'ERROR'
-}
-if (-not $global:DnsConfig) {
-    Write-Status "Tai cau hinh dns.json that bai!" -Type 'ERROR'
-}
+
+$global:TweaksConfig = Load-ConfigFile "tweaks.json"
+$global:AppsConfig   = Load-ConfigFile "applications.json"
+$global:DnsConfig    = Load-ConfigFile "dns.json"
 
 # ==========================================================
 # MAIN MENU DEFINITION
@@ -154,49 +128,29 @@ while ($true) {
     
     switch ($choice) {
         '1' {
-            if ("tweaks.ps1" -in $global:loadedModules) {
-                if ($global:TweaksConfig) {
-                    Show-TweaksMenu -Config $global:TweaksConfig
-                } else {
-                    Write-Status "Cau hinh tweaks chua duoc tai!" -Type 'ERROR'
-                    Pause
-                }
+            if ($global:TweaksConfig) {
+                Show-TweaksMenu -Config $global:TweaksConfig
             } else {
-                Write-Status "Module tweaks chua duoc load! Vui long kiem tra lai." -Type 'ERROR'
+                Write-Status "Cau hinh tweaks chua duoc tai!" -Type 'ERROR'
                 Pause
             }
         }
         '2' {
-            if ("dns-management.ps1" -in $global:loadedModules) {
-                if ($global:DnsConfig) {
-                    Show-DnsMenu -Config $global:DnsConfig
-                } else {
-                    Write-Status "Cau hinh DNS chua duoc tai!" -Type 'ERROR'
-                    Pause
-                }
+            if ($global:DnsConfig) {
+                Show-DnsMenu -Config $global:DnsConfig
             } else {
-                Write-Status "Module DNS chua duoc load! Vui long kiem tra lai." -Type 'ERROR'
+                Write-Status "Cau hinh DNS chua duoc tai!" -Type 'ERROR'
                 Pause
             }
         }
         '3' {
-            if ("clean-system.ps1" -in $global:loadedModules) {
-                Show-CleanSystem
-            } else {
-                Write-Status "Module clean system chua duoc load! Vui long kiem tra lai." -Type 'ERROR'
-                Pause
-            }
+            Show-CleanSystem
         }
         '4' {
-            if ("install-apps.ps1" -in $global:loadedModules) {
-                if ($global:AppsConfig) {
-                    Show-AppsMenu -Config $global:AppsConfig
-                } else {
-                    Write-Status "Cau hinh ung dung chua duoc tai!" -Type 'ERROR'
-                    Pause
-                }
+            if ($global:AppsConfig) {
+                Show-AppsMenu -Config $global:AppsConfig
             } else {
-                Write-Status "Module install apps chua duoc load! Vui long kiem tra lai." -Type 'ERROR'
+                Write-Status "Cau hinh ung dung chua duoc tai!" -Type 'ERROR'
                 Pause
             }
         }
@@ -204,9 +158,9 @@ while ($true) {
             Show-Header -Title "TAI LAI CAU HINH"
             Write-Status "Dang tai lai cau hinh..." -Type 'INFO'
             
-            $global:TweaksConfig = Load-JsonFile (Join-Path $ConfigDir "tweaks.json")
-            $global:AppsConfig   = Load-JsonFile (Join-Path $ConfigDir "applications.json")
-            $global:DnsConfig    = Load-JsonFile (Join-Path $ConfigDir "dns.json")
+            $global:TweaksConfig = Load-ConfigFile "tweaks.json"
+            $global:AppsConfig   = Load-ConfigFile "applications.json"
+            $global:DnsConfig    = Load-ConfigFile "dns.json"
             
             if ($global:TweaksConfig -and $global:AppsConfig -and $global:DnsConfig) {
                 Write-Status "Tai lai cau hinh thanh cong!" -Type 'SUCCESS'
@@ -218,7 +172,7 @@ while ($true) {
         '0' {
             Show-Header -Title "THOAT CHUONG TRINH"
             Write-Status "Cam on ban da su dung ToiUuPC!" -Type 'INFO'
-            Write-Host "Chuong trinh se dong trong 2 giay..." -ForegroundColor $global:UI_Colors.Warning
+            Write-Host "Chuong trinh se dong trong 2 giay..." -ForegroundColor Yellow
             Start-Sleep -Seconds 2
             exit 0
         }
