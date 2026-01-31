@@ -1,5 +1,5 @@
 # =========================================================
-# Compile.ps1 - COMPILE SCRIPT (FINAL PRO)
+# Compile.ps1 - COMPILE SCRIPT (FIXED FINAL)
 # =========================================================
 
 Set-StrictMode -Off
@@ -30,7 +30,7 @@ if ($PSVersionTable.PSVersion.Major -lt 5) {
 Write-Host "   => PowerShell: $($PSVersionTable.PSVersion)" -ForegroundColor Green
 
 # =========================================================
-# PATHS CONFIGURATION
+# PATHS CONFIGURATION (UPDATED - NO BUNDLED FILE)
 # =========================================================
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 
@@ -38,8 +38,8 @@ $Paths = @{
     MainFile    = Join-Path $Root "ToiUuPC.ps1"
     FuncDir     = Join-Path $Root "functions"
     ConfigDir   = Join-Path $Root "config"
-    BundledFile = Join-Path $Root "ToiUuPC-Bundled.ps1"
     OutputExe   = Join-Path $Root "ToiUuPC.exe"
+    TempBundled = Join-Path $env:TEMP "ToiUuPC-Bundled_$(Get-Date -Format 'yyyyMMdd_HHmmss').ps1"
 }
 
 Write-Host "[+] Thiet lap duong dan..." -ForegroundColor Cyan
@@ -161,13 +161,13 @@ try {
     exit 1
 }
 
-# Write bundled file
-Write-Host "[+] Ghi bundle file..." -ForegroundColor Cyan
+# Write bundled file to TEMP
+Write-Host "[+] Ghi bundle file tam thoi..." -ForegroundColor Cyan
 
 try {
-    Set-Content -Path $Paths.BundledFile -Value $bundleContent -Encoding UTF8 -Force
-    Write-Host "   => Bundle created: $($Paths.BundledFile)" -ForegroundColor Green
-    Write-Host "   => Kich thuoc: $((Get-Item $Paths.BundledFile).Length / 1KB) KB" -ForegroundColor Gray
+    Set-Content -Path $Paths.TempBundled -Value $bundleContent -Encoding UTF8 -Force
+    Write-Host "   => Bundle created: $($Paths.TempBundled)" -ForegroundColor Green
+    Write-Host "   => Kich thuoc: $((Get-Item $Paths.TempBundled).Length / 1KB) KB" -ForegroundColor Gray
 } catch {
     Write-Host "   => ERROR writing bundle: $_" -ForegroundColor Red
     exit 1
@@ -210,7 +210,7 @@ try {
 Write-Host "   => Dang bien dich (co the mat vai giay)..." -ForegroundColor Gray
 
 $compileParams = @{
-    InputFile     = $Paths.BundledFile
+    InputFile     = $Paths.TempBundled
     OutputFile    = $Paths.OutputExe
     RequireAdmin  = $true
     NoConsole     = $false
@@ -227,7 +227,17 @@ try {
     Write-Host "   => Bien dich thanh cong!" -ForegroundColor Green
 } catch {
     Write-Host "   => ERROR bien dich: $_" -ForegroundColor Red
+    # Clean up temp file
+    if (Test-Path $Paths.TempBundled) {
+        Remove-Item $Paths.TempBundled -Force -ErrorAction SilentlyContinue
+    }
     exit 1
+}
+
+# Clean up temp bundled file
+if (Test-Path $Paths.TempBundled) {
+    Remove-Item $Paths.TempBundled -Force -ErrorAction SilentlyContinue
+    Write-Host "   => Da xoa file tam thoi" -ForegroundColor Gray
 }
 
 # =========================================================
@@ -257,8 +267,7 @@ Write-Host "     BIEN DICH HOAN TAT!               " -ForegroundColor White
 Write-Host "========================================" -ForegroundColor Green
 Write-Host ""
 Write-Host "Cac file da tao:" -ForegroundColor Cyan
-Write-Host "  1. $($Paths.BundledFile)" -ForegroundColor Gray
-Write-Host "  2. $($Paths.OutputExe)" -ForegroundColor Gray
+Write-Host "  1. $($Paths.OutputExe)" -ForegroundColor Gray
 Write-Host ""
 Write-Host "Ban co the:" -ForegroundColor Cyan
 Write-Host "  - Chay ToiUuPC.exe de su dung" -ForegroundColor Gray
