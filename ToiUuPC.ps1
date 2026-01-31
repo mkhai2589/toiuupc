@@ -1,5 +1,5 @@
 # ==========================================================
-# ToiUuPC.ps1 - MAIN SCRIPT (FIXED FINAL)
+# ToiUuPC.ps1 - MAIN SCRIPT (OFFICIAL FINAL VERSION)
 # ==========================================================
 
 # SUPPRESS ERRORS FOR CLEAN START
@@ -44,7 +44,7 @@ try {
 Ensure-Admin
 
 # ==========================================================
-# LOAD ALL FUNCTION MODULES (FIXED ERROR HANDLING)
+# LOAD ALL FUNCTION MODULES (ULTRA ROBUST VERSION)
 # ==========================================================
 $functions = @(
     "Show-PMKLogo.ps1",
@@ -54,46 +54,65 @@ $functions = @(
     "clean-system.ps1"
 )
 
-$loadedModules = @()
-$failedModules = @()
+$global:loadedModules = @()
+$global:failedModules = @()
+
+Write-Host ""
+Write-Host "=== LOADING MODULES ===" -ForegroundColor Cyan
 
 foreach ($func in $functions) {
     $path = Join-Path $PSScriptRoot "functions\$func"
     if (Test-Path $path) {
         try {
-            # Kiểm tra cú pháp trước khi load
-            $scriptContent = Get-Content $path -Raw -ErrorAction Stop
-            $tokens = $null
-            $parseErrors = $null
-            $null = [System.Management.Automation.Language.Parser]::ParseInput($scriptContent, [ref]$tokens, [ref]$parseErrors)
+            Write-Host "  Loading $func..." -ForegroundColor Gray -NoNewline
             
-            if ($parseErrors.Count -eq 0) {
-                . $path
-                $loadedModules += $func
-                Write-Status "Loaded: $func" -Type 'INFO'
+            # Load file
+            . $path
+            
+            # Kiểm tra xem module có export functions không
+            $moduleFunctions = Get-Command -Module (Get-Module) | Where-Object { $_.Source -like "*$func*" }
+            
+            if ($moduleFunctions.Count -gt 0) {
+                $global:loadedModules += $func
+                Write-Host " [OK]" -ForegroundColor Green
             } else {
-                $failedModules += $func
-                Write-Status "Syntax error in $func - skipping" -Type 'WARNING'
+                $global:failedModules += $func
+                Write-Host " [NO FUNCTIONS]" -ForegroundColor Yellow
             }
         } catch {
-            $failedModules += $func
-            Write-Status "Error loading $func : $($_.Exception.Message)" -Type 'ERROR'
-            # KHÔNG DỪNG CHƯƠNG TRÌNH, TIẾP TỤC VỚI MODULES KHÁC
+            $global:failedModules += $func
+            Write-Host " [ERROR]" -ForegroundColor Red
+            Write-Host "    Error: $_" -ForegroundColor DarkRed
         }
     } else {
-        Write-Status "Missing: $func" -Type 'WARNING'
-        $failedModules += $func
+        Write-Host "  Missing: $func" -ForegroundColor Yellow
+        $global:failedModules += $func
     }
 }
 
 # Hiển thị báo cáo load modules
 Write-Host ""
-Write-Host " BAO CAO LOAD MODULES:" -ForegroundColor Cyan
-Write-Host "   Thanh cong: $($loadedModules.Count)/$($functions.Count) modules" -ForegroundColor $(if ($loadedModules.Count -eq $functions.Count) { "Green" } else { "Yellow" })
-if ($failedModules.Count -gt 0) {
-    Write-Host "   That bai: $($failedModules -join ', ')" -ForegroundColor Yellow
+Write-Host "=== MODULE LOAD REPORT ===" -ForegroundColor Cyan
+Write-Host "  Success: $($global:loadedModules.Count)/$($functions.Count)" -ForegroundColor $(if ($global:loadedModules.Count -eq $functions.Count) { "Green" } else { "Yellow" })
+
+if ($global:failedModules.Count -gt 0) {
+    Write-Host "  Failed: $($global:failedModules.Count)" -ForegroundColor Red
+    foreach ($module in $global:failedModules) {
+        Write-Host "    - $module" -ForegroundColor Yellow
+    }
 }
+
+# Kiểm tra nếu không có module nào load được
+if ($global:loadedModules.Count -eq 0) {
+    Write-Host ""
+    Write-Host "[ERROR] Khong load duoc module nao! Chuong trinh se dong." -ForegroundColor Red
+    Write-Host "Hay chay bootstrap.ps1 de tai lai du an." -ForegroundColor Yellow
+    Pause
+    exit 1
+}
+
 Write-Host ""
+Pause
 
 # ==========================================================
 # LOAD CONFIGURATIONS
@@ -135,8 +154,7 @@ while ($true) {
     
     switch ($choice) {
         '1' {
-            # Windows Tweaks - Kiểm tra module đã load
-            if ("tweaks.ps1" -in $loadedModules) {
+            if ("tweaks.ps1" -in $global:loadedModules) {
                 if ($global:TweaksConfig) {
                     Show-TweaksMenu -Config $global:TweaksConfig
                 } else {
@@ -149,8 +167,7 @@ while ($true) {
             }
         }
         '2' {
-            # DNS Management - Kiểm tra module đã load
-            if ("dns-management.ps1" -in $loadedModules) {
+            if ("dns-management.ps1" -in $global:loadedModules) {
                 if ($global:DnsConfig) {
                     Show-DnsMenu -Config $global:DnsConfig
                 } else {
@@ -163,8 +180,7 @@ while ($true) {
             }
         }
         '3' {
-            # Clean System - Kiểm tra module đã load
-            if ("clean-system.ps1" -in $loadedModules) {
+            if ("clean-system.ps1" -in $global:loadedModules) {
                 Show-CleanSystem
             } else {
                 Write-Status "Module clean system chua duoc load! Vui long kiem tra lai." -Type 'ERROR'
@@ -172,8 +188,7 @@ while ($true) {
             }
         }
         '4' {
-            # Install Applications - Kiểm tra module đã load
-            if ("install-apps.ps1" -in $loadedModules) {
+            if ("install-apps.ps1" -in $global:loadedModules) {
                 if ($global:AppsConfig) {
                     Show-AppsMenu -Config $global:AppsConfig
                 } else {
@@ -186,7 +201,6 @@ while ($true) {
             }
         }
         '5' {
-            # Reload Configuration
             Show-Header -Title "TAI LAI CAU HINH"
             Write-Status "Dang tai lai cau hinh..." -Type 'INFO'
             
@@ -202,7 +216,6 @@ while ($true) {
             Pause
         }
         '0' {
-            # Exit program
             Show-Header -Title "THOAT CHUONG TRINH"
             Write-Status "Cam on ban da su dung ToiUuPC!" -Type 'INFO'
             Write-Host "Chuong trinh se dong trong 2 giay..." -ForegroundColor $global:UI_Colors.Warning
