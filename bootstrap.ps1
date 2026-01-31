@@ -115,4 +115,28 @@ if (-not (Initialize-WorkingDirectory -Path $BaseDir)) {
     exit 1
 }
 
-Write-Host "[INFO] Downloading project..." -
+Write-Host "[INFO] Downloading project..." -ForegroundColor Cyan
+if (-not (Download-Project -TargetDir $BaseDir)) {
+    Write-Host "[ERROR] Failed to download project!" -ForegroundColor Red
+    exit 1
+}
+
+Write-Host "[INFO] Project downloaded successfully" -ForegroundColor Green
+
+Write-Host ""
+Write-Host "========================================" -ForegroundColor Green
+Write-Host "     LAUNCHING PMK TOOLBOX              " -ForegroundColor White
+Write-Host "========================================" -ForegroundColor Green
+Write-Host ""
+
+Set-Location $BaseDir
+
+if (Test-Path $MainFile) {
+    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $MainFile
+} else {
+    Write-Host "[ERROR] Main file not found!" -ForegroundColor Red
+}
+
+Write-Host ""
+Write-Host "Bootstrap completed." -ForegroundColor Green
+Read-Host "Press Enter to exit..."
