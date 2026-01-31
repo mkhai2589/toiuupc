@@ -34,31 +34,45 @@ function Show-DnsMenu {
     }
     
     while ($true) {
-        # Get current DNS
+        # Get current DNS - HIỆN CẢ IPV4 VÀ IPV6
         $currentDns = Get-DnsClientServerAddress -InterfaceAlias $adapter.InterfaceAlias -ErrorAction SilentlyContinue
         
         $currentIPv4 = "DHCP"
+        $currentIPv6 = "DHCP"
+        
         if ($currentDns -and $currentDns.ServerAddresses) {
             $ipv4Servers = @()
+            $ipv6Servers = @()
+            
             foreach ($addr in $currentDns.ServerAddresses) {
-                if (-not $addr.Contains(':')) {
+                if ($addr.Contains(':')) {
+                    $ipv6Servers += $addr
+                } else {
                     $ipv4Servers += $addr
                 }
             }
+            
             if ($ipv4Servers.Count -gt 0) {
                 $currentIPv4 = $ipv4Servers -join ', '
+            }
+            
+            if ($ipv6Servers.Count -gt 0) {
+                $currentIPv6 = $ipv6Servers -join ', '
             }
         }
         
         Show-Header -Title "QUAN LY DNS"
-        Write-Host " Adapter hien tai: $($adapter.InterfaceAlias)" -ForegroundColor $global:UI_Colors.Value
+        Write-Host " Thong tin adapter mang:" -ForegroundColor White
+        Write-Host "   Adapter: $($adapter.InterfaceAlias)" -ForegroundColor $global:UI_Colors.Label
         Write-Host "   Ten: $($adapter.Name)" -ForegroundColor $global:UI_Colors.Label
         Write-Host "   MAC: $($adapter.MacAddress)" -ForegroundColor $global:UI_Colors.Label
         Write-Host ""
-        Write-Host " DNS HIEN TAI:" -ForegroundColor $global:UI_Colors.Title
-        Write-Host "   IPv4: $currentIPv4" -ForegroundColor $global:UI_Colors.Highlight
+        
+        Write-Host " DNS HIEN TAI:" -ForegroundColor White
+        Write-Host "   IPv4: $currentIPv4" -ForegroundColor $global:UI_Colors.Value
+        Write-Host "   IPv6: $currentIPv6" -ForegroundColor $global:UI_Colors.Value
         Write-Host ""
-        Write-Host "-" * 50 -ForegroundColor $global:UI_Colors.Border
+        Write-Host "--------------------------------------------------" -ForegroundColor $global:UI_Colors.Border
         Write-Host ""
         
         # Build menu tu DNS config
@@ -70,9 +84,6 @@ function Show-DnsMenu {
             $primary = if ($dnsConfig.Primary) { $dnsConfig.Primary } else { "DHCP" }
             
             $displayText = "$($dnsName) - $primary"
-            if ($displayText.Length -gt 35) {
-                $displayText = $displayText.Substring(0, 32) + "..."
-            }
             
             $menuItems += @{ 
                 Key = "$index"; 
