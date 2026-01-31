@@ -1,31 +1,31 @@
+# ==========================================================
+# ToiUuPC.ps1 - MAIN SCRIPT
+# ==========================================================
+
 Set-StrictMode -Off
 $ErrorActionPreference = "SilentlyContinue"
-$WarningPreference = "SilentlyContinue"
 
 try {
     [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
     chcp 65001 | Out-Null
 } catch {}
 
-$scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path
-
-$utilsPath = Join-Path $scriptPath "functions\utils.ps1"
+$utilsPath = Join-Path $PSScriptRoot "functions\utils.ps1"
 if (-not (Test-Path $utilsPath)) {
     Write-Host "[ERROR] Khong tim thay utils.ps1" -ForegroundColor Red
-    Read-Host "Nhan Enter de thoat"
     exit 1
 }
 
-. $utilsPath
-
-if (-NOT ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
-    Write-Host "[ERROR] Vui long chay voi quyen Administrator!" -ForegroundColor Red
-    Write-Host "Hay chuot phai vao file va chon 'Run as Administrator'" -ForegroundColor Yellow
-    Read-Host "Nhan Enter de thoat"
+try {
+    . $utilsPath
+} catch {
+    Write-Host "[ERROR] Khong the load utils.ps1" -ForegroundColor Red
     exit 1
 }
 
-Write-Status "Dang tai module..." -Type 'INFO'
+Ensure-Admin
+
+Write-Status "Loading modules..." -Type 'INFO'
 
 $modules = @(
     "tweaks.ps1",
@@ -35,7 +35,7 @@ $modules = @(
 )
 
 foreach ($module in $modules) {
-    $path = Join-Path $scriptPath "functions\$module"
+    $path = Join-Path $PSScriptRoot "functions\$module"
     if (Test-Path $path) {
         try {
             . $path
@@ -48,32 +48,17 @@ foreach ($module in $modules) {
     }
 }
 
-$configDir = Join-Path $scriptPath "config"
-
-$global:TweaksConfig = Load-JsonConfig (Join-Path $configDir "tweaks.json")
-$global:AppsConfig = Load-JsonConfig (Join-Path $configDir "applications.json")
-$global:DnsConfig = Load-JsonConfig (Join-Path $configDir "dns.json")
+$ConfigDir = Join-Path $PSScriptRoot "config"
+$global:TweaksConfig = Load-JsonFile (Join-Path $ConfigDir "tweaks.json")
+$global:AppsConfig = Load-JsonFile (Join-Path $ConfigDir "applications.json")
+$global:DnsConfig = Load-JsonFile (Join-Path $ConfigDir "dns.json")
 
 while ($true) {
-    Show-Header -Title "PMK TOOLBOX"
-    
-    Write-Host "+---------------------------+---------------------------+" -ForegroundColor Cyan
-    Write-Host "|  TOI UU HE THONG          |  CAI DAT UNG DUNG        |" -ForegroundColor Cyan
-    Write-Host "+---------------------------+---------------------------+" -ForegroundColor Cyan
-    Write-Host "| [1] Windows Tweaks        | [4] Install Applications |" -ForegroundColor Gray
-    Write-Host "| [2] DNS Management        |                           |" -ForegroundColor Gray
-    Write-Host "| [3] Clean System          |                           |" -ForegroundColor Gray
-    Write-Host "+---------------------------+---------------------------+" -ForegroundColor Cyan
-    Write-Host "|  TIEN ICH                 |  THOAT                   |" -ForegroundColor Cyan
-    Write-Host "+---------------------------+---------------------------+" -ForegroundColor Cyan
-    Write-Host "| [5] Reload Configuration  | [0] Thoat                |" -ForegroundColor Gray
-    Write-Host "+---------------------------+---------------------------+" -ForegroundColor Cyan
-    Write-Host ""
-    
-    $choice = Read-Host "Chon chuc nang (0-5): "
+    Show-MainMenu
+    $choice = Read-Host
     
     switch ($choice) {
-        '1' {
+        '01' {
             if ($global:TweaksConfig) {
                 Show-TweaksMenu -Config $global:TweaksConfig
             } else {
@@ -81,7 +66,7 @@ while ($true) {
                 Pause
             }
         }
-        '2' {
+        '02' {
             if ($global:DnsConfig) {
                 Show-DnsMenu -Config $global:DnsConfig
             } else {
@@ -89,10 +74,32 @@ while ($true) {
                 Pause
             }
         }
-        '3' {
+        '03' {
             Show-CleanSystem
         }
-        '4' {
+        '04' {
+            if (Get-Command -Name "Checkpoint-Computer" -ErrorAction SilentlyContinue) {
+                Show-Header -Title "TAO DIEM PHUC HOI"
+                Write-Status "Dang tao diem phuc hoi..." -Type 'INFO'
+                try {
+                    Checkpoint-Computer -Description "PMK Toolbox Restore Point" -RestorePointType MODIFY_SETTINGS
+                    Write-Status "Da tao diem phuc hoi thanh cong!" -Type 'SUCCESS'
+                } catch {
+                    Write-Status "Khong the tao diem phuc hoi!" -Type 'ERROR'
+                }
+                Pause
+            } else {
+                Write-Status "Chuc nang nay khong kha dung!" -Type 'ERROR'
+                Pause
+            }
+        }
+        '21' {
+            Show-SystemInfo
+        }
+        '22' {
+            Show-Performance
+        }
+        '51' {
             if ($global:AppsConfig) {
                 Show-AppsMenu -Config $global:AppsConfig
             } else {
@@ -100,23 +107,25 @@ while ($true) {
                 Pause
             }
         }
-        '5' {
-            Show-Header -Title "TAI LAI CAU HINH"
-            Write-Status "Dang tai lai cau hinh..." -Type 'INFO'
-            
-            $global:TweaksConfig = Load-JsonConfig (Join-Path $configDir "tweaks.json")
-            $global:AppsConfig = Load-JsonConfig (Join-Path $configDir "applications.json")
-            $global:DnsConfig = Load-JsonConfig (Join-Path $configDir "dns.json")
-            
-            if ($global:TweaksConfig -and $global:AppsConfig -and $global:DnsConfig) {
-                Write-Status "Tai lai thanh cong!" -Type 'SUCCESS'
+        '52' {
+            Show-Header -Title "CAP NHAT WINGET"
+            if (Test-WingetAvailable) {
+                Write-Status "Winget da duoc cai dat!" -Type 'SUCCESS'
+                Write-Host "   Chay 'winget upgrade --all' de cap nhat." -ForegroundColor Gray
             } else {
-                Write-Status "Co loi khi tai lai!" -Type 'ERROR'
+                Write-Status "Winget chua duoc cai dat!" -Type 'WARNING'
+                $confirm = Read-Host "   Cai dat winget? (YES/NO): "
+                if ($confirm -eq "YES") {
+                    Install-WingetIfMissing
+                }
             }
             Pause
         }
-        '0' {
-            Show-Header -Title "THOAT"
+        '99' {
+            Show-Changelog
+        }
+        '00' {
+            Show-Header -Title "THOAT CHUONG TRINH"
             Write-Status "Cam on ban da su dung PMK Toolbox!" -Type 'INFO'
             Start-Sleep -Seconds 2
             exit 0
