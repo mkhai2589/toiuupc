@@ -1,54 +1,11 @@
 # ============================================================
-# install-apps.ps1 - INSTALL APPLICATIONS (FINAL VERSION)
+# install-apps.ps1 - INSTALL APPLICATIONS
 # ============================================================
-# Author: Minh Khai
-# Version: 2.0.0
-# Description: Application installation module
-# ============================================================
-
-Set-StrictMode -Off
-$ErrorActionPreference = "SilentlyContinue"
-
-# ============================================================
-# CORE FUNCTIONS
-# ============================================================
-
-function Is-AppInstalled {
-    param([string]$PackageId)
-    
-    try {
-        # Check via winget
-        $result = winget list --id $PackageId --accept-source-agreements 2>&1
-        if ($result -like "*$PackageId*") {
-            return $true
-        }
-    } catch {
-        # Check via registry
-        $uninstallKeys = @(
-            "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*",
-            "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*"
-        )
-        
-        foreach ($key in $uninstallKeys) {
-            $apps = Get-ItemProperty $key -ErrorAction SilentlyContinue
-            foreach ($app in $apps) {
-                if ($app.PSChildName -like "*$PackageId*") {
-                    return $true
-                }
-            }
-        }
-    }
-    
-    return $false
-}
 
 function Test-WingetAvailable {
     try {
-        $wingetVersion = winget --version 2>&1
-        if ($wingetVersion -like "*version*" -or $wingetVersion -match '\d+\.\d+\.\d+') {
-            return $true
-        }
-        return $false
+        $null = winget --version 2>$null
+        return $true
     } catch {
         return $false
     }
@@ -59,65 +16,63 @@ function Install-WingetIfMissing {
         return $true
     }
     
-    Write-Status "Winget chua duoc cai dat. Dang cai dat winget..." -Type 'INFO'
+    Write-Status "Winget chua duoc cai dat..." -Type 'INFO'
     
     try {
+        Write-Host "   Dang tai winget..." -ForegroundColor Gray
         $wingetUrl = "https://aka.ms/getwinget"
         $wingetPath = Join-Path $env:TEMP "Microsoft.DesktopAppInstaller_8wekyb3d8bbwe.msixbundle"
         
-        Write-Host "   Dang tai winget tu Microsoft..." -ForegroundColor Gray
-        Invoke-WebRequest -Uri $wingetUrl -OutFile $wingetPath -UseBasicParsing -ErrorAction Stop
+        Invoke-WebRequest -Uri $wingetUrl -OutFile $wingetPath -UseBasicParsing
         
         Write-Host "   Dang cai dat winget..." -ForegroundColor Gray
-        Add-AppxPackage -Path $wingetPath -ErrorAction Stop | Out-Null
+        Add-AppxPackage -Path $wingetPath -ErrorAction Stop
+        
+        Remove-Item $wingetPath -Force
         
         if (Test-WingetAvailable) {
-            Write-Status "Winget da duoc cai dat thanh cong!" -Type 'SUCCESS'
-            Remove-Item $wingetPath -Force -ErrorAction SilentlyContinue
+            Write-Status "Winget da duoc cai dat!" -Type 'SUCCESS'
             return $true
         }
-        
     } catch {
-        Write-Status "Loi cai dat winget: $_" -Type 'ERROR'
+        Write-Status "Loi cai dat winget!" -Type 'ERROR'
         return $false
     }
+}
+
+function Is-AppInstalled {
+    param([string]$PackageId)
     
-    return $false
+    try {
+        $result = winget list --id $PackageId --accept-source-agreements 2>$null
+        return $result -like "*$PackageId*"
+    } catch {
+        return $false
+    }
 }
 
 function Install-Application {
     param([object]$App)
     
-    if (-not $App.packageId) {
-        Write-Status "Cau hinh ung dung khong hop le!" -Type 'ERROR'
-        return $false
-    }
-    
     Write-Host ""
-    Write-Host " THONG TIN UNG DUNG:" -ForegroundColor $global:UI_Colors.Title
-    Write-Host "   Ten: $($App.name)" -ForegroundColor $global:UI_Colors.Value
-    Write-Host "   ID: $($App.packageId)" -ForegroundColor $global:UI_Colors.Label
-    Write-Host "   Loai: $($App.category)" -ForegroundColor $global:UI_Colors.Label
+    Write-Host " THONG TIN UNG DUNG:" -ForegroundColor White
+    Write-Host "   Ten: $($App.name)" -ForegroundColor Gray
+    Write-Host "   ID: $($App.packageId)" -ForegroundColor Gray
     Write-Host ""
     
-    # Kiem tra neu da cai dat
-    Write-Status "Kiem tra trang thai cai dat..." -Type 'INFO'
     if (Is-AppInstalled $App.packageId) {
-        Write-Status "Ung dung da duoc cai dat (bo qua)" -Type 'WARNING'
-        Write-Host ""
+        Write-Status "Ung dung da duoc cai dat!" -Type 'WARNING'
         return $true
     }
     
-    # Kiem tra winget
     if (-not (Test-WingetAvailable)) {
         if (-not (Install-WingetIfMissing)) {
-            Write-Status "Khong the cai dat ung dung vi winget khong co san" -Type 'ERROR'
+            Write-Status "Khong the cai dat winget!" -Type 'ERROR'
             return $false
         }
     }
     
     Write-Status "Bat dau cai dat..." -Type 'INFO'
-    Write-Host ""
     
     $arguments = @(
         "install",
@@ -132,32 +87,23 @@ function Install-Application {
     }
     
     try {
-        Write-Host "   Dang cai dat (co the mat vai phut)..." -ForegroundColor $global:UI_Colors.Label
+        Write-Host "   Dang cai dat..." -ForegroundColor Gray
         
         $process = Start-Process -FilePath "winget" `
             -ArgumentList $arguments `
             -NoNewWindow `
             -Wait `
-            -PassThru `
-            -RedirectStandardOutput "$env:TEMP\winget_install.log" `
-            -RedirectStandardError "$env:TEMP\winget_install_error.log"
+            -PassThru
         
         if ($process.ExitCode -eq 0) {
             Write-Status "Cai dat thanh cong!" -Type 'SUCCESS'
-            
-            if (Is-AppInstalled $App.packageId) {
-                return $true
-            } else {
-                Write-Status "Da cai nhung khong tim thay trong danh sach!" -Type 'WARNING'
-                return $true
-            }
+            return $true
         } else {
             Write-Status "That bai (Ma loi: $($process.ExitCode))" -Type 'ERROR'
             return $false
         }
-        
     } catch {
-        Write-Status "Loi trong qua trinh cai dat: $_" -Type 'ERROR'
+        Write-Status "Loi trong qua trinh cai dat!" -Type 'ERROR'
         return $false
     }
 }
@@ -171,22 +117,24 @@ function Show-AppsMenu {
         return
     }
     
-    # Kiem tra winget
+    # Check winget
     if (-not (Test-WingetAvailable)) {
         Write-Status "Winget chua duoc cai dat!" -Type 'WARNING'
-        Write-Host "   Ban co muon cai dat winget ngay bay gio?" -ForegroundColor $global:UI_Colors.Label
+        Write-Host "   Ban co muon cai dat winget?" -ForegroundColor Gray
         Write-Host ""
-        $choice = Read-Host "Nhap 'YES' de cai dat winget, hoac bat ky de bo qua: "
+        $choice = Read-Host " Nhap 'YES' de cai dat: "
         if ($choice -eq "YES") {
             if (-not (Install-WingetIfMissing)) {
-                Write-Status "Khong the cai dat winget. Mot so chuc nang co the khong hoat dong." -Type 'ERROR'
+                Write-Status "Khong the cai dat winget!" -Type 'ERROR'
                 Pause
             }
         }
     }
     
     while ($true) {
-        # Group by category để hiển thị theo danh mục
+        Show-Header -Title "CAI DAT UNG DUNG"
+        
+        # Group by category
         $categories = @{}
         foreach ($app in $Config.applications) {
             $category = $app.category
@@ -196,56 +144,67 @@ function Show-AppsMenu {
             $null = $categories[$category].Add($app)
         }
         
-        # Xây dựng menu hiển thị tất cả ứng dụng theo danh mục
-        $menuItems = @()
-        $appIndex = 1
-        $appMap = @{}  # Map số thứ tự -> ứng dụng
-        
-        # Hiển thị header
-        Show-Header -Title "CAI DAT UNG DUNG"
-        
-        Write-Host " DANH SACH UNG DUNG THEO DANH MUC:" -ForegroundColor White
+        Write-Host " DANH SACH UNG DUNG:" -ForegroundColor White
         Write-Host ""
+        
+        $appIndex = 1
+        $appMap = @{}
         
         foreach ($cat in ($categories.Keys | Sort-Object)) {
             Write-Host " [$cat]" -ForegroundColor Cyan
-            foreach ($app in $categories[$cat]) {
-                $status = if (Is-AppInstalled $app.packageId) { "[Da cai]" } else { "[Chua cai]" }
-                $displayText = "$($app.name) $status"
-                Write-Host "   $appIndex. $displayText" -ForegroundColor $global:UI_Colors.Menu
+            Write-Host ""
+            
+            $appsInCategory = $categories[$cat]
+            $mid = [math]::Ceiling($appsInCategory.Count / 2)
+            
+            for ($i = 0; $i -lt $mid; $i++) {
+                $leftApp = $appsInCategory[$i]
+                $rightIndex = $i + $mid
                 
-                $appMap[$appIndex] = $app
+                # Left column (limit to 40 chars)
+                $leftStatus = if (Is-AppInstalled $leftApp.packageId) { "[Da cai]" } else { "[Chua]" }
+                $leftText = "$appIndex. $($leftApp.name.PadRight(30)) $leftStatus"
+                $appMap[$appIndex] = $leftApp
                 $appIndex++
+                
+                # Right column (if exists)
+                if ($rightIndex -lt $appsInCategory.Count) {
+                    $rightApp = $appsInCategory[$rightIndex]
+                    $rightStatus = if (Is-AppInstalled $rightApp.packageId) { "[Da cai]" } else { "[Chua]" }
+                    $rightText = "$appIndex. $($rightApp.name.PadRight(30)) $rightStatus"
+                    
+                    Write-Host "   $leftText   $rightText" -ForegroundColor Gray
+                    $appMap[$appIndex] = $rightApp
+                    $appIndex++
+                } else {
+                    Write-Host "   $leftText" -ForegroundColor Gray
+                }
             }
-            Write-Host ""  # Khoảng cách giữa các danh mục
+            Write-Host ""
         }
         
-        Write-Host "--------------------------------------------------" -ForegroundColor DarkGray
+        Write-Host ("-" * $global:UI_Width) -ForegroundColor DarkGray
         Write-Host ""
         
-        # Menu lựa chọn
-        Write-Host " CAC TINH NANG:" -ForegroundColor White
+        Write-Host " TINH NANG:" -ForegroundColor White
         Write-Host ""
-        Write-Host "  [A] Cai dat TOAN BO ung dung" -ForegroundColor $global:UI_Colors.Highlight
-        Write-Host "  [B] Kiem tra ung dung da cai" -ForegroundColor $global:UI_Colors.Menu
-        Write-Host "  [C] Cai dat Winget (neu thieu)" -ForegroundColor $global:UI_Colors.Menu
+        Write-Host "  [A] Cai dat TOAN BO ung dung chua co" -ForegroundColor Magenta
+        Write-Host "  [B] Kiem tra ung dung da cai" -ForegroundColor Gray
+        Write-Host "  [C] Cap nhat winget" -ForegroundColor Gray
         Write-Host ""
-        Write-Host "  [0] Quay lai Menu Chinh" -ForegroundColor $global:UI_Colors.Menu
-        Write-Host ""
-        Write-Host "--------------------------------------------------" -ForegroundColor DarkGray
+        Write-Host "  [0] Quay lai Menu Chinh" -ForegroundColor Gray
         Write-Host ""
         
-        $choice = Read-Host "Lua chon (so 1-$($appIndex-1), A, B, C, hoac 0): "
+        $choice = Read-Host " Lua chon (so, A, B, C, hoac 0): "
         
         switch ($choice.ToUpper()) {
             '0' { return }
             'A' {
                 Show-Header -Title "CAI DAT TOAN BO UNG DUNG"
-                Write-Status "Ban co chac muon cai dat TOAN BO ung dung?" -Type 'WARNING'
-                Write-Host "   So luong: $($Config.applications.Count) ung dung" -ForegroundColor $global:UI_Colors.Value
-                Write-Host "   Qua trinh co the mat nhieu thoi gian!" -ForegroundColor $global:UI_Colors.Warning
+                Write-Status "Cai dat TOAN BO ung dung chua co?" -Type 'WARNING'
+                Write-Host "   So luong: $($Config.applications.Count) ung dung" -ForegroundColor Gray
                 Write-Host ""
-                $confirm = Read-Host "Nhap 'YES' de xac nhan: "
+                $confirm = Read-Host " Nhap 'YES' de xac nhan: "
                 if ($confirm -eq "YES") {
                     $success = 0
                     $failed = 0
@@ -264,32 +223,28 @@ function Show-AppsMenu {
                     }
                     
                     Write-Host ""
-                    Write-Host " TONG KET CAI DAT:" -ForegroundColor $global:UI_Colors.Title
+                    Write-Host " TONG KET CAI DAT:" -ForegroundColor White
                     Write-Host "   Thanh cong: $success" -ForegroundColor Green
                     Write-Host "   That bai: $failed" -ForegroundColor Red
                     Write-Host "   Da bo qua: $skipped" -ForegroundColor Yellow
-                    Write-Host ""
                 } else {
                     Write-Status "Da huy!" -Type 'INFO'
                 }
                 Pause
             }
             'B' {
-                Show-Header -Title "KIEM TRA UNG DUNG DA CAI DAT"
+                Show-Header -Title "KIEM TRA UNG DUNG DA CAI"
                 
                 $installedCount = 0
-                Write-Host " DANH SACH UNG DUNG:" -ForegroundColor $global:UI_Colors.Title
+                Write-Host " DANH SACH UNG DUNG:" -ForegroundColor White
                 Write-Host ""
                 
                 foreach ($app in $Config.applications) {
                     $installed = Is-AppInstalled $app.packageId
-                    $status = if ($installed) { 
+                    if ($installed) {
+                        Write-Host "   ✓ $($app.name)" -ForegroundColor Green
                         $installedCount++
-                        "Da cai" 
-                    } else { 
-                        "Chua cai" 
                     }
-                    Write-Host "   $($app.name) ($($app.category)): $status" -ForegroundColor $(if ($installed) { "Green" } else { "Gray" })
                 }
                 
                 Write-Host ""
@@ -297,25 +252,20 @@ function Show-AppsMenu {
                 Pause
             }
             'C' {
-                Show-Header -Title "CAI DAT WINGET"
+                Show-Header -Title "CAP NHAT WINGET"
                 if (Install-WingetIfMissing) {
-                    Write-Status "Winget da san sang su dung!" -Type 'SUCCESS'
-                } else {
-                    Write-Status "Khong the cai dat winget!" -Type 'ERROR'
+                    Write-Status "Winget da san sang!" -Type 'SUCCESS'
                 }
                 Pause
             }
             default {
-                # Kiểm tra nếu là số và trong phạm vi
                 if ($choice -match '^\d+$') {
                     $selectedIndex = [int]$choice
                     if ($selectedIndex -ge 1 -and $selectedIndex -lt $appIndex) {
                         $selectedApp = $appMap[$selectedIndex]
                         if ($selectedApp) {
+                            Show-Header -Title "CAI DAT UNG DUNG"
                             Install-Application -App $selectedApp
-                            Pause
-                        } else {
-                            Write-Status "Lua chon khong hop le!" -Type 'WARNING'
                             Pause
                         }
                     } else {
