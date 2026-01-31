@@ -1,115 +1,133 @@
 {
   "tweaks": [
-    
-
     {
-      "id": "disable-diagtrack-service",
-      "name": "Tat dich vu Connected User Experiences and Telemetry",
-      "description": "Vo hieu hoa dich vu DiagTrack chiu trach nhiem thu thap du lieu he thong",
-      "category": "telemetry",
+      "id": "disable-telemetry",
+      "name": "Tat thu thap du lieu",
+      "description": "Vo hieu hoa thu thap du lieu he thong",
+      "category": "privacy",
+      "level": "balanced",
+      "reboot_required": false,
+      "type": "registry",
+      "path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection",
+      "nameReg": "AllowTelemetry",
+      "value": "0",
+      "regType": "DWord"
+    },
+    {
+      "id": "disable-diagtrack",
+      "name": "Tat Connected User Experiences",
+      "description": "Tat dich vu thu thap trai nghiem nguoi dung",
+      "category": "privacy",
       "level": "balanced",
       "reboot_required": true,
-      "impact": {
-        "privacy": "++",
-        "performance": "+",
-        "ux": "0"
-      },
-      "os_guard": {
-        "min": "10.0",
-        "max": "11.99"
-      },
       "type": "service",
       "serviceName": "DiagTrack",
-      "startup": "Disabled",
-      "sources": ["Sophia-Script", "Win-Debloat-Tools"],
-      "rollback": {
-        "startup": "Manual",
-        "note": "Mac dinh: Manual (Khong tu dong chay)"
-      }
+      "startup": "Disabled"
     },
-
     {
-      "id": "disable-wsearch-service",
-      "name": "Tat dich vu Windows Search Indexing",
-      "description": "Dung dich vu lap chi muc tim kiem de giam tai dia va CPU. CANH BAO: Lam cham dang ke kha nang tim kiem file trong Start Menu va File Explorer.",
+      "id": "disable-wsearch",
+      "name": "Tat Windows Search",
+      "description": "Tat dich vu tim kiem Windows",
       "category": "performance",
       "level": "dangerous",
       "reboot_required": true,
-      "impact": {
-        "privacy": "+",
-        "performance": "++",
-        "ux": "--"
-      },
-      "os_guard": {
-        "min": "10.0",
-        "max": "11.99"
-      },
       "type": "service",
       "serviceName": "WSearch",
-      "startup": "Disabled",
-      "sources": ["Sophia-Script", "WinUtil"],
-      "rollback": {
-        "startup": "Automatic",
-        "note": "Mac dinh: Automatic (Delayed Start)"
-      }
+      "startup": "Disabled"
     },
-
     {
-      "id": "disable-sysmain-superfetch",
-      "name": "Tat dich vu SysMain (Superfetch)",
-      "description": "Vo hieu hoa tinh nang prefetch va caching. Thuong co loi cho SSD, co the anh huong tren HDD.",
+      "id": "disable-sysmain",
+      "name": "Tat SysMain",
+      "description": "Tat dich vu SysMain (Superfetch)",
       "category": "performance",
       "level": "balanced",
       "reboot_required": true,
-      "impact": {
-        "privacy": "0",
-        "performance": "+",
-        "ux": "0"
-      },
-      "os_guard": {
-        "min": "10.0",
-        "max": "11.99"
-      },
       "type": "service",
       "serviceName": "SysMain",
-      "startup": "Disabled",
-      "sources": ["Sophia-Script"],
-      "rollback": {
-        "startup": "Automatic",
-        "note": "Mac dinh: Automatic"
-      }
+      "startup": "Disabled"
     },
-
-    
-
     {
-      "id": "disable-office-telemetry-tasks",
-      "name": "Tat cac task telemetry cua Office",
-      "description": "Vo hieu hoa cac task thu thap du lieu cua Microsoft Office.",
-      "category": "tasks",
+      "id": "disable-office-telemetry",
+      "name": "Tat Office telemetry",
+      "description": "Vo hieu hoa task thu thap du lieu Office",
+      "category": "privacy",
       "level": "balanced",
       "reboot_required": false,
-      "impact": {
-        "privacy": "++",
-        "performance": "+",
-        "ux": "0"
-      },
-      "os_guard": {
-        "min": "10.0",
-        "max": "11.99"
-      },
       "type": "scheduled_task",
       "tasks": [
         "OfficeTelemetryAgentLogOn",
         "OfficeTelemetryAgentFallBack"
-      ],
-      "action": "Disable",
-      "sources": ["Sophia-Script"],
-      "rollback": {
-        "action": "Enable",
-        "note": "Mac dinh: Enable"
-      }
+      ]
+    },
+    {
+      "id": "remove-edge",
+      "name": "Xoa Microsoft Edge",
+      "description": "Go bo trinh duyet Microsoft Edge",
+      "category": "debloat",
+      "level": "dangerous",
+      "reboot_required": true,
+      "type": "invoke_script",
+      "script": [
+        "Get-AppxPackage -AllUsers *Edge* | Remove-AppxPackage",
+        "Get-AppxProvisionedPackage -Online | Where-Object DisplayName -like *Edge* | Remove-AppxProvisionedPackage -Online"
+      ]
+    },
+    {
+      "id": "classic-right-click",
+      "name": "Menu chuot phai Win10",
+      "description": "Khoi phuc menu chuot phai Windows 10 cho Win11",
+      "category": "ui",
+      "level": "balanced",
+      "reboot_required": false,
+      "type": "registry",
+      "path": "HKCU:\\Software\\Classes\\CLSID\\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}\\InprocServer32",
+      "nameReg": "",
+      "value": "",
+      "regType": "String"
+    },
+    {
+      "id": "disable-windows-update",
+      "name": "Tat Windows Update",
+      "description": "Vo hieu hoa Windows Update hoan toan",
+      "category": "updates",
+      "level": "dangerous",
+      "reboot_required": true,
+      "type": "service",
+      "serviceName": "wuauserv",
+      "startup": "Disabled"
+    },
+    {
+      "id": "disable-windows-defender",
+      "name": "Tat Windows Defender",
+      "description": "Vo hieu hoa Windows Defender hoan toan",
+      "category": "security",
+      "level": "dangerous",
+      "reboot_required": true,
+      "type": "service",
+      "serviceName": "WinDefend",
+      "startup": "Disabled"
+    },
+    {
+      "id": "enable-windows-update",
+      "name": "Bat Windows Update",
+      "description": "Kich hoat Windows Update tro lai",
+      "category": "updates",
+      "level": "balanced",
+      "reboot_required": true,
+      "type": "service",
+      "serviceName": "wuauserv",
+      "startup": "Manual"
+    },
+    {
+      "id": "enable-windows-defender",
+      "name": "Bat Windows Defender",
+      "description": "Kich hoat Windows Defender tro lai",
+      "category": "security",
+      "level": "balanced",
+      "reboot_required": true,
+      "type": "service",
+      "serviceName": "WinDefend",
+      "startup": "Automatic"
     }
-  ],
-
+  ]
 }
