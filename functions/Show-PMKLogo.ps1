@@ -3,9 +3,11 @@
 # =====================================================
 
 function Show-PMKLogo {
+    Clear-Host
+    
     Write-Host ""
     Write-Host "==================================================" -ForegroundColor Cyan
-    Write-Host "           PMK TOOLBOX v1.0                      " -ForegroundColor Cyan
+    Write-Host "           PMK TOOLBOX v2.0                      " -ForegroundColor Cyan
     Write-Host "      Toi Uu He Thong Windows                    " -ForegroundColor Cyan
     Write-Host "==================================================" -ForegroundColor Cyan
     Write-Host ""
